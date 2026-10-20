@@ -2,8 +2,12 @@
   {
     "version": "1.4.2",
     "date": "2026-10-20",
-    "titre": "Revenus : bulletins de nouveau lisibles",
+    "titre": "Nouvelle rubrique Impôts, bulletins de nouveau lisibles",
     "nouveautes": [
+      "Nouvelle rubrique Impôts : le montant à déclarer avec l'abattement des assistantes maternelles, comparé au régime classique, avec un conseil sur le plus avantageux.",
+      "Les jours de garde de chaque enfant sont proposés à partir des bulletins et de l'emploi du temps : il suffit de les vérifier et de les confirmer mois par mois.",
+      "Fiche enfant : case « abattement majoré » pour un enfant handicapé, malade ou inadapté.",
+      "À propos : explications sur l'origine des chiffres, la connexion à Pajemploi, le détail de chaque calcul et les barèmes utilisés (SMIC, déduction de 10 %).",
       "Correction : sur certains ordinateurs, la mise à jour n'avait pas installé le composant qui lit les bulletins PDF, et aucun montant n'apparaissait dans Revenus. L'application l'installe maintenant toute seule au démarrage s'il manque.",
       "Correction : la mise à jour depuis l'application s'arrêtait avec le message « Il n'existe aucun lecteur nommé C » et n'allait pas jusqu'au bout. C'est la cause du composant manquant ci-dessus.",
       "Pendant cette installation (une ou deux minutes), la rubrique Revenus l'indique au lieu de signaler des bulletins illisibles."
