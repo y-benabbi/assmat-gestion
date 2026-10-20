@@ -9,7 +9,7 @@ Start-Transcript -Path $Journal -Append | Out-Null
 
 try {
     if ($DossierProgramme) {
-        Set-Content -Path $FichierProgramme -Value $DossierProgramme -Encoding UTF8 -ErrorAction Stop
+        [IO.File]::WriteAllText($FichierProgramme, $DossierProgramme, (New-Object Text.UTF8Encoding $false))   # sans BOM
     } else {
         $DossierProgramme = Dossier-Programme
     }

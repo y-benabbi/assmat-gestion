@@ -112,6 +112,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Détection de Python : utiliser `py -0p` (liste sans installer) ; ne jamais appeler `py -3.x` (le
   gestionnaire Python récent peut proposer une installation et bloquer). Ne pas utiliser de joker + `-Recurse`
   sur `C:\` (parcours du disque entier).
+- Fichiers texte écrits par PowerShell 5.1 (`Set-Content -Encoding UTF8`) : BOM en tête. Côté Python, lire en
+  `utf-8-sig` ; côté PowerShell, écrire avec `[IO.File]::WriteAllText(..., UTF8Encoding $false)`. Un BOM dans
+  `dossier-programme.txt` cassait la mise à jour (« lecteur nommé C » introuvable, installer.ps1 jamais lancé).
 - `.bat` : texte ASCII uniquement ; une mise à jour peut réécrire le `.bat` en cours d'exécution, d'où
   `& exit /b` sur la même ligne que l'appel PowerShell.
 - Classement (paramètre `organisation`) : `client`, `client_annee`, `annee`, `annee_client`

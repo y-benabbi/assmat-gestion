@@ -5,6 +5,7 @@
     "titre": "Revenus : bulletins de nouveau lisibles",
     "nouveautes": [
       "Correction : sur certains ordinateurs, la mise à jour n'avait pas installé le composant qui lit les bulletins PDF, et aucun montant n'apparaissait dans Revenus. L'application l'installe maintenant toute seule au démarrage s'il manque.",
+      "Correction : la mise à jour depuis l'application s'arrêtait avec le message « Il n'existe aucun lecteur nommé C » et n'allait pas jusqu'au bout. C'est la cause du composant manquant ci-dessus.",
       "Pendant cette installation (une ou deux minutes), la rubrique Revenus l'indique au lieu de signaler des bulletins illisibles."
     ]
   },

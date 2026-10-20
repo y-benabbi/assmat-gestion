@@ -10,6 +10,9 @@ $ErrorActionPreference = "Stop"
 $Depot = "y-benabbi/assmat-gestion"
 $Base = Join-Path $env:LOCALAPPDATA "assmat-gestion"
 $Application = Join-Path $Base "application"
+# Fichier écrit par PowerShell 5.1 avec une marque UTF-8 invisible (BOM) : sans ce nettoyage,
+# le chemin commençait par ce caractère et la mise à jour échouait (« lecteur nommé C » introuvable).
+if ($DossierProgramme) { $DossierProgramme = $DossierProgramme.Trim().TrimStart([char]0xFEFF) }
 if (-not $DossierProgramme -and (Split-Path -Leaf $PSScriptRoot) -eq "Executables" -and
     -not $PSScriptRoot.StartsWith($Application, [StringComparison]::OrdinalIgnoreCase)) {
     $DossierProgramme = Split-Path -Parent $PSScriptRoot

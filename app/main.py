@@ -323,7 +323,7 @@ def creer_app(port, jeton):
         args =["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(AMORCE),
                 "-Relancer"]
         if FICHIER_PROGRAMME.exists():
-            args += ["-DossierProgramme", FICHIER_PROGRAMME.read_text(encoding="utf-8").strip()]
+            args += ["-DossierProgramme", FICHIER_PROGRAMME.read_text(encoding="utf-8-sig").strip()]
         subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_CONSOLE)
         paje.demander("fermer")
         threading.Timer(1.5, lambda: os._exit(0)).start()
