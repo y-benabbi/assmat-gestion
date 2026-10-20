@@ -119,6 +119,11 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   ` - Prénom` de l'enfant ; les fichiers existants qui citent le prénom sont attribués en priorité.
 - Interface : menu latéral par catégories (`data-onglet`), chaque rubrique optionnelle porte `data-module`
   (masquée si `parametres.modules[nom]` est faux). Les anciens Paramètres sont dans « Mes fonctionnalités ».
+- Revenus : le « Total encaissé » est le « Net payé en euros » de chaque bulletin (acompte compris, impôt déduit),
+  reconstitué (net + indemnités + rupture + exonération heures complémentaires - impôt) s'il manque.
+  Les heures affichées = heures normales + heures complémentaires.
+- Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
+  « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
 - `profil.json`, `contrats.json`, `revenus.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
