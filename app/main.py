@@ -12,6 +12,8 @@ from chemins import (AMORCE, BRANCHE_STABLE, DEPOT_GITHUB, DIAGNOSTICS, DOSSIER_
                      FICHIER_PROGRAMME, JOURNAUX, PORT, version_locale)
 
 ADRESSE = f"http://127.0.0.1:{PORT}/"
+# Passe à vrai dès qu'une page de l'application interroge le serveur.
+PAGE_OUVERTE = threading.Event()
 
 
 def deja_lance():
@@ -48,6 +50,7 @@ def creer_app():
 
     @app.get("/api/etat")
     def etat():
+        PAGE_OUVERTE.set()
         return jsonify(paje.lire_etat())
 
     @app.get("/api/parametres")
@@ -138,13 +141,25 @@ def creer_app():
         return jsonify({"locale": locale, "distante": distante,
                         "mise_a_jour": bool(a and b and b > a and AMORCE.exists())})
 
+    @app.get("/api/notes-distantes")
+    def notes_distantes():
+        """Notes de la version stable publiée (pour présenter une mise à jour disponible)."""
+        url = f"https://raw.githubusercontent.com/{DEPOT_GITHUB}/{BRANCHE_STABLE}/app/web/notes-versions.json"
+        try:
+            with urllib.request.urlopen(url, timeout=5) as r:
+                return app.response_class(r.read(), mimetype="application/json")
+        except Exception:
+            return jsonify([])
+
     @app.post("/api/mettre-a-jour")
     def mettre_a_jour():
         import subprocess
 
         if not AMORCE.exists():
             return jsonify({"erreur": "Programme de mise à jour introuvable."}), 404
-        args = ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(AMORCE),
+        if paje.occupe():
+            return jsonify({"erreur": "Une opération Pajemploi est en cours : attendez qu'elle se termine."}), 409
+        args =["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(AMORCE),
                 "-Relancer"]
         if FICHIER_PROGRAMME.exists():
             args += ["-DossierProgramme", FICHIER_PROGRAMME.read_text(encoding="utf-8").strip()]
@@ -167,7 +182,10 @@ def main():
         webbrowser.open(ADRESSE)
         return
     app = creer_app()
-    if "--sans-navigateur" not in sys.argv:
+    if "--apres-mise-a-jour" in sys.argv:
+        # La page restée ouverte se recharge seule ; on n'ouvre un onglet que si elle a été fermée.
+        threading.Timer(15, lambda: PAGE_OUVERTE.is_set() or webbrowser.open(ADRESSE)).start()
+    elif "--sans-navigateur" not in sys.argv:
         threading.Timer(1.2, lambda: webbrowser.open(ADRESSE)).start()
     app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=False, threaded=True)
 

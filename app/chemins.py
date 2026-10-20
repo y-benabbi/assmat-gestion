@@ -31,7 +31,7 @@ DIAGNOSTICS = JOURNAUX / "diagnostics"
 AMORCE = RACINE_CODE / "distribution" / "Executables" / "amorce.ps1"
 FICHIER_PROGRAMME = BASE / "dossier-programme.txt"
 
-PORT = 8765
+PORT = int(os.environ.get("ASSMAT_PORT") or 8765)   # autre port possible pour les tests
 
 for d in (DOSSIER_DONNEES, JOURNAUX, DIAGNOSTICS):
     d.mkdir(parents=True, exist_ok=True)

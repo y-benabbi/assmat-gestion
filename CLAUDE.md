@@ -42,7 +42,9 @@ dans OneDrive : l'installation de Chromium y échoue.
 ## Branches et publication
 
 - `main` : développement. `stable` : version téléchargée par l'installateur et la mise à jour.
-- Publier : augmenter `VERSION`, committer sur `main`, puis
+- Publier : augmenter `VERSION`, ajouter en tête de `app/web/notes-versions.json` une entrée (version, date,
+  titre, nouveautés rédigées pour l'utilisatrice, sans jargon) — elle s'affiche dans « À propos » et dans
+  l'annonce de mise à jour —, committer sur `main`, puis
   `git checkout stable && git merge --ff-only main && git push && git checkout main`.
 - Ne pousser sur `stable` que si les tests passent : c'est immédiatement distribué.
 

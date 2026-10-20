@@ -59,13 +59,23 @@ try {
     if ($DossierProgramme) { $args_.DossierProgramme = $DossierProgramme }
     & (Join-Path $Application "scripts\installer.ps1") @args_
     $code = $LASTEXITCODE
-    if ($code -eq 0 -and $Relancer) {
-        Start-Process (Join-Path $Application "Lancer.bat") -WindowStyle Minimized
-    }
 } catch {
     Write-Host ""
     Write-Host "  [ERREUR] $($_.Exception.Message)" -ForegroundColor Red
     $code = 1
+}
+
+# Mise à jour lancée depuis l'application : on la rouvre dans tous les cas (la page restée
+# ouverte dans le navigateur se recharge toute seule dès que l'application répond).
+$lanceur = Join-Path $Application "Lancer.bat"
+if ($Relancer -and (Test-Path $lanceur)) {
+    Start-Process $lanceur -ArgumentList "--apres-mise-a-jour" -WindowStyle Minimized
+    if ($code -eq 0) {
+        Write-Host ""
+        Write-Host "Mise à jour terminée, l'application redémarre." -ForegroundColor Green
+        Start-Sleep -Seconds 4
+        exit 0
+    }
 }
 Write-Host ""
 Read-Host "Appuyez sur Entrée pour fermer"

@@ -1,6 +1,5 @@
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
-const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 
 async function api(chemin, donnees) {
   const r = await fetch("/api/" + chemin, donnees === undefined ? {} : {
@@ -11,19 +10,18 @@ async function api(chemin, donnees) {
   return json;
 }
 
-function libelleMois(p) {
-  const [a, m] = p.split("-");
-  return `${MOIS[+m - 1]} ${a}`;
-}
-
 // ------------------------------------------------------------- onglets
 function ouvrirOnglet(nom) {
-  $$("nav button").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
+  $$("[data-onglet]").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
   $$(".onglet").forEach((s) => s.classList.toggle("actif", s.id === nom));
+  window.scrollTo(0, 0);
   if (nom === "bulletins") afficherListe();
 }
-$$("nav button").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.onglet)));
-$$("[data-aller]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.aller)));
+$$("[data-onglet]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.onglet)));
+$$("[data-aller]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); ouvrirOnglet(b.dataset.aller); }));
+
+$("#date-du-jour").textContent = new Date().toLocaleDateString("fr-FR",
+  { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
 $$("[data-ouvrir]").forEach((b) => b.addEventListener("click", () =>
   api("ouvrir", { quoi: b.dataset.ouvrir }).catch((e) => alert(e.message))));
 
@@ -69,59 +67,112 @@ function afficherEtat() {
   $("#btn-diag-erreur").classList.toggle("cache", etat.phase !== "erreur");
 
   if (etat.bulletins.length) {
+    const familles = new Set(etat.bulletins.filter((b) => !b.present).map((b) => b.client)).size;
     $("#tuile-bulletins").textContent = manquants
-      ? `${manquants} bulletin(s) à récupérer.` : "Tous les bulletins sont à jour.";
+      ? `${manquants} bulletin${manquants > 1 ? "s" : ""} à récupérer, pour ${familles} famille${familles > 1 ? "s" : ""}.`
+      : "Tous les bulletins sont rangés.";
+    $("#tuile-bulletins").classList.toggle("a-faire", manquants > 0);
   }
   $("#journal").textContent = etat.journal.join("\n");
 }
 
 // ------------------------------------------------------------- liste
+const INITIALES_MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+
+// Un intercalaire par famille : une ligne par année, une case par mois.
+// entrees : [{periode: "AAAA-MM", present, manquant, fichier, details}]
+function intercalaire(famille, entrees, resume, aCompleter, seulementManquants) {
+  const parMois = {};
+  entrees.forEach((e) => (parMois[e.periode] ??= []).push(e));
+  let annees = [...new Set(entrees.map((e) => e.periode.slice(0, 4)))].sort().reverse();
+  if (seulementManquants) annees = annees.filter((a) => entrees.some((e) => e.manquant && e.periode.startsWith(a)));
+
+  const bloc = document.createElement("article");
+  bloc.className = "intercalaire" + (aCompleter ? " a-completer" : "");
+  bloc.innerHTML = `<div class="intercalaire-onglet"><h3>${echapper(famille)}</h3><span class="petit">${echapper(resume)}</span></div>
+    <div class="intercalaire-feuille"></div>`;
+  const feuille = bloc.querySelector(".intercalaire-feuille");
+
+  const entete = document.createElement("div");
+  entete.className = "grille-annee";
+  entete.setAttribute("aria-hidden", "true");
+  entete.innerHTML = `<span></span>` + INITIALES_MOIS.map((m) => `<span class="nom-mois">${m}</span>`).join("");
+  feuille.appendChild(entete);
+
+  annees.forEach((annee) => {
+    const ligne = document.createElement("div");
+    ligne.className = "grille-annee";
+    ligne.innerHTML = `<span class="annee">${annee}</span>`;
+    for (let m = 1; m <= 12; m++) {
+      const periode = `${annee}-${String(m).padStart(2, "0")}`;
+      const liste = parMois[periode] || [];
+      const caseMois = document.createElement("button");
+      caseMois.type = "button";
+      const manquant = liste.some((e) => e.manquant);
+      caseMois.className = "case-mois " + (!liste.length ? "vide" : manquant ? "manquant" : liste[0].local ? "local" : "present");
+      if (liste.length > 1) caseMois.innerHTML = `<span class="nombre">${liste.length}</span>`;
+      const titre = `${INITIALES_MOIS[m - 1]} ${annee}`;
+      caseMois.title = liste.length ? `${titre}\n${liste.map((e) => e.details).join("\n\n")}` : `${titre} : aucun bulletin`;
+      caseMois.setAttribute("aria-label", liste.length
+        ? `${titre} : ${manquant ? "à récupérer" : "rangé"}` : `${titre} : aucun bulletin`);
+      const fichier = liste.find((e) => e.fichier);
+      if (fichier && !manquant) {
+        caseMois.addEventListener("click", () => api("ouvrir", { quoi: fichier.fichier }).catch(() => {}));
+      } else {
+        caseMois.tabIndex = -1;
+      }
+      ligne.appendChild(caseMois);
+    }
+    feuille.appendChild(ligne);
+  });
+  return bloc;
+}
+
 async function afficherListe() {
   const zone = $("#liste");
   const seulementManquants = $("#seulement-manquants").checked;
+  zone.innerHTML = "";
+
   if (etat.bulletins.length) {
-    const parClient = {};
-    etat.bulletins.forEach((b) => (parClient[b.client] ??= []).push(b));
-    zone.innerHTML = "";
-    Object.keys(parClient).sort().forEach((client) => {
-      const liste = parClient[client];
+    const parFamille = {};
+    etat.bulletins.forEach((b) => (parFamille[b.client] ??= []).push(b));
+    Object.keys(parFamille).sort((a, b) => a.localeCompare(b, "fr")).forEach((famille) => {
+      const liste = parFamille[famille];
       const manq = liste.filter((b) => !b.present).length;
       if (seulementManquants && !manq) return;
-      const bloc = document.createElement("div");
-      bloc.className = "client";
-      bloc.innerHTML = `<h3>${echapper(client)} <span class="petit">${liste.length} bulletin(s)${manq ? ` — ${manq} manquant(s)` : " — complet"}</span></h3><div class="mois"></div>`;
-      const mois = bloc.querySelector(".mois");
-      liste.slice().reverse().forEach((b) => {
-        if (seulementManquants && b.present) return;
-        const s = document.createElement("span");
-        s.className = b.present ? "present" : "manquant";
-        const plusieurs = liste.filter((x) => x.periode === b.periode).length > 1;
-        s.textContent = libelleMois(b.periode) + (plusieurs ? ` · ${b.enfant || b.rang}` : "");
-        const detail = `Pajemploi : ${b.employeur}${b.enfant ? ` — enfant : ${b.enfant}` : ""}`;
-        s.title = b.present ? `Présent : ${b.fichier_existant}\n${detail}\n(cliquer pour ouvrir)` : `Manquant — sera enregistré ici :\n${b.cible}\n${detail}`;
-        if (b.present) s.addEventListener("click", () => api("ouvrir", { quoi: b.fichier_existant }).catch(() => {}));
-        mois.appendChild(s);
-      });
-      zone.appendChild(bloc);
+      const entrees = liste.map((b) => ({
+        periode: b.periode,
+        manquant: !b.present,
+        fichier: b.present ? b.fichier_existant : null,
+        details: (b.enfant ? `Enfant : ${b.enfant}\n` : "")
+          + (b.present ? `Rangé : ${b.fichier_existant}` : `À récupérer, sera rangé ici :\n${b.cible}`),
+      }));
+      const resume = `${liste.length} bulletin${liste.length > 1 ? "s" : ""}`
+        + (manq ? `, ${manq} à récupérer` : ", tous rangés");
+      zone.appendChild(intercalaire(famille, entrees, resume, manq > 0, seulementManquants));
     });
+    if (!zone.children.length) zone.innerHTML = `<p class="vide-classeur">Toutes les familles sont à jour.</p>`;
     return;
   }
-  // Pas encore d'analyse Pajemploi : montrer ce qu'il y a sur le disque.
+
+  // Pas encore de vérification sur Pajemploi : on montre ce qu'il y a dans le dossier.
   dossierLocal = await api("dossier").catch(() => null);
   if (!dossierLocal || !dossierLocal.configure) {
-    zone.innerHTML = `<p class="petit">Choisissez d'abord le dossier des bulletins dans l'onglet <a href="#" id="lien-param">Paramètres</a>.</p>`;
-    $("#lien-param").addEventListener("click", (e) => { e.preventDefault(); ouvrirOnglet("parametres"); });
+    zone.innerHTML = `<div class="vide-classeur"><p>Pour commencer, indiquez où ranger les bulletins de salaire.</p>
+      <button class="principal" id="lien-param">Choisir le dossier dans les paramètres</button></div>`;
+    $("#lien-param").addEventListener("click", () => ouvrirOnglet("parametres"));
     return;
   }
-  const clients = Object.entries(dossierLocal.clients);
-  zone.innerHTML = `<p class="petit">Contenu actuel du dossier (sans connexion). Cliquez sur « Vérifier sur Pajemploi » pour trouver les bulletins manquants.</p>`;
-  if (!clients.length) zone.innerHTML += `<p class="petit">Aucun bulletin trouvé dans ce dossier.</p>`;
-  clients.forEach(([client, periodes]) => {
-    const bloc = document.createElement("div");
-    bloc.className = "client";
-    bloc.innerHTML = `<h3>${echapper(client)} <span class="petit">${periodes.length} mois</span></h3><div class="mois">${
-      periodes.slice().reverse().map((p) => `<span class="local">${libelleMois(p)}</span>`).join("")}</div>`;
-    zone.appendChild(bloc);
+  const familles = Object.entries(dossierLocal.clients);
+  if (!familles.length) {
+    zone.innerHTML = `<div class="vide-classeur"><p>Le dossier ne contient encore aucun bulletin.
+      Cliquez sur « Vérifier sur Pajemploi » pour trouver ceux à récupérer.</p></div>`;
+    return;
+  }
+  zone.innerHTML = `<p class="petit">Contenu actuel du dossier. Cliquez sur « Vérifier sur Pajemploi » pour repérer les bulletins manquants.</p>`;
+  familles.forEach(([famille, periodes]) => {
+    const entrees = periodes.map((p) => ({ periode: p, local: true, manquant: false, fichier: null, details: "Présent dans le dossier" }));
+    zone.appendChild(intercalaire(famille, entrees, `${periodes.length} mois dans le dossier`, false, false));
   });
 }
 $("#seulement-manquants").addEventListener("change", afficherListe);
@@ -198,22 +249,110 @@ form.addEventListener("submit", async (e) => {
 });
 
 // ------------------------------------------------------------- mises à jour
-async function verifierVersion() {
+async function verifierVersion(manuel = false) {
+  const bouton = $("#btn-verifier-maj");
+  if (manuel) { bouton.disabled = true; bouton.textContent = "Recherche…"; }
   const v = await api("version").catch(() => null);
-  if (!v) return;
+  if (manuel) { bouton.disabled = false; bouton.textContent = "Rechercher une mise à jour"; }
+  if (!v) {
+    if (manuel) alert("Impossible de vérifier les mises à jour (connexion Internet ?).");
+    return;
+  }
   $("#version").textContent = v.locale;
+  $("#apropos-version").textContent = v.locale;
   if (v.mise_a_jour) {
     $("#texte-maj").textContent = `Une nouvelle version (${v.distante}) est disponible.`;
     $("#bandeau-maj").classList.remove("cache");
+    afficherNotesDisponibles(v.locale, v.distante);
+    if (manuel) lancerMiseAJour(v.distante);
+  } else if (manuel) {
+    alert(v.distante
+      ? `Vous avez la dernière version (${v.locale}).`
+      : "Impossible de joindre GitHub pour vérifier les mises à jour (connexion Internet ?).");
   }
 }
-$("#btn-maj").addEventListener("click", async () => {
-  if (!confirm("L'application va se fermer, se mettre à jour puis se rouvrir. Continuer ?")) return;
-  await api("mettre-a-jour", {}).catch((e) => alert(e.message));
-  document.body.innerHTML = "<main><p>Mise à jour en cours… L'application se rouvrira automatiquement.</p></main>";
-});
+
+async function lancerMiseAJour(nouvelle) {
+  if (!confirm(`Installer la version ${nouvelle || ""} ?\n\nL'application va se fermer, se mettre à jour `
+    + "puis se rouvrir toute seule (environ une minute).")) return;
+  try {
+    await api("mettre-a-jour", {});
+  } catch (e) { alert(e.message); return; }
+  clearInterval(minuterieEtat);
+  document.body.innerHTML = `<main><div class="attente-maj">
+    <h2>Mise à jour en cours…</h2>
+    <p>Une fenêtre noire affiche la progression. Cette page se rechargera automatiquement
+       dès que l'application aura redémarré.</p>
+    <p class="petit" id="suivi-maj">Arrêt de l'application…</p></div></main>`;
+  attendreRedemarrage();
+}
+
+// Attend que l'ancien serveur s'arrête puis que le nouveau réponde, et recharge la page.
+async function attendreRedemarrage() {
+  let arrete = false;
+  const debut = Date.now();
+  for (;;) {
+    await new Promise((ok) => setTimeout(ok, 2000));
+    const repond = await fetch("/api/etat", { cache: "no-store" }).then((r) => r.ok).catch(() => false);
+    const suivi = $("#suivi-maj");
+    if (!repond) {
+      arrete = true;
+      if (suivi) suivi.textContent = "Téléchargement et installation de la nouvelle version…";
+    } else if (arrete) {
+      if (suivi) suivi.textContent = "Redémarrage…";
+      location.reload();
+      return;
+    }
+    if (Date.now() - debut > 15 * 60 * 1000 && suivi) {
+      suivi.textContent = "C'est plus long que prévu. Regardez la fenêtre noire de mise à jour, "
+        + "ou relancez l'application avec son raccourci.";
+    }
+  }
+}
+
+$("#btn-maj").addEventListener("click", () => lancerMiseAJour());
+$("#btn-maj-2").addEventListener("click", () => lancerMiseAJour($("#nouvelle-version").textContent));
+$("#btn-verifier-maj").addEventListener("click", () => verifierVersion(true));
+$("#btn-verifier-maj-2").addEventListener("click", () => verifierVersion(true));
+
+// ------------------------------------------------------------- à propos
+function comparerVersions(a, b) {
+  const pa = a.split(".").map(Number), pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+  return 0;
+}
+
+function dateFr(iso) {
+  return iso ? new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "";
+}
+
+function blocNotes(n, ouvert) {
+  return `<details class="note-version" ${ouvert ? "open" : ""}>
+    <summary><span class="numero">Version ${echapper(n.version)}</span>
+      <span>${echapper(n.titre || "")}</span><span class="date">${dateFr(n.date)}</span></summary>
+    <ul>${(n.nouveautes || []).map((x) => `<li>${echapper(x)}</li>`).join("")}</ul></details>`;
+}
+
+async function afficherNotes() {
+  const notes = await fetch("/web/notes-versions.json", { cache: "no-store" }).then((r) => r.json()).catch(() => []);
+  $("#notes-versions").innerHTML = notes.length
+    ? notes.map((n, i) => blocNotes(n, i === 0)).join("")
+    : `<p class="petit">Notes de version indisponibles.</p>`;
+}
+
+// Nouveautés de la version publiée, absentes de la version installée.
+async function afficherNotesDisponibles(locale, distante) {
+  const notes = await api("notes-distantes").catch(() => []);
+  const nouvelles = (notes || []).filter((n) => comparerVersions(n.version, locale) > 0);
+  $("#nouvelle-version").textContent = distante;
+  $("#notes-disponibles").innerHTML = nouvelles.length
+    ? nouvelles.map((n) => blocNotes(n, true)).join("")
+    : `<p class="petit">Détail des nouveautés indisponible.</p>`;
+  $("#carte-nouvelle-version").classList.remove("cache");
+}
 
 chargerParametres();
+afficherNotes();
 verifierVersion();
 rafraichir();
-setInterval(rafraichir, 1500);
+const minuterieEtat = setInterval(rafraichir, 1500);

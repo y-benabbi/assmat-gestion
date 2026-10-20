@@ -1,0 +1,44 @@
+[
+  {
+    "version": "1.2.0",
+    "date": "2026-10-20",
+    "titre": "Nouvelle présentation, mises à jour en un clic",
+    "nouveautes": [
+      "Nouvelle présentation : chaque famille a son intercalaire, avec une case par mois. Vert : bulletin rangé. Jaune : bulletin à récupérer.",
+      "Cliquer sur un mois rangé ouvre le bulletin.",
+      "L'accueil indique combien de bulletins sont à récupérer, et pour combien de familles.",
+      "« Paramètres » est maintenant en haut à droite ; « Quitter l'application » est en bas de page.",
+      "Bouton « Rechercher une mise à jour » toujours disponible en bas de page.",
+      "Après une mise à jour, la page se recharge toute seule dès que l'application a redémarré.",
+      "La fenêtre de mise à jour se ferme d'elle-même quand tout s'est bien passé.",
+      "Nouvel espace « À propos » (lien en bas de page) : version installée, notes de chaque version et nouveautés de la version disponible.",
+      "La mise à jour est refusée tant qu'une opération Pajemploi est en cours."
+    ]
+  },
+  {
+    "version": "1.1.0",
+    "date": "2026-10-20",
+    "titre": "Tous les bulletins Pajemploi, toutes années confondues",
+    "nouveautes": [
+      "La liste des bulletins est demandée directement à Pajemploi, année par année : plus de limite aux 5 lignes affichées ni à l'année en cours.",
+      "Les bulletins sont téléchargés tels que Pajemploi les fournit (PDF officiel).",
+      "Plusieurs enfants d'une même famille le même mois : le prénom de l'enfant est ajouté au nom du fichier, et les fichiers existants qui le citent sont reconnus.",
+      "Nouveau mot-clé ENFANT pour le format des noms de fichiers.",
+      "En cas d'erreur, le bouton « Ouvrir le dossier des diagnostics » s'affiche à côté du message.",
+      "Les diagnostics n'enregistrent plus aucune donnée d'authentification."
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "date": "2026-10-20",
+    "titre": "Première version",
+    "nouveautes": [
+      "Application dans le navigateur : accueil, bulletins de salaire, paramètres.",
+      "Connexion automatique à Pajemploi ; un code de vérification se saisit dans l'application, toute autre vérification s'affiche dans une fenêtre du navigateur.",
+      "Mot de passe rangé dans le Gestionnaire d'identifiants de Windows.",
+      "Détection des bulletins déjà présents, même nommés à la main, et récupération des bulletins manquants.",
+      "Rangement par client et par date selon un format de nom paramétrable.",
+      "Installateur, mise à jour et vérificateur pour Windows."
+    ]
+  }
+]
