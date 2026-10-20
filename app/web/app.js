@@ -20,6 +20,7 @@ function ouvrirOnglet(nom) {
   if (nom === "bulletins") afficherListe();
   if (nom === "accueil") afficherTableauDeBord();
   if (nom === "revenus") afficherRevenus($("#annee-revenus").value);
+  if (nom === "impots") afficherImpots($("#annee-impots").value);
   if (nom === "contrats") afficherContrats();
   if (nom === "echeances") afficherEcheances();
   if (nom === "courriers") preparerCourriers();
@@ -382,6 +383,14 @@ async function afficherTableauDeBord() {
   ech.filter((e) => e.urgent).forEach((e) => aFaire.push({ couleur: "attente", texte: `${dateFr(e.date)} : ${e.titre}.`, aller: "echeances", bouton: "Voir" }));
   if (modules.contrats !== false && !contrats.length)
     aFaire.push({ couleur: "", texte: "Ajoutez une fiche par enfant accueilli (dates, emploi du temps).", aller: "contrats", bouton: "Contrats" });
+  // Saison de la déclaration de revenus (janvier à juin) : rappeler les jours de garde à confirmer.
+  if (modules.impots !== false && new Date().getMonth() < 6) {
+    const imp = await chargerImpots();
+    if (imp && imp.familles.length)
+      aFaire.push({ couleur: imp.a_confirmer ? "attente" : "", aller: "impots", bouton: "Impôts",
+        texte: imp.a_confirmer ? `Déclaration des revenus ${imp.annee} : ${imp.a_confirmer} mois de garde à confirmer.`
+          : `Déclaration des revenus ${imp.annee} : montant à déclarer prêt (${euros(imp.total[imp.total.meilleur])}).` });
+  }
   if (!profil.nom || !profil.agrement_numero)
     aFaire.push({ couleur: "", texte: "Complétez votre profil (identité, agrément) pour les courriers et les échéances.", aller: "profil", bouton: "Mon profil" });
   $("#liste-a-faire").innerHTML = aFaire.length
@@ -433,6 +442,145 @@ async function afficherRevenus(annee) {
     ? `Montants non lus pour : ${r.illisibles.map((f) => f.split(/[\\/]/).pop()).join(", ")}.` : "";
 }
 $("#annee-revenus").addEventListener("change", (e) => afficherRevenus(e.target.value));
+
+// ------------------------------------------------------------- impôts
+const MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+  "novembre", "décembre"];
+const nombre = (v) => (v || 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+const CHAMPS_JOURS = [
+  ["jours_8h", "Jours ≥ 8 h", 1], ["jours_courts", "Jours < 8 h", 1],
+  ["heures_courtes", "Heures (jours < 8 h)", 0.25], ["jours_24h", "Gardes 24 h", 1],
+];
+let anneeImpots = "";
+const ouverts = new Set();      // fiches enfants dépliées, gardées d'un affichage à l'autre
+const SOURCES = { "bulletin": "Bulletin", "emploi du temps": "Emploi du temps",
+  "bulletin, limité à l'emploi du temps": "Bulletin (limité)" };
+
+async function chargerImpots(annee) {
+  return api("impots" + (annee ? `?annee=${annee}` : "")).catch(() => null);
+}
+
+function conseilImpots(t) {
+  const choix = parametresActuels.regime_impots || "specifique";
+  const meilleur = t.meilleur === "specifique" ? "le régime spécifique des assistantes maternelles" : "le régime classique";
+  let texte = `<h2>Notre conseil</h2><p><strong>Cette année, ${meilleur} est le plus avantageux</strong> :
+    ${euros(t.ecart)} de moins à déclarer qu'avec l'autre régime.</p>`;
+  if (choix !== "comparer" && choix !== t.meilleur)
+    texte += `<p class="petit">Vous avez choisi le régime ${choix === "specifique" ? "spécifique" : "classique"} dans
+      « Mes fonctionnalités » : il vous ferait déclarer ${euros(t.ecart)} de plus.</p>`;
+  texte += t.meilleur === "specifique"
+    ? `<p class="petit">Comment déclarer : sur la déclaration en ligne, remplacez le montant des salaires déjà rempli
+        (case 1AJ, ou 1BJ pour le second déclarant) par <strong>${euros(t.specifique)}</strong>. Ne cochez pas les frais
+        réels. Gardez le détail du calcul ci-dessous : il peut vous être demandé.</p>`
+    : `<p class="petit">Comment déclarer : gardez le montant des salaires déjà rempli par les impôts
+        (environ ${euros(t.net_imposable)}, net imposable des bulletins). La déduction de 10 % est appliquée
+        automatiquement.</p>`;
+  return texte + `<p class="petit">Ces montants sont une aide au calcul : en cas de doute, le centre des impôts fait foi.</p>`;
+}
+
+function ligneJours(e, m) {
+  const j = m.jours;
+  const bulletin = [m.jours_bulletin ? `${nombre(m.jours_bulletin)} j` : "", m.heures_bulletin ? heures(m.heures_bulletin) : ""]
+    .filter(Boolean).join(" · ") || "—";
+  return `<tr data-contrat="${e.id}" data-mois="${m.mois}">
+    <th scope="row">${MOIS_LONGS[+m.mois - 1]}</th><td>${bulletin}</td>
+    ${CHAMPS_JOURS.map(([cle, libelle, pas]) => `<td><input type="number" min="0" step="${pas}" class="champ-jours"
+      name="${cle}" value="${j[cle] || 0}" aria-label="${libelle}, ${MOIS_LONGS[+m.mois - 1]}"></td>`).join("")}
+    <td title="SMIC horaire du mois : ${euros(m.smic, 2)}">${euros(m.abattement, 2)}</td>
+    <td class="origine-jours">${m.confirme
+      ? `<span class="etat-jours ok">Confirmé</span><button class="lien" data-annuler title="Revenir aux jours proposés">Annuler</button>`
+      : `<span class="etat-jours" title="Proposé d'après : ${echapper(m.proposition.source)}">${echapper(SOURCES[m.proposition.source] || "Proposé")}</span>
+         <button class="secondaire" data-confirmer>Confirmer</button>`}</td></tr>`;
+}
+
+function blocEnfant(f, e) {
+  return `<details class="panneau enfant-impots" data-enfant="${e.id}" ${ouverts.has(e.id) ? "open" : ""}>
+    <summary class="titre-panneau"><h3>${echapper(e.prenom)} <span class="petit">· famille ${echapper(f.famille)}</span></h3>
+      <span>${e.a_confirmer ? `<span class="etat-jours">${e.a_confirmer} mois à confirmer</span>` : `<span class="etat-jours ok">Confirmé</span>`}
+      Abattement : <strong>${euros(e.abattement, 2)}</strong></span></summary>
+    <p class="petit">${e.majore ? "Abattement majoré (4 SMIC par jour de 8 h)" : "3 SMIC horaires par jour de 8 heures ou plus"},
+      SMIC horaire du mois de garde (${[...new Set(e.mois.map((m) => euros(m.smic, 2)))].join(", puis ")}).
+      ${e.a_confirmer ? `${e.a_confirmer} mois à confirmer.` : "Tous les mois sont confirmés."}</p>
+    <div class="defilement"><table class="tableau tableau-jours"><thead><tr><th>Mois</th><th>Bulletin</th>
+      ${CHAMPS_JOURS.map(([, libelle]) => `<th>${libelle}</th>`).join("")}<th>Abattement</th><th>Origine des jours</th></tr></thead>
+      <tbody>${e.mois.map((m) => ligneJours(e, m)).join("")}</tbody></table></div>
+    ${e.a_confirmer ? `<p class="actions"><button class="principal" data-tout-confirmer="${e.id}">Confirmer tous les mois de ${echapper(e.prenom)}</button></p>` : ""}
+  </details>`;
+}
+
+function valeursLigne(tr) {
+  return Object.fromEntries(CHAMPS_JOURS.map(([cle]) => [cle, tr.querySelector(`[name="${cle}"]`).value || "0"]));
+}
+
+async function enregistrerJours(lignes, annuler = false) {
+  try {
+    for (const tr of lignes)
+      await api("impots/jours", { annee: anneeImpots, contrat_id: tr.dataset.contrat, mois: tr.dataset.mois,
+        valeurs: annuler ? null : valeursLigne(tr) });
+  } catch (e) { alert(e.message); }
+  afficherImpots(anneeImpots);
+}
+
+async function afficherImpots(annee) {
+  const r = await chargerImpots(annee);
+  if (!r) return;
+  anneeImpots = r.annee;
+  $("#annee-impots").innerHTML = r.annees.map((a) => `<option ${a === r.annee ? "selected" : ""}>${a}</option>`).join("");
+  const t = r.total;
+  const alertes = [];
+  if (r.a_confirmer)
+    alertes.push(`${r.a_confirmer} mois de garde à vérifier et confirmer plus bas : en attendant, les jours proposés sont utilisés.`);
+  if (r.sans_fiche.length)
+    alertes.push(`Sans fiche enfant, l'abattement n'est pas calculé pour : ${r.sans_fiche.map(echapper).join(", ")}.
+      <button class="lien" data-aller-vers="contrats">Ajouter une fiche</button>`);
+  if (!r.bareme_deduction_connu)
+    alertes.push(`Le barème de la déduction de 10 % pour ${r.annee} n'est pas encore publié : celui de l'année précédente est utilisé.`);
+  $("#alertes-impots").innerHTML = alertes.map((a) => `<p class="panneau alerte">${a}</p>`).join("");
+
+  if (!r.familles.length) {
+    $("#chiffres-impots").innerHTML = $("#tableau-impots").innerHTML = $("#jours-impots").innerHTML = "";
+    $("#conseil-impots").innerHTML = `<p class="petit">Aucun bulletin pour ${r.annee}. Les montants apparaîtront dès que
+      des bulletins seront rangés dans le dossier choisi dans « Mes fonctionnalités ».</p>`;
+    return;
+  }
+  $("#chiffres-impots").innerHTML = `
+    <div class="chiffre"><span class="libelle-chiffre">Revenus</span><span class="valeur">${euros(t.revenus)}</span><span class="detail">net imposable + indemnités</span></div>
+    <div class="chiffre"><span class="libelle-chiffre">Abattement</span><span class="valeur">${euros(t.abattement)}</span><span class="detail">selon les jours de garde</span></div>
+    <div class="chiffre ${t.meilleur === "specifique" ? "total" : ""}"><span class="libelle-chiffre">Régime spécifique</span><span class="valeur">${euros(t.specifique)}</span><span class="detail">à déclarer</span></div>
+    <div class="chiffre ${t.meilleur === "classique" ? "total" : ""}"><span class="libelle-chiffre">Régime classique</span><span class="valeur">${euros(t.classique)}</span><span class="detail">net imposable − ${euros(t.deduction_10)}</span></div>`;
+  $("#conseil-impots").innerHTML = conseilImpots(t);
+
+  const ligne = (nom, f) => `<tr><td>${nom}</td><td>${euros(f.net_imposable, 2)}</td><td>${euros(f.indemnites, 2)}</td>
+    <td>${euros(f.revenus, 2)}</td><td>${euros(f.abattement, 2)}</td><td><strong>${euros(f.imposable ?? f.specifique, 2)}</strong></td></tr>`;
+  $("#tableau-impots").innerHTML = `<thead><tr><th>Famille</th><th>Net imposable</th><th>Indemnités</th><th>Revenus</th>
+      <th>Abattement</th><th>À déclarer</th></tr></thead>
+    <tbody>${r.familles.map((f) => ligne(`<strong>${echapper(f.famille)}</strong>${f.sans_fiche ? ` <span class="petit">(sans fiche)</span>` : ""}`, f)).join("")}</tbody>
+    <tfoot>${ligne("Total", t)}</tfoot>`;
+
+  const blocs = r.familles.flatMap((f) => f.enfants.filter((e) => e.mois.length).map((e) => blocEnfant(f, e)));
+  $("#jours-impots").innerHTML = blocs.join("") || `<p class="petit">Aucune fiche enfant ne correspond aux familles des bulletins.</p>`;
+  $$("#impots [data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
+  $$("#jours-impots details").forEach((d) => d.addEventListener("toggle", () =>
+    d.open ? ouverts.add(d.dataset.enfant) : ouverts.delete(d.dataset.enfant)));
+  // Un mois déjà confirmé est enregistré dès qu'on change un de ses chiffres.
+  $$("#jours-impots tr:has([data-annuler]) .champ-jours").forEach((c) => c.addEventListener("change", () => enregistrerJours([c.closest("tr")])));
+  $$("#jours-impots [data-confirmer]").forEach((b) => b.addEventListener("click", () => enregistrerJours([b.closest("tr")])));
+  $$("#jours-impots [data-annuler]").forEach((b) => b.addEventListener("click", () => enregistrerJours([b.closest("tr")], true)));
+  $$("#jours-impots [data-tout-confirmer]").forEach((b) => b.addEventListener("click", () =>
+    enregistrerJours($$(`#jours-impots tr[data-contrat="${b.dataset.toutConfirmer}"]`)
+      .filter((tr) => !tr.querySelector("[data-annuler]")))));
+}
+$("#annee-impots").addEventListener("change", (e) => afficherImpots(e.target.value));
+
+// Barèmes affichés dans « À propos ».
+async function afficherBaremes() {
+  const b = await api("bareme").catch(() => null);
+  if (!b) return;
+  $("#bareme-smic").innerHTML = `<thead><tr><th>Depuis le</th><th>Montant</th></tr></thead>
+    <tbody>${[...b.smic].reverse().map((s) => `<tr><td>${dateFr(s.depuis)}</td><td>${euros(s.montant, 2)}</td></tr>`).join("")}</tbody>`;
+  $("#bareme-deduction").innerHTML = `<thead><tr><th>Revenus de</th><th>Minimum</th><th>Maximum</th></tr></thead>
+    <tbody>${[...b.deduction_10].reverse().map((d) => `<tr><td>${d.annee}</td><td>${euros(d.minimum)}</td><td>${euros(d.maximum)}</td></tr>`).join("")}</tbody>`;
+}
 
 // ------------------------------------------------------------- échéances
 function ligneEcheance(e) {
@@ -724,6 +872,7 @@ async function afficherNotesDisponibles(locale, distante) {
 
 chargerParametres().then(afficherTableauDeBord);
 afficherNotes();
+afficherBaremes();
 verifierVersion();
 rafraichir();
 const minuterieEtat = setInterval(rafraichir, 1500);

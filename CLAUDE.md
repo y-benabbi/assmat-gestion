@@ -24,6 +24,8 @@ app/                 code Python (lancé par app/main.py)
   parametres.py      paramètres JSON (dont rubriques affichées « modules ») + mot de passe via keyring
   donnees.py         profil (champs globaux des courriers), fiches contrats, échéances (JSON dans donnees\)
   revenus.py         lecture des montants des bulletins PDF (pypdf, cache donnees\revenus.json), totaux
+  impots.py          déclaration de revenus : barèmes SMIC / déduction 10 %, jours de garde proposés puis
+                     confirmés (donnees\impots.json), abattement, comparaison régime spécifique / classique
   courriers.py       demande de dérogation : texte proposé, page imprimable, PDF via Chromium sans fenêtre
   chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
   web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
@@ -62,6 +64,7 @@ py -m venv .venv
 .venv\Scripts\python tests\test_extraction.py        # repli : lecture de pages imitant Pajemploi
 .venv\Scripts\python tests\test_page_connexion.py    # vraie page de connexion Pajemploi, sans se connecter
 .venv\Scripts\python tests\test_revenus.py         # montants lus dans des bulletins PDF fictifs, totaux
+.venv\Scripts\python tests\test_impots.py          # abattement, jours proposés/confirmés, régimes (fictif)
 .venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
@@ -124,7 +127,16 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   Les heures affichées = heures normales + heures complémentaires.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `contrats.json`, `revenus.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `contrats.json`, `revenus.json`, `impots.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
+- Impôts (`impots.py`) : `SMIC_HORAIRE` (daté, SMIC du mois de garde) et `DEDUCTION_10` (minimum/maximum par
+  année de revenus, repli sur la dernière connue) sont à **compléter chaque année** ; ils s'affichent dans
+  « À propos > Barèmes utilisés » (`/api/bareme`). Abattement par enfant : 3 SMIC par jour ≥ 8 h (4 si
+  `abattement_majore` = « oui » dans la fiche), 3 SMIC ÷ 8 × heures pour un jour plus court, + 1 SMIC par garde
+  de 24 h ; revenu à déclarer par famille = net imposable + entretien + repas − abattement, jamais négatif.
+  Jours proposés : jours d'activité du bulletin si la famille n'a qu'un enfant (plafonnés par l'emploi du
+  temps : ils incluent les congés payés en année complète), sinon emploi du temps × semaines ÷ 52.
+- « À propos > Comment fonctionne l'application » explique d'où viennent les chiffres, la connexion à Pajemploi
+  et chaque calcul : le tenir à jour quand un calcul ou une source change.

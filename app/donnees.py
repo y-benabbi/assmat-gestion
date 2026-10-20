@@ -50,6 +50,7 @@ CHAMPS_CONTRAT = {
     "semaines": "52",              # « 52 » ou nombre de semaines programmées (46 ou moins)
     "tarif_horaire": "",
     "entretien_jour": "",
+    "abattement_majore": "",       # « oui » : enfant handicapé, malade ou inadapté (impôts : 4 × SMIC)
     "accueil": "journee",          # journee ou periscolaire
     # Emploi du temps type : {"lundi": "8h00-17h30", …}, en période scolaire et en vacances
     "horaires_scolaire": {},
@@ -177,7 +178,7 @@ def echeances(jour: date, horizon_jours: int = 400) -> list:
     actifs = [c for c in contrats() if actif(c, jour)]
     for annee in (jour.year, jour.year + 1):
         ajouter(date(annee, 4, 15), "Déclaration de revenus",
-                "Période habituelle d'avril à juin : le tableau de bord donne les totaux de l'année.")
+                "Période habituelle d'avril à juin : la rubrique Impôts calcule le montant à déclarer.")
         incomplets = sorted({c["famille"] for c in actifs if (c.get("semaines") or "52").strip() not in ("", "52")})
         if incomplets:
             ajouter(date(annee, 6, 1), "Congés payés à verser en juin",

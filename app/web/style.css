@@ -421,3 +421,29 @@ fieldset { scroll-margin-top: 16px; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .case-mois.manquant { transform: none; }
 }
+
+/* Impôts */
+.conseil { background: var(--eucalyptus-clair); }
+.conseil p { margin: 0 0 8px; }
+.titre-bloc-seul { font-size: 1.3rem; margin: 28px 0 6px; }
+.titre-panneau { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.titre-panneau h3 { margin: 0; font: 600 1.2rem/1.2 var(--titre); }
+.tableau-jours { min-width: 760px; }
+.tableau-jours th { white-space: normal; }
+.tableau-jours th[scope=row] { text-align: left; color: var(--encre); font-weight: 700; }
+.champ-jours { width: 4.2em; min-width: 4.2em; margin: 0; padding: 6px 8px; text-align: right; font-size: 0.95rem; }
+.etat-jours { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--sable, #f3ead7); font-size: 0.8rem; font-weight: 700; }
+.etat-jours.ok { background: var(--menthe); color: var(--menthe-encre); }
+.tableau-jours td { padding: 6px 8px; }
+.enfant-impots summary { cursor: pointer; list-style: none; }
+.enfant-impots summary::-webkit-details-marker { display: none; }
+.enfant-impots summary h3::before { content: "▸ "; color: var(--encre-douce); }
+.enfant-impots[open] summary h3::before { content: "▾ "; }
+.enfant-impots[open] summary { margin-bottom: 8px; }
+.enfant-impots .etat-jours { margin-right: 8px; }
+.origine-jours { white-space: nowrap; }
+.origine-jours button { font-size: 0.85rem; margin-left: 8px; padding: 6px 12px; }
+.origine-jours { text-align: left !important; }
+.tableau-jours td { vertical-align: middle; }
+.petit-tableau { min-width: 0; }
+.petit-tableau td { padding: 6px 10px; }
