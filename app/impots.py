@@ -88,8 +88,6 @@ def proposition_mois(contrat: dict, annee: int, mois: int, jours_bulletin, enfan
     - Répartition entre journées de 8 heures ou plus et journées plus courtes : d'après
       l'emploi du temps de la fiche.
     """
-    horaires = contrat.get("horaires_scolaire") or {}
-    durees = {j: duree(horaires.get(j, "")) for j in donnees.JOURS}
     premier, dernier = date(annee, mois, 1), date(annee, mois, calendar.monthrange(annee, mois)[1])
     debut = date.fromisoformat(contrat["debut"]) if contrat.get("debut") else premier
     fin = date.fromisoformat(contrat["fin"]) if contrat.get("fin") else dernier
@@ -97,7 +95,9 @@ def proposition_mois(contrat: dict, annee: int, mois: int, jours_bulletin, enfan
     heures_courtes = 0.0
     for n in range(1, dernier.day + 1):
         d = date(annee, mois, n)
-        h = durees[donnees.JOURS[d.weekday()]]
+        # Emploi du temps en vigueur ce jour-là (un avenant peut le changer en cours de mois).
+        horaires = donnees.en_vigueur(contrat, d).get("horaires_scolaire") or {}
+        h = duree(horaires.get(donnees.JOURS[d.weekday()], ""))
         if not h or not (debut <= d <= fin):
             continue
         if h >= 8:
@@ -107,7 +107,7 @@ def proposition_mois(contrat: dict, annee: int, mois: int, jours_bulletin, enfan
             heures_courtes += h
     prevus = longs + courts
     try:
-        semaines = min(int(contrat.get("semaines") or 52), 52)
+        semaines = min(int(donnees.en_vigueur(contrat, date(annee, mois, 15)).get("semaines") or 52), 52)
     except ValueError:
         semaines = 52
     if jours_bulletin and enfants_famille == 1:

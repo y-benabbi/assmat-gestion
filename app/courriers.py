@@ -143,8 +143,8 @@ def proposer_derogation(demande: dict) -> dict:
                motif, date_courrier (AAAA-MM-JJ, défaut : aujourd'hui), periodes (facultatif)}
     """
     profil = donnees.profil()
-    contrats = donnees.contrats()
     jour = date.fromisoformat(demande.get("date_courrier") or date.today().isoformat())
+    contrats = donnees.contrats(jour)        # horaires en vigueur à la date du courrier (avenants)
     enfant = next((c for c in contrats if c.get("id") == demande.get("contrat_id")), None)
     manquants = champs_manquants(profil, REQUIS_DEROGATION)
     if not enfant:

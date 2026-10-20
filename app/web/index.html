@@ -221,21 +221,48 @@
       <fieldset>
         <legend id="titre-form-contrat">Nouvel enfant</legend>
         <div class="grille-champs">
-          <label>Prénom de l'enfant <input name="enfant_prenom" required></label>
-          <label>Nom de l'enfant <input name="enfant_nom"></label>
+          <label>Prénom de l'enfant <input name="enfant_prenom" required list="liste-prenoms" autocomplete="off"></label>
+          <label>Nom de l'enfant <input name="enfant_nom" list="liste-noms" autocomplete="off"></label>
           <label>Date de naissance <input name="enfant_naissance" type="date"></label>
           <label>L'enfant est
             <select name="enfant_genre"><option value="">—</option><option value="fille">une fille</option><option value="garcon">un garçon</option></select>
           </label>
-          <label>Famille (nom du dossier des bulletins) <input name="famille" required></label>
-          <label>Parents <input name="parents" placeholder="M. et Mme Dupont"></label>
+          <label>Famille (nom du dossier des bulletins) <input name="famille" required list="liste-familles" autocomplete="off"></label>
+          <label>Parents <input name="parents" placeholder="M. et Mme Dupont" list="liste-parents" autocomplete="off"></label>
         </div>
+        <p class="petit" id="aide-famille">Les familles, parents et prénoms déjà connus (bulletins, Pajemploi, autres fiches)
+          sont proposés pendant la saisie.</p>
+        <datalist id="liste-familles"></datalist><datalist id="liste-parents"></datalist>
+        <datalist id="liste-prenoms"></datalist><datalist id="liste-noms"></datalist>
       </fieldset>
       <fieldset>
         <legend>Contrat</legend>
         <div class="grille-champs">
           <label>Début de l'accueil <input name="debut" type="date"></label>
           <label>Fin du contrat (si connue) <input name="fin" type="date"></label>
+          <label>Abattement fiscal majoré
+            <select name="abattement_majore"><option value="">Non</option>
+              <option value="oui">Oui : enfant handicapé, malade ou inadapté</option></select>
+          </label>
+        </div>
+      </fieldset>
+      <fieldset id="conditions-contrat">
+        <legend>Conditions et avenants</legend>
+        <p class="petit">Un avenant change les conditions à partir d'une date (horaires, tarif…) : le contrat initial
+          reste enregistré, et chaque calcul utilise les conditions en vigueur à la date concernée.</p>
+        <div class="versions" id="versions-contrat" role="tablist"></div>
+        <div id="entete-avenant" class="cache">
+          <div class="grille-champs">
+            <label>Date d'effet de l'avenant <input type="date" id="avenant-date"></label>
+            <label>Objet de l'avenant <input id="avenant-motif" list="liste-motifs" autocomplete="off"
+              placeholder="Changement d'horaires"></label>
+          </div>
+          <datalist id="liste-motifs"><option value="Changement d'horaires"><option value="Augmentation du tarif horaire">
+            <option value="Changement du nombre de semaines d'accueil"><option value="Passage en accueil périscolaire">
+            <option value="Changement de l'indemnité d'entretien"></datalist>
+          <p class="petit" id="changements-avenant"></p>
+        </div>
+        <div class="grille-champs">
           <label>Semaines d'accueil par an
             <select name="semaines"><option value="52">52 semaines (année complète)</option>
               <option value="46">46 semaines ou moins</option></select>
@@ -243,21 +270,21 @@
           <label>Type d'accueil
             <select name="accueil"><option value="journee">En journée</option><option value="periscolaire">Périscolaire</option></select>
           </label>
-          <label>Tarif horaire brut (€) <input name="tarif_horaire" inputmode="decimal"></label>
-          <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" inputmode="decimal"></label>
-          <label>Abattement fiscal majoré
-            <select name="abattement_majore"><option value="">Non</option>
-              <option value="oui">Oui : enfant handicapé, malade ou inadapté</option></select>
-          </label>
+          <label>Tarif horaire brut (€) <input name="tarif_horaire" inputmode="decimal" list="liste-tarifs" autocomplete="off"></label>
+          <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" inputmode="decimal" list="liste-entretiens" autocomplete="off"></label>
         </div>
-      </fieldset>
-      <fieldset>
-        <legend>Emploi du temps type</legend>
-        <p class="petit">Exemple : 8h00-17h30. Laissez vide les jours sans accueil.</p>
+        <datalist id="liste-tarifs"></datalist><datalist id="liste-entretiens"></datalist>
+        <h3 class="sous-titre">Emploi du temps type</h3>
+        <p class="petit">Heure d'arrivée et heure de départ, jour par jour. « + Coupure » ajoute une deuxième plage
+          (par exemple le matin avant l'école et le soir). Laissez vide les jours sans accueil.</p>
         <label class="case-a-cocher"><input type="checkbox" id="vacances-differentes">
           Horaires différents pendant les vacances scolaires</label>
         <div class="defilement">
           <table class="tableau horaires" id="horaires-contrat"></table>
+        </div>
+        <div class="resume-horaires" id="resume-horaires" aria-live="polite"></div>
+        <div class="boutons cache" id="boutons-avenant">
+          <button type="button" class="secondaire danger" id="supprimer-avenant">Supprimer cet avenant</button>
         </div>
       </fieldset>
       <fieldset>
@@ -555,6 +582,9 @@
             été récupéré par l'application ou ajouté à la main.</li>
           <li><strong>Pajemploi</strong> n'est consulté que lorsque vous cliquez sur « Vérifier sur Pajemploi » ou
             « Récupérer les bulletins manquants ».</li>
+          <li><strong>Propositions pendant la saisie</strong> (familles, parents, prénoms) : noms des dossiers de
+            bulletins, nom de l'employeur écrit sur chaque bulletin (« Référence employeur »), prénoms des enfants
+            donnés par Pajemploi lors de la dernière vérification, et ce que contiennent déjà vos autres fiches.</li>
           <li><strong>Profil, contrats, jours de garde confirmés</strong> : ce que vous avez saisi vous-même. Tout reste
             sur cet ordinateur (dossier de l'application), rien n'est envoyé ailleurs.</li>
           <li><strong>Vacances scolaires</strong> (courriers) : calendrier officiel publié par l'Éducation nationale,
@@ -594,6 +624,15 @@
             impôt, ou à défaut net + indemnités + indemnité de rupture + exonération des heures complémentaires − impôt.</li>
           <li>Totaux par mois, par famille et par année : sommes des bulletins correspondants. Part du brut d'une famille
             = brut de la famille ÷ brut total.</li>
+        </ul>
+        <h3 class="sous-titre">Fiches enfants</h3>
+        <ul>
+          <li>Heures par semaine = somme, jour par jour, des plages saisies (départ − arrivée ; avec une coupure,
+            les deux plages sont additionnées).</li>
+          <li>Heures mensualisées (année complète, mêmes horaires toute l'année) = heures par semaine × 52 ÷ 12.</li>
+          <li>Avenants : à partir de sa date d'effet, un avenant remplace les conditions précédentes (semaines,
+            type d'accueil, tarif, indemnité d'entretien, emploi du temps). Les échéances, les courriers et les jours
+            de garde des impôts utilisent les conditions en vigueur à la date concernée.</li>
         </ul>
         <h3 class="sous-titre">Impôts</h3>
         <ul>

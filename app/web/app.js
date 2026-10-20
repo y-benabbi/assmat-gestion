@@ -600,21 +600,226 @@ async function afficherEcheances() {
 
 // ------------------------------------------------------------- contrats
 const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+const PERIODES = { scolaire: "Période scolaire", vacances: "Vacances scolaires" };
+// Conditions qu'un avenant peut changer (même liste que donnees.MODIFIABLES).
+const MODIFIABLES = ["semaines", "accueil", "tarif_horaire", "entretien_jour", "horaires_scolaire", "horaires_vacances"];
 const formContrat = $("#form-contrat");
 let contratEdite = null;
+let versions = [];          // [conditions du contrat initial, puis un objet par avenant (id, date, motif…)]
+let versionActive = 0;
+let suggestions = { familles: [], champs: {} };
 
-// Une ligne par jour ; la colonne « vacances » n'apparaît que si la case « différent » est cochée.
+// --- emploi du temps : heures d'arrivée et de départ, une deuxième plage possible (coupure)
+const plage = (periode, jour, n) => `<span class="plage" data-plage="${n}">
+  <input type="time" step="300" data-h="${periode}.${jour}.${n}.debut" aria-label="${PERIODES[periode]}, ${jour}, arrivée${n ? " (2e plage)" : ""}">
+  <span aria-hidden="true">à</span>
+  <input type="time" step="300" data-h="${periode}.${jour}.${n}.fin" aria-label="${PERIODES[periode]}, ${jour}, départ${n ? " (2e plage)" : ""}"></span>`;
+const celluleHoraires = (periode, jour) => `<td class="${periode === "vacances" ? "col-vacances" : ""}" data-titre="${PERIODES[periode]}"><div class="plages">
+  ${plage(periode, jour, 0)}${plage(periode, jour, 1)}
+  <button type="button" class="lien ajout-plage" data-coupure="${periode}.${jour}">+ Coupure</button></div></td>`;
 $("#horaires-contrat").innerHTML = `<thead><tr><th scope="col">Jour</th><th scope="col">Période scolaire</th>
   <th scope="col" class="col-vacances">Vacances scolaires</th></tr></thead>
   <tbody>${JOURS.map((j) => `<tr><th scope="row">${j.charAt(0).toUpperCase() + j.slice(1)}</th>
-    <td><input name="horaires_scolaire.${j}" aria-label="Période scolaire, ${j}" placeholder="—"></td>
-    <td class="col-vacances"><input name="horaires_vacances.${j}" aria-label="Vacances scolaires, ${j}" placeholder="—"></td></tr>`).join("")}</tbody>`;
+    ${celluleHoraires("scolaire", j)}${celluleHoraires("vacances", j)}</tr>`).join("")}</tbody>
+  <tfoot><tr><td></td>${Object.keys(PERIODES).map((p) => `<td class="${p === "vacances" ? "col-vacances" : ""}" data-titre="${PERIODES[p]}">
+    <button type="button" class="lien" data-recopier="${p}">Recopier le lundi sur mardi → vendredi</button></td>`).join("")}</tr></tfoot>`;
+
+const champH = (periode, jour, n, bout) => $(`[data-h="${periode}.${jour}.${n}.${bout}"]`);
+const minutes = (v) => { const [h, m] = v.split(":").map(Number); return h * 60 + m; };
+const versTexte = (v) => { const [h, m] = v.split(":"); return `${+h}h${m}`; };      // « 08:30 » → « 8h30 »
+
+// « 8h00-12h00 / 13h30-17h » → [["08:00", "12:00"], ["13:30", "17:00"]]
+function lirePlages(texte) {
+  const plages = [];
+  for (const m of (texte || "").matchAll(/(\d{1,2})\s*[h:]\s*(\d{2})?\s*(?:-|à|a)\s*(\d{1,2})\s*[h:]?\s*(\d{2})?/gi)) {
+    const f = (h, mn) => `${String(+h).padStart(2, "0")}:${(mn || "00").padStart(2, "0")}`;
+    plages.push([f(m[1], m[2]), f(m[3], m[4])]);
+  }
+  return plages;
+}
+
+function afficherCoupure(periode, jour, visible) {
+  const td = champH(periode, jour, 1, "debut").closest(".plages");
+  td.querySelector('[data-plage="1"]').classList.toggle("cache", !visible);
+  td.querySelector(".ajout-plage").classList.toggle("cache", visible);
+}
+
+function ecrireHoraires(periode, horaires) {
+  JOURS.forEach((j) => {
+    const plages = lirePlages(horaires?.[j]);
+    [0, 1].forEach((n) => {
+      champH(periode, j, n, "debut").value = plages[n]?.[0] || "";
+      champH(periode, j, n, "fin").value = plages[n]?.[1] || "";
+    });
+    afficherCoupure(periode, j, plages.length > 1);
+  });
+}
+
+function lireHoraires(periode) {
+  const resultat = {};
+  JOURS.forEach((j) => {
+    const plages = [0, 1].map((n) => [champH(periode, j, n, "debut").value, champH(periode, j, n, "fin").value])
+      .filter(([d, f]) => d && f);
+    if (plages.length) resultat[j] = plages.map(([d, f]) => `${versTexte(d)}-${versTexte(f)}`).join(" / ");
+  });
+  return resultat;
+}
+
+// Durée d'une journée en heures, d'après le texte enregistré (« 8h00-12h00 / 13h30-17h »).
+const dureeJour = (texte) => lirePlages(texte).reduce((t, [d, f]) => t + Math.max(0, minutes(f) - minutes(d)), 0) / 60;
+const heuresFr = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, "0")}` : ""}`; };
+
+function resumeSemaine(horaires) {
+  const jours = JOURS.filter((j) => horaires[j]);
+  if (!jours.length) return null;
+  const total = jours.reduce((t, j) => t + dureeJour(horaires[j]), 0);
+  return { jours, total, detail: jours.map((j) => `${j.slice(0, 3)}. ${heuresFr(dureeJour(horaires[j]))}`).join(", ") };
+}
+
+function afficherResume() {
+  const differentes = $("#vacances-differentes").checked;
+  const scolaire = resumeSemaine(lireHoraires("scolaire"));
+  const vacances = differentes ? resumeSemaine(lireHoraires("vacances")) : null;
+  const ligne = (titre, r) => `<p><strong>${titre} : ${heuresFr(r.total)} par semaine</strong>, sur ${r.jours.length}
+    jour${r.jours.length > 1 ? "s" : ""} <span class="petit">(${r.detail})</span></p>`;
+  let html = "";
+  if (scolaire) html += ligne(differentes ? "Période scolaire" : "Accueil", scolaire);
+  if (vacances) html += ligne("Vacances scolaires", vacances);
+  else if (differentes) html += `<p class="petit">Vacances scolaires : aucun accueil prévu.</p>`;
+  const semaines = formContrat.elements.semaines.value;
+  if (scolaire && !differentes && semaines === "52")
+    html += `<p class="petit">Année complète : ${heuresFr(scolaire.total)} × 52 semaines ÷ 12 =
+      <strong>${heuresFr((scolaire.total * 52) / 12)} par mois</strong> (heures mensualisées).</p>`;
+  $("#resume-horaires").innerHTML = html || `<p class="petit">Aucun horaire saisi pour l'instant.</p>`;
+}
+
+$("#horaires-contrat").addEventListener("input", afficherResume);
+$("#horaires-contrat").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.coupure) {
+    const [p, j] = b.dataset.coupure.split(".");
+    afficherCoupure(p, j, true);
+    champH(p, j, 1, "debut").focus();
+  }
+  if (b.dataset.recopier) {
+    const p = b.dataset.recopier;
+    ["mardi", "mercredi", "jeudi", "vendredi"].forEach((j) => {
+      [0, 1].forEach((n) => ["debut", "fin"].forEach((bout) => (champH(p, j, n, bout).value = champH(p, "lundi", n, bout).value)));
+      afficherCoupure(p, j, !!champH(p, j, 1, "debut").value);
+    });
+    afficherResume();
+  }
+});
+formContrat.elements.semaines.addEventListener("change", afficherResume);
 
 function afficherColonneVacances() {
   $("#horaires-contrat").classList.toggle("sans-vacances", !$("#vacances-differentes").checked);
+  afficherResume();
 }
 $("#vacances-differentes").addEventListener("change", afficherColonneVacances);
 
+// --- contrat initial et avenants
+const LIBELLES = { semaines: "semaines d'accueil", accueil: "type d'accueil", tarif_horaire: "tarif horaire",
+  entretien_jour: "indemnité d'entretien", horaires_scolaire: "horaires (période scolaire)", horaires_vacances: "horaires (vacances)" };
+// Les horaires sont comparés jour par jour (l'ordre des clés reçues du serveur peut varier).
+const enTexte = (v) => (v && typeof v === "object" ? JOURS.map((j) => v[j] || "").join("|") : String(v ?? ""));
+const memeValeur = (a, b) => enTexte(a) === enTexte(b);
+const conditions = (c) => Object.fromEntries(MODIFIABLES.map((k) => [k, structuredClone(c?.[k] ?? (k.startsWith("horaires") ? {} : ""))]));
+
+function enVigueur(c, jour) {
+  const avenants = (c.avenants || []).filter((a) => a.date && a.date <= jour);
+  return avenants.length ? { ...c, ...conditions(avenants[avenants.length - 1]) } : c;
+}
+
+function sauverVersion() {
+  const v = versions[versionActive];
+  if (!v) return;
+  ["semaines", "accueil", "tarif_horaire", "entretien_jour"].forEach((k) => (v[k] = formContrat.elements[k].value.trim()));
+  v.horaires_scolaire = lireHoraires("scolaire");
+  v.horaires_vacances = $("#vacances-differentes").checked ? lireHoraires("vacances") : {};
+  if (versionActive) { v.date = $("#avenant-date").value; v.motif = $("#avenant-motif").value.trim(); }
+}
+
+function chargerVersion(i) {
+  versionActive = i;
+  const v = versions[i];
+  ["semaines", "accueil", "tarif_horaire", "entretien_jour"].forEach((k) => {
+    const champ = formContrat.elements[k];
+    champ.value = v[k] || (champ.tagName === "SELECT" ? champ.options[0].value : "");
+  });
+  ecrireHoraires("scolaire", v.horaires_scolaire);
+  ecrireHoraires("vacances", v.horaires_vacances);
+  $("#vacances-differentes").checked = Object.values(v.horaires_vacances || {}).some((x) => x);
+  $("#entete-avenant").classList.toggle("cache", !i);
+  $("#boutons-avenant").classList.toggle("cache", !i);
+  if (i) {
+    $("#avenant-date").value = v.date || "";
+    $("#avenant-motif").value = v.motif || "";
+    const avant = versions[i - 1];
+    const changes = MODIFIABLES.filter((k) => !memeValeur(v[k], avant[k])).map((k) => LIBELLES[k]);
+    $("#changements-avenant").textContent = changes.length
+      ? `Ce qui change par rapport ${i > 1 ? "à l'avenant précédent" : "au contrat initial"} : ${changes.join(", ")}.`
+      : "Modifiez ci-dessous les conditions qui changent à partir de cette date.";
+  }
+  afficherOngletsVersions();
+  afficherColonneVacances();
+}
+
+function afficherOngletsVersions() {
+  const debut = formContrat.elements.debut.value;
+  $("#versions-contrat").innerHTML = versions.map((v, i) => `<button type="button" role="tab" data-version="${i}"
+      aria-selected="${i === versionActive}" class="${i === versionActive ? "actif" : ""}">
+      ${i ? `Avenant ${v.date ? `du ${dateFr(v.date)}` : "(date à choisir)"}` : `Contrat initial${debut ? ` (${dateFr(debut)})` : ""}`}</button>`).join("")
+    + `<button type="button" class="ajout" id="ajouter-avenant">+ Ajouter un avenant</button>`;
+}
+
+$("#versions-contrat").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  sauverVersion();
+  if (b.id === "ajouter-avenant") {
+    // Le nouvel avenant part des conditions les plus récentes : on ne modifie que ce qui change.
+    versions.push({ ...conditions(versions[versions.length - 1]), id: "", date: "", motif: "" });
+    chargerVersion(versions.length - 1);
+    $("#avenant-date").focus();
+  } else chargerVersion(+b.dataset.version);
+});
+$("#avenant-date").addEventListener("change", () => { sauverVersion(); afficherOngletsVersions(); });
+$("#supprimer-avenant").addEventListener("click", () => {
+  if (!confirm("Supprimer cet avenant ? Les conditions précédentes s'appliqueront de nouveau.")) return;
+  versions.splice(versionActive, 1);
+  chargerVersion(Math.min(versionActive, versions.length - 1));
+});
+
+// --- valeurs déjà connues proposées pendant la saisie
+const options = (valeurs) => [...new Set(valeurs.filter(Boolean))].map((v) => `<option value="${echapper(v)}">`).join("");
+
+function proposerSelonFamille() {
+  const nom = formContrat.elements.famille.value.trim().toLowerCase();
+  const f = suggestions.familles.find((x) => x.nom.toLowerCase() === nom);
+  const autres = suggestions.familles.flatMap((x) => x.parents);
+  $("#liste-parents").innerHTML = options([...(f?.parents || []), ...(suggestions.champs.parents || []), ...autres]);
+  $("#liste-prenoms").innerHTML = options(f?.enfants || suggestions.familles.flatMap((x) => x.enfants));
+  $("#liste-noms").innerHTML = options([f?.nom, ...(suggestions.champs.enfant_nom || []), ...suggestions.familles.map((x) => x.nom)]);
+  if (!f) return;
+  // Famille reconnue : on complète ce qui est encore vide.
+  if (!formContrat.elements.parents.value && f.parents.length === 1) formContrat.elements.parents.value = f.parents[0];
+  if (!formContrat.elements.enfant_nom.value) formContrat.elements.enfant_nom.value = f.nom;
+  if (!formContrat.elements.enfant_prenom.value && f.enfants.length === 1) formContrat.elements.enfant_prenom.value = f.enfants[0];
+}
+formContrat.elements.famille.addEventListener("change", proposerSelonFamille);
+
+async function chargerSuggestions() {
+  suggestions = await api("suggestions").catch(() => ({ familles: [], champs: {} }));
+  $("#liste-familles").innerHTML = suggestions.familles.map((f) => `<option value="${echapper(f.nom)}">${
+    echapper([f.parents[0], f.enfants.join(", ")].filter(Boolean).join(" · "))}</option>`).join("");
+  $("#liste-tarifs").innerHTML = options(suggestions.champs.tarif_horaire || []);
+  $("#liste-entretiens").innerHTML = options(suggestions.champs.entretien_jour || []);
+  proposerSelonFamille();
+}
+
+// --- liste et fiche
 async function afficherContrats() {
   const liste = await api("contrats").catch(() => []);
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -622,11 +827,15 @@ async function afficherContrats() {
   liste.forEach((c) => {
     const b = document.createElement("button");
     const termine = c.fin && c.fin < aujourdhui;
+    const v = enVigueur(c, aujourdhui);
+    const semaine = resumeSemaine(v.horaires_scolaire || {});
+    const nb = (c.avenants || []).length;
     b.className = "carte-contrat" + (termine ? " termine" : "");
-    const jours = JOURS.filter((j) => c.horaires_scolaire?.[j]).map((j) => j.slice(0, 3) + ".").join(" ");
     b.innerHTML = `<span class="nom">${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")}</span>
       <span class="petit">Famille ${echapper(c.famille)}${c.debut ? ` · depuis ${dateFr(c.debut)}` : ""}${termine ? " · terminé" : ""}</span>
-      <span class="petit">${c.semaines === "52" ? "52 semaines" : "46 semaines ou moins"} · ${c.accueil === "periscolaire" ? "périscolaire" : "journée"}${jours ? ` · ${jours}` : ""}</span>`;
+      <span class="petit">${v.semaines === "52" ? "52 semaines" : "46 semaines ou moins"} · ${v.accueil === "periscolaire" ? "périscolaire" : "journée"}${
+        semaine ? ` · ${heuresFr(semaine.total)} par semaine (${semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")})` : ""}</span>
+      ${nb ? `<span class="petit">${nb} avenant${nb > 1 ? "s" : ""}</span>` : ""}`;
     b.addEventListener("click", () => editerContrat(c));
     $("#liste-contrats").appendChild(b);
   });
@@ -637,17 +846,18 @@ function editerContrat(c) {
   contratEdite = c;
   formContrat.reset();
   for (const champ of formContrat.elements) {
-    if (!champ.name) continue;
-    const [cle, jour] = champ.name.split(".");
-    champ.value = (jour ? c?.[cle]?.[jour] : c?.[cle]) ?? (champ.tagName === "SELECT" ? champ.options[0].value : "");
+    if (!champ.name || MODIFIABLES.includes(champ.name)) continue;
+    champ.value = c?.[champ.name] ?? (champ.tagName === "SELECT" ? champ.options[0].value : "");
   }
-  $("#vacances-differentes").checked = Object.values(c?.horaires_vacances || {}).some((v) => v);
-  afficherColonneVacances();
+  versions = [conditions(c), ...(c?.avenants || []).map((a) => ({ ...conditions(a), id: a.id, date: a.date, motif: a.motif }))];
+  chargerVersion(0);
+  chargerSuggestions();
   $("#titre-form-contrat").textContent = c ? `${c.enfant_prenom} ${c.enfant_nom || ""}` : "Nouvel enfant";
   $("#supprimer-contrat").classList.toggle("cache", !c);
   formContrat.classList.remove("cache");
   formContrat.scrollIntoView({ behavior: "smooth" });
 }
+formContrat.elements.debut.addEventListener("change", afficherOngletsVersions);
 $("#nouveau-contrat").addEventListener("click", () => editerContrat(null));
 $("#annuler-contrat").addEventListener("click", () => formContrat.classList.add("cache"));
 $("#supprimer-contrat").addEventListener("click", async () => {
@@ -658,14 +868,18 @@ $("#supprimer-contrat").addEventListener("click", async () => {
 });
 formContrat.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const d = { id: contratEdite?.id, horaires_scolaire: {}, horaires_vacances: {} };
-  for (const champ of formContrat.elements) {
-    if (!champ.name) continue;
-    const [cle, jour] = champ.name.split(".");
-    if (jour) d[cle][jour] = champ.value; else d[cle] = champ.value;
+  sauverVersion();
+  const d = { id: contratEdite?.id, ...versions[0], avenants: versions.slice(1) };
+  for (const champ of formContrat.elements)
+    if (champ.name && !MODIFIABLES.includes(champ.name)) d[champ.name] = champ.value;
+  const sansDate = d.avenants.findIndex((a) => !a.date);
+  const tropTot = d.avenants.findIndex((a) => d.debut && a.date && a.date <= d.debut);
+  if (sansDate >= 0 || tropTot >= 0) {
+    chargerVersion((sansDate >= 0 ? sansDate : tropTot) + 1);
+    alert(sansDate >= 0 ? "Indiquez la date d'effet de l'avenant." : "La date d'effet de l'avenant doit être après le début de l'accueil.");
+    $("#avenant-date").focus();
+    return;
   }
-  // Case décochée : mêmes horaires qu'en période scolaire.
-  if (!$("#vacances-differentes").checked) d.horaires_vacances = {};
   await api("contrats", d).catch((err) => alert(err.message));
   formContrat.classList.add("cache");
   afficherContrats();

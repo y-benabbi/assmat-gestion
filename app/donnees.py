@@ -56,7 +56,13 @@ CHAMPS_CONTRAT = {
     "horaires_scolaire": {},
     "horaires_vacances": {},
     "notes": "",
+    # Avenants : [{"id", "date" (AAAA-MM-JJ, prise d'effet), "motif", + les champs de MODIFIABLES}], par date.
+    # Chaque avenant reprend toutes les conditions modifiables, telles qu'elles s'appliquent à partir de sa date.
+    "avenants": [],
 }
+
+# Conditions du contrat qu'un avenant peut changer.
+MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_jour", "horaires_scolaire", "horaires_vacances")
 
 _verrou = threading.Lock()
 
@@ -91,15 +97,40 @@ def _nettoyer_horaires(h) -> dict:
     return {j: str(h[j]).strip() for j in JOURS if str(h.get(j) or "").strip()}
 
 
-def contrats() -> list:
+def contrats(jour: date = None) -> list:
+    """Fiches enfants. Avec un jour : conditions en vigueur ce jour-là (dernier avenant déjà commencé)."""
     with _verrou:
         liste = _lire(FICHIER_CONTRATS, [])
-    return [CHAMPS_CONTRAT | c for c in liste if isinstance(c, dict)]
+    fiches = [CHAMPS_CONTRAT | c for c in liste if isinstance(c, dict)]
+    return [en_vigueur(c, jour) for c in fiches] if jour else fiches
+
+
+def en_vigueur(c: dict, jour: date) -> dict:
+    """Le contrat tel qu'il s'applique à ce jour : conditions du dernier avenant dont la date est passée."""
+    applicables = [a for a in c.get("avenants") or [] if a.get("date") and a["date"] <= jour.isoformat()]
+    if not applicables:
+        return c
+    dernier = max(applicables, key=lambda a: a["date"])
+    return c | {k: dernier[k] for k in MODIFIABLES if k in dernier}
+
+
+def _nettoyer_avenants(liste) -> list:
+    propres = []
+    for a in liste if isinstance(liste, list) else []:
+        if not isinstance(a, dict) or not str(a.get("date") or "").strip():
+            continue
+        propre = {"id": str(a.get("id") or secrets.token_hex(4)), "date": str(a["date"]).strip(),
+                  "motif": str(a.get("motif") or "").strip()}
+        for k in MODIFIABLES:
+            propre[k] = _nettoyer_horaires(a.get(k)) if k.startswith("horaires") else str(a.get(k) or CHAMPS_CONTRAT[k]).strip()
+        propres.append(propre)
+    return sorted(propres, key=lambda a: a["date"])
 
 
 def enregistrer_contrat(c: dict) -> dict:
     propre = {k: (_nettoyer_horaires(c.get(k)) if k.startswith("horaires") else str(c.get(k) or defaut).strip())
-              for k, defaut in CHAMPS_CONTRAT.items()}
+              for k, defaut in CHAMPS_CONTRAT.items() if k != "avenants"}
+    propre["avenants"] = _nettoyer_avenants(c.get("avenants"))
     propre["id"] = c.get("id") or secrets.token_hex(4)
     with _verrou:
         liste = [x for x in _lire(FICHIER_CONTRATS, []) if x.get("id") != propre["id"]]
@@ -175,7 +206,7 @@ def echeances(jour: date, horizon_jours: int = 400) -> list:
         d = lire(p.get(cle))
         if d:
             ajouter(d, f"Échéance de l'assurance {nom}")
-    actifs = [c for c in contrats() if actif(c, jour)]
+    actifs = [c for c in contrats(jour) if actif(c, jour)]
     for annee in (jour.year, jour.year + 1):
         ajouter(date(annee, 4, 15), "Déclaration de revenus",
                 "Période habituelle d'avril à juin : la rubrique Impôts calcule le montant à déclarer.")

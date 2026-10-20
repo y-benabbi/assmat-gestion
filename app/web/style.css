@@ -447,3 +447,30 @@ fieldset { scroll-margin-top: 16px; }
 .tableau-jours td { vertical-align: middle; }
 .petit-tableau { min-width: 0; }
 .petit-tableau td { padding: 6px 10px; }
+
+/* Fiche enfant : avenants, plages horaires, résumé */
+.versions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.versions button { border: 2px solid var(--trait); background: #fff; border-radius: 999px; padding: 7px 14px; font-weight: 700; color: var(--encre-douce); }
+.versions button.actif { border-color: var(--eucalyptus); background: var(--eucalyptus-clair); color: var(--encre); }
+.versions button.ajout { border-style: dashed; }
+#entete-avenant { padding: 14px 16px 2px; margin-bottom: 14px; border-radius: 12px; background: var(--eucalyptus-clair); }
+.horaires { max-width: none; }
+.horaires td { vertical-align: top; }
+.plages { display: grid; gap: 6px; justify-items: center; }
+.plage { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.horaires input[type=time] { width: 7em; padding: 6px 8px; }
+.horaires tfoot td { border-bottom: 0; padding-top: 4px; }
+.horaires .lien { font-size: 0.85rem; }
+.resume-horaires { margin-top: 12px; padding: 12px 16px; border-radius: 12px; background: var(--fond, #f6f3fb); }
+.resume-horaires p { margin: 4px 0; }
+/* Sur téléphone : une ligne par jour, les deux périodes l'une sous l'autre. */
+@media (max-width: 600px) {
+  .horaires thead { display: none; }
+  .horaires, .horaires tbody, .horaires tfoot { display: block; }
+  .horaires tr { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px dashed var(--trait); }
+  .horaires th[scope=row], .horaires td { border: 0; padding: 0; text-align: left; }
+  .horaires.sans-vacances .col-vacances { display: none; }
+  .horaires:not(.sans-vacances) td::before { content: attr(data-titre); display: block; font-size: 0.8rem; color: var(--encre-douce); }
+  .plages { justify-items: start; }
+  .horaires tfoot td:first-child { display: none; }
+}

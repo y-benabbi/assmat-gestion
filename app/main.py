@@ -183,6 +183,43 @@ def creer_app(port, jeton):
         donnees.supprimer_contrat(request.get_json(force=True).get("id", ""))
         return jsonify({"ok": True})
 
+    @app.get("/api/suggestions")
+    def lire_suggestions():
+        """Valeurs déjà connues, proposées pendant la saisie des fiches : familles des bulletins
+        (dossiers, Pajemploi), parents et enfants qui y figurent, et valeurs des autres fiches."""
+        familles = {}
+
+        def famille(nom):
+            nom = (nom or "").strip()
+            return familles.setdefault(nom.lower(), {"nom": nom, "parents": set(), "enfants": set()}) if nom else None
+
+        for l in revenus.releve(parametres.charger().get("dossier_bulletins", "")):
+            f = famille(l["famille"])
+            if f and not l["famille"].startswith("("):
+                if l.get("employeur"):
+                    f["parents"].add(l["employeur"])
+            elif f:
+                del familles[l["famille"].lower()]
+        for b in paje.lire_etat()["bulletins"]:
+            f = famille(b.get("client"))
+            if f:
+                if b.get("employeur"):
+                    f["parents"].add(b["employeur"].title())
+                for prenom in (b.get("enfant") or "").split(", "):
+                    if prenom:
+                        f["enfants"].add(prenom)
+        contrats = donnees.contrats()
+        for c in contrats:
+            f = famille(c.get("famille"))
+            if f and c.get("parents"):
+                f["parents"].add(c["parents"])
+        valeurs = lambda cle: sorted({str(c.get(cle)).strip() for c in contrats if str(c.get(cle) or "").strip()})
+        return jsonify({
+            "familles": [{"nom": f["nom"], "parents": sorted(f["parents"]), "enfants": sorted(f["enfants"])}
+                         for _, f in sorted(familles.items())],
+            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "parents", "tarif_horaire", "entretien_jour")},
+        })
+
     @app.get("/api/echeances")
     def lire_echeances():
         return jsonify(donnees.echeances(date.today()))

@@ -17,7 +17,7 @@ import bibliotheque
 from chemins import DOSSIER_DONNEES
 
 FICHIER_CACHE = DOSSIER_DONNEES / "revenus.json"
-VERSION_LECTURE = 2       # à augmenter quand les règles changent : les bulletins sont relus
+VERSION_LECTURE = 3       # à augmenter quand les règles changent : les bulletins sont relus
 
 RE_MONTANT = re.compile(r"-?\d{1,3}(?:[ \u202f\xa0.]\d{3})*,\d{1,2}|-?\d+(?:[.,]\d{1,2})?")
 
@@ -110,6 +110,26 @@ def analyser_texte(texte: str) -> dict:
     return trouve
 
 
+CIVILITES = {"madame": "Mme", "monsieur": "M.", "mme": "Mme", "m.": "M.", "mr": "M."}
+
+
+def lire_employeur(texte: str) -> str:
+    """Nom du parent employeur : ligne qui suit « Référence employeur » (« MADAME CLAIRE DUPONT »),
+    rendu « Mme Claire Dupont ». Le bloc précédent, au même format, est celui de l'assistante
+    maternelle : on ne prend donc jamais le premier « MADAME » du texte."""
+    lignes = [l.strip() for l in texte.splitlines() if l.strip()]
+    for i, ligne in enumerate(lignes[:-1]):
+        if re.fullmatch(r"r[ée]f[ée]rence employeur\s*:?", ligne, re.I):
+            mots = lignes[i + 1].split()
+            if not mots or re.search(r"\d", lignes[i + 1]):
+                return ""
+            civilite = CIVILITES.get(mots[0].lower())
+            nom = " ".join(m.capitalize() if m.isupper() else m for m in (mots[1:] if civilite else mots))
+            nom = re.sub(r"[-'](\w)", lambda x: x.group(0).upper(), nom)       # Jean-Pierre, D'Arc
+            return f"{civilite} {nom}" if civilite else nom
+    return ""
+
+
 def encaisse(m: dict) -> float:
     """Somme versée pour le mois : « Net payé en euros » du bulletin (un acompte éventuel y est compris).
     À défaut, on la reconstitue : net + indemnités + exonération des heures complémentaires - impôt."""
@@ -140,8 +160,10 @@ def lire_bulletin(chemin: str, cache: dict) -> dict:
     if cle in cache:
         return cache[cle]
     try:
-        montants = analyser_texte(lire_texte_pdf(chemin))
-        resultat = {"montants": montants, "lu": bool(montants.get("brut") or montants.get("net"))}
+        texte = lire_texte_pdf(chemin)
+        montants = analyser_texte(texte)
+        resultat = {"montants": montants, "lu": bool(montants.get("brut") or montants.get("net")),
+                    "employeur": lire_employeur(texte)}
     except ImportError:
         # Module de lecture des PDF absent (installé au démarrage s'il manque) : rien n'est gardé
         # en cache, le bulletin sera relu à la prochaine visite.

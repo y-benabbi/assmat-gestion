@@ -22,7 +22,7 @@ app/                 code Python (lancé par app/main.py)
   pajemploi.py       pilotage de Pajemploi avec Playwright (un seul fil dédié + file de commandes)
   bibliotheque.py    analyse du dossier local, détection des bulletins présents, format des noms
   parametres.py      paramètres JSON (dont rubriques affichées « modules ») + mot de passe via keyring
-  donnees.py         profil (champs globaux des courriers), fiches contrats, échéances (JSON dans donnees\)
+  donnees.py         profil (champs globaux des courriers), fiches contrats et avenants, échéances (JSON dans donnees\)
   revenus.py         lecture des montants des bulletins PDF (pypdf, cache donnees\revenus.json), totaux
   impots.py          déclaration de revenus : barèmes SMIC / déduction 10 %, jours de garde proposés puis
                      confirmés (donnees\impots.json), abattement, comparaison régime spécifique / classique
@@ -65,6 +65,7 @@ py -m venv .venv
 .venv\Scripts\python tests\test_page_connexion.py    # vraie page de connexion Pajemploi, sans se connecter
 .venv\Scripts\python tests\test_revenus.py         # montants lus dans des bulletins PDF fictifs, totaux
 .venv\Scripts\python tests\test_impots.py          # abattement, jours proposés/confirmés, régimes (fictif)
+.venv\Scripts\python tests\test_contrats.py        # avenants : conditions en vigueur à une date
 .venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
@@ -131,6 +132,17 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Revenus : le « Total encaissé » est le « Net payé en euros » de chaque bulletin (acompte compris, impôt déduit),
   reconstitué (net + indemnités + rupture + exonération heures complémentaires - impôt) s'il manque.
   Les heures affichées = heures normales + heures complémentaires.
+- Fiche enfant, avenants : `avenants` = liste datée ({id, date, motif} + toutes les conditions de
+  `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /
+  `donnees.contrats(jour)` donnent les conditions applicables à une date : échéances, courriers (date du courrier)
+  et impôts (jour par jour) les utilisent ; ne pas lire directement `horaires_*` d'une fiche pour une date donnée.
+- Horaires saisis avec des champs `type=time` (arrivée/départ, deuxième plage « coupure »), enregistrés au format
+  texte « 8h00-12h00 / 13h30-17h00 » (lu par `impots.duree` et les courriers). Résumé : heures par semaine,
+  heures mensualisées (× 52 ÷ 12) en année complète.
+- Autocomplétion des fiches : `/api/suggestions` (familles des dossiers de bulletins, `employeur` lu sur chaque
+  bulletin par `revenus.lire_employeur` — ligne qui suit « Référence employeur », jamais le premier
+  « MADAME » qui est l'assistante maternelle —, employeur et prénoms des enfants de l'état Pajemploi, autres fiches),
+  via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
 - `profil.json`, `contrats.json`, `revenus.json`, `impots.json` (dans `donnees\`) contiennent des données personnelles réelles :
