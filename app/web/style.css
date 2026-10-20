@@ -501,3 +501,47 @@ fieldset { scroll-margin-top: 16px; }
 .liste-echeances .quand .mois { font-size: 0.78rem; font-weight: 700; }
 .liste-echeances .urgent .quand { background: #fbe4e4; }
 .liste-echeances li.plus { justify-content: center; }
+
+/* ---------------------------------------------------------------- assistant « Ajouter un enfant » */
+.assistant-entete, .assistant-nav, .assistant-seul { display: none; }
+.alerte-texte { color: #8a3b3a; background: #fbe9e9; border-radius: 10px; padding: 10px 14px; font-size: 0.92rem; }
+.invisible { visibility: hidden; }
+.cases-feries { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 6px 18px; }
+.cases-feries .case-a-cocher { font-size: 0.95rem; }
+.recap { margin: 0 0 12px; padding-left: 20px; }
+.recap li { margin: 4px 0; }
+
+body.assistant-ouvert { overflow: hidden; }
+form.assistant {
+  position: fixed; inset: 0; z-index: 50; max-width: none; margin: 0;
+  overflow-y: auto; background: var(--brume); padding: 0 16px;
+}
+form.assistant > * { max-width: 760px; margin-left: auto; margin-right: auto; }
+form.assistant .assistant-entete {
+  display: block; position: sticky; top: 0; z-index: 2; background: var(--brume);
+  padding: 18px 0 12px; border-bottom: 1px solid var(--trait); margin-bottom: 18px;
+}
+.assistant-haut { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.assistant-etape { margin: 0; font-weight: 700; color: var(--eucalyptus-fonce); }
+form.assistant .assistant-entete h2 { margin: 6px 0 10px; font-size: 1.5rem; }
+.progression { height: 8px; border-radius: 99px; background: var(--eucalyptus-clair); overflow: hidden; }
+.progression span { display: block; height: 100%; width: 0; background: var(--eucalyptus); border-radius: 99px; transition: width 0.3s; }
+.assistant-plan { display: flex; flex-wrap: wrap; gap: 4px 6px; list-style: none; margin: 10px 0 0; padding: 0; counter-reset: etape; }
+.assistant-plan li { counter-increment: etape; font-size: 0.78rem; color: var(--encre-douce); background: var(--papier);
+  border-radius: 99px; padding: 2px 10px; }
+.assistant-plan li::before { content: counter(etape) ". "; }
+.assistant-plan li.faite { background: var(--menthe); color: var(--menthe-encre); }
+.assistant-plan li.active { background: var(--eucalyptus); color: #fff; font-weight: 700; }
+form.assistant [data-etape] { display: none; }
+form.assistant [data-etape].etape-active { display: block; }
+form.assistant fieldset:not(:has(.etape-active)) { display: none; }
+form.assistant legend, form.assistant .hors-assistant, form.assistant #boutons-fiche, form.assistant #entete-avenant { display: none !important; }
+form.assistant .assistant-seul { display: block; }
+form.assistant .assistant-nav { display: flex; justify-content: space-between; position: sticky; bottom: 0;
+  background: var(--brume); padding: 12px 0 20px; margin-top: 18px; border-top: 1px solid var(--trait); }
+form.assistant .assistant-nav button { min-width: 160px; }
+.assistant-fin { background: var(--papier); border-radius: 16px; padding: 22px 24px; }
+@media (max-width: 600px) {
+  .assistant-plan { display: none; }
+  form.assistant .assistant-nav button { min-width: 0; flex: 1; }
+}

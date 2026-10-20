@@ -28,6 +28,7 @@ app/                 code Python (lancé par app/main.py)
   impots.py          déclaration de revenus : barèmes SMIC / déduction 10 %, jours de garde proposés puis
                      confirmés (donnees\impots.json), abattement, comparaison régime spécifique / classique
   courriers.py       demande de dérogation : texte proposé, page imprimable, PDF via Chromium sans fenêtre
+  contrat_travail.py contrat de travail : remplit le PDF officiel de l'Urssaf (app/modeles/) avec pypdf
   chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
   web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
 scripts/             installer.ps1, verifier.ps1, commun.ps1 (exécutés depuis l'application installée)
@@ -68,6 +69,7 @@ py -m venv .venv
 .venv\Scripts\python tests\test_impots.py          # abattement, jours proposés/confirmés, régimes (fictif)
 .venv\Scripts\python tests\test_contrats.py        # avenants : conditions en vigueur à une date
 .venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
+.venv\Scripts\python tests\test_contrat_travail.py # contrat de travail Urssaf rempli (champs du modèle, cas 1 et 2)
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
 
@@ -178,3 +180,13 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   temps : ils incluent les congés payés en année complète), sinon emploi du temps × semaines ÷ 52.
 - « À propos > Comment fonctionne l'application » explique d'où viennent les chiffres, la connexion à Pajemploi
   et chaque calcul : le tenir à jour quand un calcul ou une source change.
+- Contrat de travail (`contrat_travail.py`) : on **remplit les champs** du PDF remplissable de l'Urssaf
+  (`app/modeles/Contrat-CDI-Pajemploi-Ama.pdf`, modèle « Sept. 2026 »), sans le réécrire ; les champs restent modifiables
+  (`NeedAppearances`). Cases à cocher / boutons radio : valeur = nom de l'apparence (`/Choix1`, `/2`, `/Oui`…), voir les
+  dictionnaires en tête du module. Quand l'Urssaf change le modèle : remplacer le PDF, vérifier les noms de champs
+  (`test_contrat_travail.py` échoue si un nom n'existe plus). Version à remplir = `valeurs_assmat` (profil seul) ;
+  version complète = `valeurs_contrat` (conditions en vigueur au début du contrat). PDF dans le dossier des courriers.
+- Assistant « Ajouter un enfant » : `#form-contrat` en classe `assistant` (plein écran) ; chaque `[data-etape]`
+  (avec `data-titre`) est une étape, dans l'ordre du DOM. Les champs `data-requis` ne sont obligatoires que dans
+  l'assistant (les anciennes fiches restent enregistrables). Les champs `f_*` (parent employeur) vont dans la fiche
+  famille, créée ou mise à jour avant la fiche enfant. Modifier une fiche existante reste un formulaire en ligne.

@@ -35,6 +35,14 @@ CHAMPS_PROFIL = {
     "zone_vacances": "",           # A, B, C ou Corse
     "assurance_rc_echeance": "",
     "assurance_auto_echeance": "",
+    # Contrat de travail (modèle CDI Pajemploi) : rubriques de l'assistante maternelle.
+    "nom_naissance": "",           # vide : même nom que « nom »
+    "numero_secu": "",
+    "agrement_renouvellement": "", # AAAA-MM-JJ : dernier renouvellement
+    "assurance_rc_compagnie": "", "assurance_rc_police": "",
+    "assurance_auto_compagnie": "", "assurance_auto_police": "",
+    "lieu_accueil": "domicile",    # « domicile » ou « mam » (maison d'assistants maternels)
+    "mam_adresse": "",
 }
 
 # Famille employeur : les fiches enfants s'y rattachent par le nom (« famille »), qui est aussi celui
@@ -42,6 +50,9 @@ CHAMPS_PROFIL = {
 CHAMPS_FAMILLE = {
     "nom": "",
     "parent1_civilite": "", "parent1_prenom": "", "parent1_nom": "",
+    "parent1_nom_naissance": "",   # vide : même nom
+    "parent1_qualite": "",         # « mere », « pere », « tuteur » ou « autre » (contrat de travail)
+    "parent1_qualite_autre": "",
     "parent2_civilite": "", "parent2_prenom": "", "parent2_nom": "",
     "adresse": "", "code_postal": "", "ville": "",
     "telephone": "", "email": "",
@@ -70,6 +81,25 @@ CHAMPS_CONTRAT = {
     "horaires_scolaire": {},
     "horaires_vacances": {},
     "notes": "",
+    # Contrat de travail (modèle CDI Pajemploi), hors conditions modifiables par avenant.
+    "essai": "",                   # durée de la période d'essai, en texte (« 2 mois »)
+    "adaptation_jours": "", "adaptation_debut": "", "adaptation_fin": "",
+    "delai_prevenance": "",        # pour modifier les jours et horaires (« 15 jours »)
+    "planning": "",                # « oui » : horaires fixés par un planning écrit (année incomplète)
+    "delai_planning": "",          # au moins 2 mois calendaires
+    "tarif_complementaire": "",    # salaire horaire brut des heures complémentaires s'il est majoré
+    "taux_majoration": "10",       # % au-delà de 45 heures par semaine (10 % au moins)
+    "repas_fournis": "",           # « employeur » ou « assmat »
+    "frais_km": "",                # € par km
+    "jour_paiement": "",           # jour du mois où le salaire est versé
+    "repos_jour": "dimanche",
+    "repos_travaille": "majore",   # « majore » (payé + 25 %) ou « recupere » (repos + 25 %)
+    "premier_mai": "chome",        # « chome » ou « travaille »
+    "feries_travailles": "",       # clés de contrat_travail.FERIES séparées par des virgules
+    "ferie_majoration": "10",      # % pour un jour férié ordinaire travaillé (10 % au moins)
+    "conges_paiement": "",         # année incomplète : « juin », « principale » ou « prorata »
+    "conditions_particulieres": "",
+    "signature_lieu": "", "signature_date": "",
     # Avenants : [{"id", "date" (AAAA-MM-JJ, prise d'effet), "motif", + les champs de MODIFIABLES}], par date.
     # Chaque avenant reprend toutes les conditions modifiables, telles qu'elles s'appliquent à partir de sa date.
     "avenants": [],
@@ -77,7 +107,8 @@ CHAMPS_CONTRAT = {
 
 # Conditions du contrat qu'un avenant peut changer.
 MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_jour", "repas_jour", "horaires_scolaire",
-               "horaires_vacances")
+               "horaires_vacances", "delai_prevenance", "planning", "delai_planning", "tarif_complementaire",
+               "taux_majoration", "repas_fournis", "frais_km")
 
 _verrou = threading.Lock()
 

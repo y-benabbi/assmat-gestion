@@ -217,7 +217,10 @@
   <section id="contrats" class="onglet">
     <div class="titre-page">
       <h1>Familles et contrats</h1>
-      <button class="principal" id="nouvelle-famille">Ajouter une famille</button>
+      <div class="boutons-famille">
+        <button class="secondaire" id="nouvelle-famille">Ajouter une famille</button>
+        <button class="principal" id="nouvel-enfant">Ajouter un enfant</button>
+      </div>
     </div>
     <p class="petit">Chaque famille employeur a sa fiche (parents, coordonnées, n° Pajemploi) : celles des bulletins
       sont créées automatiquement d'après le bulletin le plus récent, les autres s'ajoutent à la main. Ajoutez ensuite
@@ -225,6 +228,7 @@
       aux impôts et aux courriers.</p>
     <input type="search" class="recherche" id="recherche-familles" data-filtre="#liste-familles-contrats > section.famille"
       placeholder="Rechercher une famille, un parent, un enfant…" aria-label="Rechercher dans les familles">
+    <div id="message-contrats" class="panneau cache" role="status"></div>
     <div id="familles-a-creer" class="panneau cache"></div>
     <div id="liste-familles-contrats"></div>
 
@@ -242,6 +246,12 @@
         </div>
         <datalist id="liste-parents-bulletins"></datalist>
         <div class="grille-champs">
+          <label>Nom de naissance (s'il est différent) <input name="parent1_nom_naissance" autocomplete="off"></label>
+          <label>Ce parent est
+            <select name="parent1_qualite"><option value="">—</option><option value="mere">la mère</option>
+              <option value="pere">le père</option><option value="tuteur">le tuteur</option><option value="autre">autre</option></select>
+          </label>
+          <label>Si « autre », précisez <input name="parent1_qualite_autre" autocomplete="off"></label>
           <label>N° employeur Pajemploi <input name="numero_pajemploi" autocomplete="off"></label>
         </div>
         <h3 class="sous-titre">Deuxième parent</h3>
@@ -269,36 +279,92 @@
     </form>
 
     <form id="form-contrat" class="formulaire cache">
+      <div class="assistant-entete" id="assistant-entete">
+        <div class="assistant-haut">
+          <p class="assistant-etape" id="assistant-etape" aria-live="polite"></p>
+          <button type="button" class="lien" id="assistant-quitter">Quitter sans enregistrer</button>
+        </div>
+        <h2 id="assistant-titre"></h2>
+        <div class="progression" aria-hidden="true"><span id="assistant-barre"></span></div>
+        <ol class="assistant-plan" id="assistant-plan"></ol>
+      </div>
+
       <fieldset>
         <legend id="titre-form-contrat">Nouvel enfant</legend>
-        <div class="grille-champs">
-          <label>Prénom de l'enfant <input name="enfant_prenom" required list="liste-prenoms" autocomplete="off"></label>
-          <label>Nom de l'enfant <input name="enfant_nom" list="liste-noms" autocomplete="off"></label>
-          <label>Date de naissance <input name="enfant_naissance" type="date"></label>
-          <label>L'enfant est
-            <select name="enfant_genre"><option value="">—</option><option value="fille">une fille</option><option value="garcon">un garçon</option></select>
-          </label>
-          <label>Famille employeur <select name="famille" required></select></label>
+        <div data-etape="enfant" data-titre="L'enfant et sa famille">
+          <div class="grille-champs">
+            <label>Famille employeur <select name="famille" required></select></label>
+            <span></span>
+            <label>Prénom de l'enfant <input name="enfant_prenom" required list="liste-prenoms" autocomplete="off"></label>
+            <label>Nom de l'enfant <input name="enfant_nom" data-requis list="liste-noms" autocomplete="off"></label>
+            <label>Date de naissance <input name="enfant_naissance" type="date" data-requis></label>
+            <label>L'enfant est
+              <select name="enfant_genre"><option value="">—</option><option value="fille">une fille</option><option value="garcon">un garçon</option></select>
+            </label>
+          </div>
+          <p class="petit">Les prénoms connus pour cette famille (Pajemploi, autres fiches) sont proposés pendant la saisie.</p>
+          <datalist id="liste-prenoms"></datalist><datalist id="liste-noms"></datalist>
         </div>
-        <p class="petit">Les prénoms connus pour cette famille (Pajemploi, autres fiches) sont proposés pendant la saisie.</p>
-        <datalist id="liste-prenoms"></datalist><datalist id="liste-noms"></datalist>
       </fieldset>
+
+      <fieldset class="assistant-seul" id="etape-employeur">
+        <legend>Parent employeur</legend>
+        <div data-etape="employeur" data-titre="Le parent employeur">
+          <p class="petit">C'est le parent qui signe le contrat et déclare le salaire sur Pajemploi. Ces informations
+            sont enregistrées dans la fiche de la famille.</p>
+          <div class="grille-champs parent">
+            <label>Civilité <select name="f_parent1_civilite"><option value="">—</option><option>Mme</option><option>M.</option></select></label>
+            <label>Prénom <input name="f_parent1_prenom" data-requis autocomplete="off"></label>
+            <label>Nom <input name="f_parent1_nom" data-requis list="liste-parents-bulletins" autocomplete="off"></label>
+          </div>
+          <div class="grille-champs">
+            <label>Nom de naissance (s'il est différent) <input name="f_parent1_nom_naissance" autocomplete="off"></label>
+            <label>Ce parent est
+              <select name="f_parent1_qualite" data-requis><option value="">—</option><option value="mere">la mère</option>
+                <option value="pere">le père</option><option value="tuteur">le tuteur</option><option value="autre">autre</option></select>
+            </label>
+            <label class="cache" id="qualite-autre">Précisez <input name="f_parent1_qualite_autre" autocomplete="off"></label>
+            <label>Adresse <input name="f_adresse" data-requis autocomplete="off"></label>
+            <label>Code postal <input name="f_code_postal" data-requis inputmode="numeric" autocomplete="off"></label>
+            <label>Ville <input name="f_ville" data-requis autocomplete="off" list="liste-villes"></label>
+            <label>Téléphone <input name="f_telephone" type="tel" autocomplete="off"></label>
+            <label>E-mail <input name="f_email" type="email" autocomplete="off"></label>
+            <label>N° employeur Pajemploi <input name="f_numero_pajemploi" autocomplete="off" placeholder="Y…"></label>
+          </div>
+        </div>
+      </fieldset>
+
       <fieldset>
         <legend>Contrat</legend>
-        <div class="grille-champs">
-          <label>Début de l'accueil <input name="debut" type="date" required></label>
-          <label>Fin du contrat (si connue) <input name="fin" type="date"></label>
-          <label>Abattement fiscal majoré
-            <select name="abattement_majore"><option value="">Non</option>
-              <option value="oui">Oui : enfant handicapé, malade ou inadapté</option></select>
-          </label>
+        <div data-etape="debut" data-titre="Début, essai et adaptation">
+          <div class="grille-champs">
+            <label>Date d'embauche (début de l'accueil) <input name="debut" type="date" required></label>
+            <label class="hors-assistant">Fin du contrat (si connue) <input name="fin" type="date"></label>
+            <label>Durée de la période d'essai <input name="essai" list="liste-essais" autocomplete="off" placeholder="2 mois">
+              <span class="aide-calcul">Au plus 3 mois si l'enfant vient 1 à 3 jours par semaine, 2 mois s'il vient 4 jours ou plus.
+                Facultative : laissez vide s'il n'y en a pas.</span></label>
+            <label>Abattement fiscal majoré
+              <select name="abattement_majore"><option value="">Non</option>
+                <option value="oui">Oui : enfant handicapé, malade ou inadapté</option></select>
+            </label>
+          </div>
+          <datalist id="liste-essais"><option value="1 mois"><option value="2 mois"><option value="3 mois"></datalist>
+          <h3 class="sous-titre">Période d'adaptation</h3>
+          <p class="petit">Elle commence le premier jour de travail et dure au plus 30 jours calendaires (incluse dans
+            la période d'essai). Laissez vide s'il n'y en a pas.</p>
+          <div class="grille-champs">
+            <label>Nombre de jours <input name="adaptation_jours" type="number" min="1" max="30" inputmode="numeric"></label>
+            <label>Du <input name="adaptation_debut" type="date"></label>
+            <label>Au <input name="adaptation_fin" type="date"></label>
+          </div>
         </div>
       </fieldset>
+
       <fieldset id="conditions-contrat">
         <legend>Conditions et avenants</legend>
-        <p class="petit">Un avenant change les conditions à partir d'une date (horaires, tarif…) : le contrat initial
+        <p class="petit hors-assistant">Un avenant change les conditions à partir d'une date (horaires, tarif…) : le contrat initial
           reste enregistré, et chaque calcul utilise les conditions en vigueur à la date concernée.</p>
-        <div class="versions" id="versions-contrat" role="tablist"></div>
+        <div class="versions hors-assistant" id="versions-contrat" role="tablist"></div>
         <div id="entete-avenant" class="cache">
           <div class="grille-champs">
             <label>Date d'effet de l'avenant <input type="date" id="avenant-date" data-obligatoire></label>
@@ -310,41 +376,130 @@
             <option value="Changement de l'indemnité d'entretien"></datalist>
           <p class="petit" id="changements-avenant"></p>
         </div>
-        <div class="grille-champs">
-          <label>Semaines d'accueil par an (52 = année complète)
-            <input name="semaines" type="number" min="1" max="52" step="1" inputmode="numeric" required>
-          </label>
-          <label>Type d'accueil
-            <select name="accueil"><option value="journee">En journée</option><option value="periscolaire">Périscolaire</option></select>
-          </label>
-          <label>Tarif horaire brut (€) <input name="tarif_horaire" inputmode="decimal" list="liste-tarifs" autocomplete="off">
-            <span class="aide-calcul" id="net-horaire" aria-live="polite"></span></label>
-          <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" inputmode="decimal" list="liste-entretiens" autocomplete="off"></label>
-          <label>Indemnité de repas par jour (€) <input name="repas_jour" inputmode="decimal" list="liste-repas" autocomplete="off"></label>
+        <div data-etape="horaires" data-titre="Durée et horaires">
+          <div class="grille-champs">
+            <label>Semaines d'accueil par an (52 = année complète)
+              <input name="semaines" type="number" min="1" max="52" step="1" inputmode="numeric" required>
+              <span class="aide-calcul" id="cas-contrat"></span>
+            </label>
+            <label>Type d'accueil
+              <select name="accueil"><option value="journee">En journée</option><option value="periscolaire">Périscolaire</option></select>
+            </label>
+          </div>
+          <h3 class="sous-titre">Emploi du temps type</h3>
+          <p class="petit">Heure d'arrivée et heure de départ, jour par jour. « + Coupure » ajoute une deuxième plage
+            (par exemple le matin avant l'école et le soir). Laissez vide les jours sans accueil.</p>
+          <label class="case-a-cocher"><input type="checkbox" id="vacances-differentes">
+            Horaires différents pendant les vacances scolaires</label>
+          <div class="defilement">
+            <table class="tableau horaires" id="horaires-contrat"></table>
+          </div>
+          <div class="resume-horaires" id="resume-horaires" aria-live="polite"></div>
+          <div class="grille-champs">
+            <label class="annee-incomplete">Jours et horaires fixés
+              <select name="planning"><option value="">par l'emploi du temps ci-dessus</option>
+                <option value="oui">par un planning remis par écrit</option></select>
+            </label>
+            <label>Délai de prévenance pour modifier les jours et horaires
+              <input name="delai_prevenance" list="liste-delais" autocomplete="off" placeholder="15 jours"></label>
+            <label class="annee-incomplete planning-ecrit">Délai de remise du planning (2 mois au moins)
+              <input name="delai_planning" autocomplete="off" placeholder="2 mois"></label>
+          </div>
+          <datalist id="liste-delais"><option value="15 jours"><option value="1 mois"><option value="2 mois"></datalist>
         </div>
-        <datalist id="liste-tarifs"></datalist><datalist id="liste-entretiens"></datalist><datalist id="liste-repas"></datalist>
-        <h3 class="sous-titre">Emploi du temps type</h3>
-        <p class="petit">Heure d'arrivée et heure de départ, jour par jour. « + Coupure » ajoute une deuxième plage
-          (par exemple le matin avant l'école et le soir). Laissez vide les jours sans accueil.</p>
-        <label class="case-a-cocher"><input type="checkbox" id="vacances-differentes">
-          Horaires différents pendant les vacances scolaires</label>
-        <div class="defilement">
-          <table class="tableau horaires" id="horaires-contrat"></table>
+        <div data-etape="remuneration" data-titre="Salaire et indemnités">
+          <div class="grille-champs">
+            <label>Salaire horaire brut (€) <input name="tarif_horaire" data-requis inputmode="decimal" list="liste-tarifs" autocomplete="off">
+              <span class="aide-calcul" id="net-horaire" aria-live="polite"></span></label>
+            <label>Heures complémentaires majorées : salaire horaire brut (€)
+              <input name="tarif_complementaire" inputmode="decimal" autocomplete="off">
+              <span class="aide-calcul">Au-delà de l'horaire prévu et jusqu'à 45 h par semaine. Vide : payées au tarif normal.</span></label>
+            <label>Majoration au-delà de 45 h par semaine (%)
+              <input name="taux_majoration" inputmode="decimal" autocomplete="off" placeholder="10">
+              <span class="aide-calcul">10 % au moins.</span></label>
+            <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" data-requis inputmode="decimal" list="liste-entretiens" autocomplete="off">
+              <span class="aide-calcul">2,65 € au moins par jour.</span></label>
+            <label>Repas fournis par
+              <select name="repas_fournis"><option value="">—</option><option value="employeur">les parents</option>
+                <option value="assmat">moi (assistante maternelle)</option></select>
+            </label>
+            <label>Prix d'un repas (€) <input name="repas_jour" inputmode="decimal" list="liste-repas" autocomplete="off"></label>
+            <label>Frais de déplacement (€ par km) <input name="frais_km" inputmode="decimal" autocomplete="off"></label>
+          </div>
+          <datalist id="liste-tarifs"></datalist><datalist id="liste-entretiens"></datalist><datalist id="liste-repas"></datalist>
+          <div class="resume-horaires assistant-seul" id="resume-salaire" aria-live="polite"></div>
         </div>
-        <div class="resume-horaires" id="resume-horaires" aria-live="polite"></div>
         <div class="boutons cache" id="boutons-avenant">
           <button type="button" class="secondaire danger" id="supprimer-avenant">Supprimer cet avenant</button>
         </div>
       </fieldset>
+
       <fieldset>
-        <legend>Notes</legend>
-        <textarea name="notes" rows="2"></textarea>
+        <legend>Paiement, repos et jours fériés</legend>
+        <div data-etape="repos" data-titre="Paiement et repos">
+          <div class="grille-champs">
+            <label>Jour du mois où le salaire est versé <input name="jour_paiement" data-requis type="number" min="1" max="31" inputmode="numeric"></label>
+            <label>Jour de repos hebdomadaire
+              <select name="repos_jour"><option value="lundi">lundi</option><option value="mardi">mardi</option><option value="mercredi">mercredi</option><option value="jeudi">jeudi</option><option value="vendredi">vendredi</option><option value="samedi">samedi</option><option value="dimanche">dimanche</option></select></label>
+            <label>Si l'enfant est exceptionnellement confié ce jour-là (avec votre accord écrit), le travail est
+              <select name="repos_travaille"><option value="majore">payé, majoré de 25 %</option>
+                <option value="recupere">récupéré, majoré de 25 %</option></select>
+            </label>
+          </div>
+        </div>
+        <div data-etape="feries" data-titre="Jours fériés">
+          <div class="grille-champs">
+            <label>Le 1er mai est
+              <select name="premier_mai"><option value="chome">chômé (payé dans la mensualisation)</option>
+                <option value="travaille">travaillé (payé double)</option></select>
+            </label>
+            <label>Majoration d'un jour férié ordinaire travaillé (%)
+              <input name="ferie_majoration" inputmode="decimal" autocomplete="off" placeholder="10">
+              <span class="aide-calcul">10 % au moins.</span></label>
+          </div>
+          <p class="petit">Jours fériés ordinaires travaillés (cochez uniquement ceux où l'enfant est accueilli) :</p>
+          <div class="cases-feries" id="cases-feries"></div>
+        </div>
       </fieldset>
-      <div class="boutons">
+
+      <fieldset>
+        <legend>Congés, conditions particulières et signature</legend>
+        <div data-etape="conges" data-titre="Congés et conditions">
+          <div class="grille-champs annee-incomplete">
+            <label>Indemnité de congés payés versée
+              <select name="conges_paiement"><option value="">—</option><option value="juin">en une fois en juin</option>
+                <option value="principale">en une fois lors des congés principaux</option>
+                <option value="prorata">au fur et à mesure des congés pris</option></select>
+            </label>
+          </div>
+          <p class="petit annee-complete">Année complète : l'indemnité de congés payés est versée au moment où les congés
+            sont pris, à la place du salaire.</p>
+          <label>Conditions particulières (activités, cahier de liaison, animaux…)
+            <textarea name="conditions_particulieres" rows="3"></textarea></label>
+          <label>Notes personnelles (pas dans le contrat) <textarea name="notes" rows="2"></textarea></label>
+        </div>
+        <div data-etape="signature" data-titre="Signature">
+          <div class="grille-champs">
+            <label>Fait à <input name="signature_lieu" autocomplete="off"></label>
+            <label>Le <input name="signature_date" type="date"></label>
+          </div>
+          <div id="recapitulatif" class="assistant-seul"></div>
+        </div>
+      </fieldset>
+
+      <div class="assistant-fin cache" id="assistant-fin" aria-live="polite"></div>
+
+      <div class="boutons assistant-nav" id="assistant-nav">
+        <button type="button" class="secondaire" id="assistant-precedent">Précédent</button>
+        <button type="button" class="principal" id="assistant-suivant">Suivant</button>
+      </div>
+      <div class="boutons" id="boutons-fiche">
         <button class="principal">Enregistrer la fiche</button>
         <button type="button" class="secondaire" id="annuler-contrat">Annuler</button>
+        <button type="button" class="secondaire hors-assistant cache" id="pdf-contrat">Créer le contrat de travail (PDF)</button>
         <button type="button" class="secondaire danger cache" id="supprimer-contrat">Supprimer la fiche</button>
       </div>
+      <p class="petit" id="contrat-cree" role="status"></p>
     </form>
   </section>
 
@@ -365,15 +520,32 @@
       <button data-ouvrir="courriers" class="secondaire">Ouvrir le dossier des courriers</button>
     </div>
     <div class="modeles">
-      <button class="modele actif" type="button">
+      <button class="modele actif" type="button" data-modele="derogation">
         <span class="demarche-titre">Demande de dérogation</span>
         <span>À la PMI, pour accueillir un enfant de plus que l'agrément.</span>
+      </button>
+      <button class="modele" type="button" data-modele="contrat-travail">
+        <span class="demarche-titre">Contrat de travail</span>
+        <span>Le modèle officiel de l'Urssaf (CDI Pajemploi), prérempli.</span>
       </button>
       <div class="modele bientot"><span class="demarche-titre">Changement de situation</span><span>Bientôt</span></div>
       <div class="modele bientot"><span class="demarche-titre">Attestation de garde</span><span>Bientôt</span></div>
     </div>
 
-    <form id="form-derogation" class="formulaire">
+    <form id="form-contrat-travail" class="formulaire cache" data-courrier="contrat-travail">
+      <fieldset>
+        <legend>Contrat de travail à durée indéterminée</legend>
+        <p class="petit">Le modèle officiel de l'Urssaf (service Pajemploi), rempli avec vos informations. Les champs du PDF
+          restent modifiables : vous pouvez encore les compléter ou les corriger avant de l'imprimer.</p>
+        <label>Pour quel enfant ?
+          <select name="contrat_id"></select></label>
+        <p class="petit" id="explication-contrat-travail"></p>
+        <div class="boutons"><button class="principal">Créer le PDF</button></div>
+        <div id="resultat-contrat-travail" role="status"></div>
+      </fieldset>
+    </form>
+
+    <form id="form-derogation" class="formulaire" data-courrier="derogation">
       <fieldset>
         <legend>1. L'essentiel de la demande</legend>
         <div class="grille-champs">
@@ -428,8 +600,8 @@
   <!-- ======================= MON PROFIL ======================= -->
   <section id="profil" class="onglet">
     <div class="titre-page"><h1>Mon profil</h1></div>
-    <p class="petit">Ces informations sont saisies une seule fois et réutilisées par les courriers et les
-      échéances. Elles restent sur cet ordinateur.</p>
+    <p class="petit">Ces informations sont saisies une seule fois et réutilisées par les courriers, les contrats
+      de travail et les échéances. Elles restent sur cet ordinateur.</p>
     <form id="form-profil" class="formulaire">
       <fieldset>
         <legend>Identité</legend>
@@ -438,6 +610,8 @@
           <span></span>
           <label>Nom <input name="nom" autocomplete="family-name"></label>
           <label>Prénom <input name="prenom" autocomplete="given-name"></label>
+          <label>Nom de naissance (s'il est différent) <input name="nom_naissance" autocomplete="off"></label>
+          <label>N° de Sécurité sociale <input name="numero_secu" autocomplete="off" inputmode="numeric"></label>
         </div>
         <label>Adresse <input name="adresse" autocomplete="street-address"></label>
         <div class="grille-champs">
@@ -453,6 +627,7 @@
           <label>Numéro d'agrément <input name="agrement_numero"></label>
           <label>Nombre d'enfants <input name="agrement_capacite" inputmode="numeric"></label>
           <label>Date du premier agrément <input name="agrement_debut" type="date"></label>
+          <label>Dernier renouvellement <input name="agrement_renouvellement" type="date"></label>
           <label>Fin de l'agrément en cours <input name="agrement_fin" type="date"></label>
           <label>Âges <input name="agrement_ages" placeholder="0 à 18 ans"></label>
           <label>Type d'accueil <input name="agrement_type" placeholder="en journée"></label>
@@ -470,8 +645,23 @@
       <fieldset>
         <legend>Assurances</legend>
         <div class="grille-champs">
+          <label>Responsabilité civile pro : compagnie et coordonnées <input name="assurance_rc_compagnie" autocomplete="off"></label>
+          <label>Responsabilité civile pro : n° de police <input name="assurance_rc_police" autocomplete="off"></label>
           <label>Responsabilité civile pro : échéance <input name="assurance_rc_echeance" type="date"></label>
+          <span></span>
+          <label>Auto (usage pro) : compagnie et coordonnées <input name="assurance_auto_compagnie" autocomplete="off"></label>
+          <label>Auto (usage pro) : n° de police <input name="assurance_auto_police" autocomplete="off"></label>
           <label>Auto (usage pro) : échéance <input name="assurance_auto_echeance" type="date"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Lieu d'accueil des enfants</legend>
+        <div class="grille-champs">
+          <label>J'accueille les enfants
+            <select name="lieu_accueil"><option value="domicile">à mon domicile</option>
+              <option value="mam">dans une maison d'assistants maternels (MAM)</option></select>
+          </label>
+          <label>Adresse de la MAM <input name="mam_adresse" autocomplete="off"></label>
         </div>
       </fieldset>
       <div class="boutons">
@@ -691,7 +881,7 @@
             restée en net sur vos 6 derniers bulletins lus (environ 78 % à défaut de bulletin).</li>
           <li>Indemnités par mois ≈ jours d'accueil par mois (même calcul que les heures) × (entretien + repas par jour).</li>
           <li>Avenants : à partir de sa date d'effet, un avenant remplace les conditions précédentes (semaines,
-            type d'accueil, tarif, indemnité d'entretien, emploi du temps). Les échéances, les courriers et les jours
+            type d'accueil, tarif, indemnités, emploi du temps, délais de prévenance…). Les échéances, les courriers et les jours
             de garde des impôts utilisent les conditions en vigueur à la date concernée.</li>
         </ul>
         <h3 class="sous-titre">Impôts</h3>
@@ -720,6 +910,23 @@
           <li>Demande de dérogation : âge de chaque enfant à la date du courrier (« et demi » de 6 à 11 mois) ; nombre
             d'enfants accueillis chaque jour d'après les emplois du temps des contrats en cours ; jours où ce nombre
             dépasse l'agrément.</li>
+        </ul>
+        <h3 class="sous-titre">Contrat de travail</h3>
+        <ul>
+          <li>Le contrat est le modèle officiel de l'Urssaf (« Contrat de travail à durée indéterminée, assistant maternel
+            agréé », service Pajemploi), dont l'application remplit les cases sans changer le texte. Les cases restent
+            modifiables dans le PDF.</li>
+          <li>Version à remplir : uniquement vos informations (Mon profil : identité, n° de Sécurité sociale, agrément,
+            assurances, lieu d'accueil). Version complète : en plus, le parent employeur (fiche famille) et toutes les
+            conditions de la fiche enfant, telles qu'elles s'appliquent au début du contrat (sans les avenants).</li>
+          <li>Cas n° 1 du modèle pour un accueil sur 52 semaines, cas n° 2 sinon. Le tableau des jours reprend l'emploi du
+            temps en période scolaire ; s'il est différent pendant les vacances, il est écrit dans les conditions
+            particulières.</li>
+          <li>Salaire mensuel de base = salaire horaire brut × heures mensualisées (même calcul que dans la fiche). Les
+            montants nets sont indicatifs (part du brut restée en net sur vos derniers bulletins). Heures majorées
+            au-delà de 45 h = salaire horaire × (1 + majoration).</li>
+          <li>Indemnité d'entretien : le montant par jour est ramené à l'heure pour la journée la plus longue de
+            l'emploi du temps (montant par jour ÷ heures de cette journée).</li>
         </ul>
         <p class="petit">Ces calculs aident à préparer les démarches ; ils ne remplacent pas les notices officielles
           (impots.gouv.fr, Pajemploi). En cas de doute, le relais petite enfance ou le centre des impôts peuvent vous

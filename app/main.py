@@ -90,6 +90,7 @@ def creer_app(port, jeton):
     from flask import Flask, jsonify, make_response, redirect, request, send_from_directory
 
     import bibliotheque
+    import contrat_travail
     import courriers
     import donnees
     import impots
@@ -319,6 +320,32 @@ def creer_app(port, jeton):
             return jsonify({"erreur": "Le PDF n'a pas pu être créé : " + str(e).splitlines()[0]}), 500
         courriers_generes.add(str(cible))
         return jsonify({"chemin": str(cible)})
+
+    @app.post("/api/contrat-travail")
+    def creer_contrat_travail():
+        """Contrat de travail sur le modèle de l'Urssaf : complet pour une fiche enfant, sinon version à
+        remplir (rubriques de l'assistante maternelle seulement)."""
+        demande = request.get_json(force=True)
+        profil = donnees.profil()
+        fiche = next((c for c in donnees.contrats() if c.get("id") == demande.get("contrat_id")), None)
+        if demande.get("contrat_id") and not fiche:
+            return jsonify({"erreur": "Fiche enfant introuvable."}), 404
+        if fiche:
+            famille = next((f for f in donnees.familles() if f["nom"].lower() == fiche["famille"].lower()), {})
+            taux = revenus.taux_net(revenus.releve(parametres.charger().get("dossier_bulletins", "")))["taux"]
+            valeurs = contrat_travail.valeurs_contrat(profil, famille, fiche, taux)
+            manquants = contrat_travail.manquants(profil, famille, fiche)
+        else:
+            valeurs, manquants = contrat_travail.valeurs_assmat(profil), contrat_travail.manquants(profil)
+        cible = dossier_courriers() / f"{courriers.nom_fichier(contrat_travail.nom_fichier(fiche))}.pdf"
+        try:
+            contrat_travail.remplir(valeurs, cible)
+        except PermissionError:
+            return jsonify({"erreur": "Le fichier est ouvert dans un autre programme : fermez-le puis recommencez."}), 409
+        except Exception as e:
+            return jsonify({"erreur": "Le PDF n'a pas pu être créé : " + str(e).splitlines()[0]}), 500
+        courriers_generes.add(str(cible))
+        return jsonify({"chemin": str(cible), "manquants": manquants})
 
     @app.post("/api/action")
     def action():
