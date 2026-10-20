@@ -213,8 +213,9 @@
       <h1>Familles et contrats</h1>
       <button class="principal" id="nouvelle-famille">Ajouter une famille</button>
     </div>
-    <p class="petit">Créez d'abord la fiche de la famille employeur (parents, coordonnées), puis une fiche par
-      enfant accueilli, avec son contrat et ses avenants. Ces informations servent au tableau de bord, aux échéances,
+    <p class="petit">Chaque famille employeur a sa fiche (parents, coordonnées, n° Pajemploi) : celles des bulletins
+      sont créées automatiquement d'après le bulletin le plus récent, les autres s'ajoutent à la main. Ajoutez ensuite
+      une fiche par enfant accueilli, avec son contrat et ses avenants. Ces informations servent au tableau de bord, aux échéances,
       aux impôts et aux courriers.</p>
     <div id="familles-a-creer" class="panneau cache"></div>
     <div id="liste-familles-contrats"></div>
@@ -621,6 +622,9 @@
             été récupéré par l'application ou ajouté à la main.</li>
           <li><strong>Pajemploi</strong> n'est consulté que lorsque vous cliquez sur « Vérifier sur Pajemploi » ou
             « Récupérer les bulletins manquants ».</li>
+          <li><strong>Fiches familles</strong> : créées automatiquement pour chaque famille des bulletins, avec le parent
+            employeur, son adresse et son n° employeur Pajemploi lus dans le cadre « Référence employeur » du bulletin le
+            plus récent. Seuls les champs vides sont remplis : ce que vous avez saisi n'est jamais remplacé.</li>
           <li><strong>Propositions pendant la saisie</strong> (familles, parents, prénoms) : noms des dossiers de
             bulletins, nom de l'employeur écrit sur chaque bulletin (« Référence employeur »), prénoms des enfants
             donnés par Pajemploi lors de la dernière vérification, et ce que contiennent déjà vos autres fiches.</li>

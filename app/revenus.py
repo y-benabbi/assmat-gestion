@@ -130,6 +130,42 @@ def lire_employeur(texte: str) -> str:
     return ""
 
 
+def _adresse(l: str) -> str:
+    """« 12 RUE DES LILAS » → « 12 rue des Lilas »."""
+    petits = {"rue", "avenue", "impasse", "allee", "allée", "chemin", "route", "place", "boulevard", "bd", "bat",
+              "de", "des", "du", "la", "le", "les", "et", "en", "sur", "aux", "au", "residence", "résidence", "lieu", "dit"}
+    return " ".join(m.lower() if m.lower() in petits else m.capitalize() for m in l.split())
+
+
+def lire_bloc_employeur(texte: str) -> dict:
+    """Bloc « Référence employeur » du bulletin : nom du parent (ligne suivante), adresse (lignes
+    suivantes, la dernière commençant par le code postal) et « N°Employeur ». Champs absents : vides."""
+    lignes = [l.strip() for l in texte.splitlines() if l.strip()]
+    debut = next((i for i, l in enumerate(lignes) if re.fullmatch(r"r[ée]f[ée]rence employeur\s*:?", l, re.I)), None)
+    if debut is None:
+        return {}
+    fiche = {}
+    nom = lire_employeur(texte)
+    if nom:
+        mots = nom.split()
+        fiche["civilite"] = mots.pop(0) if mots[0] in ("Mme", "M.") else ""
+        fiche["prenom"], fiche["nom"] = (mots[0], " ".join(mots[1:])) if len(mots) > 1 else ("", " ".join(mots))
+    adresse = []
+    for l in lignes[debut + 2:debut + 8]:
+        numero = re.match(r"n[°o]\s*employeur\s*:?\s*(\S+)", l, re.I)
+        if numero:
+            fiche["numero_pajemploi"] = numero.group(1)
+            break
+        ville = re.fullmatch(r"(\d{5})\s+(.+)", l)
+        if ville:
+            fiche["code_postal"], fiche["ville"] = ville.group(1), ville.group(2).title().replace(" Sur ", " sur ")
+        elif not fiche.get("ville"):
+            adresse.append(_adresse(l))
+    if fiche.get("ville") and adresse:
+        fiche["adresse"] = ", ".join(adresse)
+    return fiche
+
+
 def encaisse(m: dict) -> float:
     """Somme versée pour le mois : « Net payé en euros » du bulletin (un acompte éventuel y est compris).
     À défaut, on la reconstitue : net + indemnités + exonération des heures complémentaires - impôt."""
@@ -163,7 +199,7 @@ def lire_bulletin(chemin: str, cache: dict) -> dict:
         texte = lire_texte_pdf(chemin)
         montants = analyser_texte(texte)
         resultat = {"montants": montants, "lu": bool(montants.get("brut") or montants.get("net")),
-                    "employeur": lire_employeur(texte)}
+                    "employeur": lire_employeur(texte), "fiche_employeur": lire_bloc_employeur(texte)}
     except ImportError:
         # Module de lecture des PDF absent (installé au démarrage s'il manque) : rien n'est gardé
         # en cache, le bulletin sera relu à la prochaine visite.

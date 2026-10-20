@@ -172,6 +172,8 @@ def creer_app(port, jeton):
 
     @app.get("/api/familles")
     def lire_familles():
+        # Les familles des bulletins ont leur fiche, créée ou complétée d'après le bulletin le plus récent.
+        donnees.completer_familles(revenus.releve(parametres.charger().get("dossier_bulletins", "")))
         return jsonify(donnees.familles())
 
     @app.post("/api/familles")

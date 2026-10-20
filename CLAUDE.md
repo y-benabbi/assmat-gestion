@@ -137,6 +137,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   rattachent par le **nom** (`contrat["famille"]`, aussi nom du dossier des bulletins). Renommer une famille
   renomme ses fiches enfants ; une famille avec des enfants ne peut pas être supprimée. `donnees.familles()` ajoute
   (id vide) les familles citées par d'anciennes fiches enfants sans fiche famille.
+  `donnees.completer_familles` (appelé par `GET /api/familles`) crée la fiche des familles des bulletins et
+  remplit les champs **vides** (parent, adresse, n° employeur) d'après `fiche_employeur` du bulletin le plus récent
+  (`revenus.lire_bloc_employeur` : nom, adresse jusqu'à la ligne « CP VILLE », « N°Employeur … »).
 - Semaines d'accueil par an : nombre exact saisi (1 à 52), heures mensualisées = heures/semaine × semaines ÷ 12.
 - Fiche enfant, avenants : `avenants` = liste datée ({id, date, motif} + toutes les conditions de
   `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /

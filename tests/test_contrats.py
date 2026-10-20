@@ -74,6 +74,19 @@ def main():
     donnees.supprimer_contrat(c["id"])
     donnees.supprimer_famille(fam["id"])
     assert donnees.familles() == []
+    # Lecture des bulletins : fiche créée pour une famille inconnue, champs vides complétés sans rien remplacer.
+    lu = {"civilite": "Mme", "prenom": "Claire", "nom": "Martin", "adresse": "3 impasse des Tilleuls",
+          "code_postal": "30000", "ville": "Nîmes", "numero_pajemploi": "Y0000000000001"}
+    lignes = [{"famille": "Martin", "periode": "2026-05", "fiche_employeur": lu | {"ville": "Ancienne"}},
+              {"famille": "Martin", "periode": "2026-06", "fiche_employeur": lu},
+              {"famille": "Bernard", "periode": "2026-06", "fiche_employeur": lu | {"nom": "Bernard", "numero_pajemploi": "Y2"}}]
+    donnees.enregistrer_famille({"nom": "Bernard", "parent1_prenom": "Julien", "parent1_nom": "Bernard", "ville": "Arles"})
+    assert donnees.completer_familles(lignes) == ["Martin"]
+    martin, bernard = (next(f for f in donnees.familles() if f["nom"] == n) for n in ("Martin", "Bernard"))
+    assert martin["parent1_prenom"] == "Claire" and martin["ville"] == "Nîmes" and martin["numero_pajemploi"] == "Y0000000000001"
+    assert bernard["parent1_prenom"] == "Julien" and bernard["ville"] == "Arles" and bernard["numero_pajemploi"] == "Y2", bernard
+    assert not bernard["adresse"] and not bernard["code_postal"], bernard     # adresse déjà commencée : pas de mélange
+    assert donnees.completer_familles(lignes) == []
     print("OK : familles employeurs")
     print("OK : avenants (conditions en vigueur, échéances, jours de garde)")
 

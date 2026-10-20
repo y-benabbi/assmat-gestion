@@ -150,6 +150,49 @@ def enregistrer_famille(f: dict) -> dict:
     return propre
 
 
+def completer_familles(lignes_bulletins: list) -> list:
+    """Crée la fiche des familles trouvées dans les bulletins qui n'en ont pas, et complète les champs
+    encore vides des fiches existantes (parent, adresse, n° Pajemploi lus sur le bulletin le plus récent).
+    Ne remplace jamais ce qui a été saisi. Renvoie les noms des familles créées."""
+    recents = {}
+    for l in sorted(lignes_bulletins, key=lambda x: x.get("periode", "")):
+        if l.get("fiche_employeur") and l.get("famille") and not l["famille"].startswith("("):
+            recents[_cle(l["famille"])] = (l["famille"], l["fiche_employeur"])
+    if not recents:
+        return []
+    correspondance = {"civilite": "parent1_civilite", "prenom": "parent1_prenom", "nom": "parent1_nom",
+                      "adresse": "adresse", "code_postal": "code_postal", "ville": "ville",
+                      "numero_pajemploi": "numero_pajemploi"}
+    crees = []
+    with _verrou:
+        liste = _lire(FICHIER_FAMILLES, [])
+        par_cle = {_cle(f.get("nom")): f for f in liste}
+        anciens_parents = {_cle(c.get("famille")): c.get("parents", "") for c in _lire(FICHIER_CONTRATS, [])}
+        modifie = False
+        for cle, (nom, lu) in recents.items():
+            f = par_cle.get(cle)
+            if f is None:
+                f = CHAMPS_FAMILLE | {"id": secrets.token_hex(4), "nom": nom.strip()}
+                liste.append(f)
+                crees.append(f["nom"])
+                modifie = True
+                if anciens_parents.get(cle) and not lu.get("nom"):
+                    f["parent1_nom"] = anciens_parents[cle]
+            # Parent et adresse : seulement s'ils sont entièrement vides (sinon on mélangerait deux saisies).
+            vide_parent = not (f.get("parent1_prenom") or f.get("parent1_nom"))
+            vide_adresse = not (f.get("adresse") or f.get("code_postal") or f.get("ville"))
+            for champ, cible in correspondance.items():
+                if (cible.startswith("parent1") and not vide_parent) or \
+                        (cible in ("adresse", "code_postal", "ville") and not vide_adresse):
+                    continue
+                if lu.get(champ) and not f.get(cible):
+                    f[cible] = lu[champ]
+                    modifie = True
+        if modifie:
+            _ecrire(FICHIER_FAMILLES, sorted(liste, key=lambda x: _cle(x.get("nom"))))
+    return crees
+
+
 def supprimer_famille(ident: str) -> None:
     with _verrou:
         liste = _lire(FICHIER_FAMILLES, [])

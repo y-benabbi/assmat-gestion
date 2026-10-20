@@ -19,7 +19,8 @@ import revenus  # noqa: E402
 # « Éléments pris en compte », cotisations salarié puis employeur, « Net payé en euros » en bas.
 MODELE = """<html><body style="font-family:Arial;font-size:11px"><style>td{{white-space:nowrap}}</style>
 <h1>BULLETIN DE SALAIRE</h1><p>Période du {periode}</p><p>Pour nous contacter</p><p>MADAME SOPHIE PETIT</p>
-<p>Référence employeur</p><p>MADAME CLAIRE {nom}</p><p>12 RUE DES LILAS</p>
+<p>Référence employeur</p><p>MADAME CLAIRE {nom}</p><p>12 RUE DES LILAS</p><p>30000 VILLE</p>
+<p>N°Employeur Y00000000{nom}</p>
 <table border="1">
 <tr><td>Nombre de jours d'activité</td><td>{jours}</td><td>Nombre de jours de congés payés (a)</td><td>2,5</td></tr>
 <tr><td>Nombre d'heures normales</td><td>{heures}</td><td>Salaire horaire net</td><td>4,10</td></tr>
@@ -124,6 +125,9 @@ def main():
     assert d["cotisations"] == round(1234.56 * 0.22, 2) and d["exoneration"] == 8.5 and d["encaisse"] == paye_dupont, d
     # Nom du parent : bloc « Référence employeur », pas celui de l'assistante maternelle juste avant.
     assert lu[("Dupont", "2026-01")]["employeur"] == "Mme Claire Dupont", lu[("Dupont", "2026-01")]
+    assert lu[("Dupont", "2026-01")]["fiche_employeur"] == {
+        "civilite": "Mme", "prenom": "Claire", "nom": "Dupont", "adresse": "12 rue des Lilas", "code_postal": "30000",
+        "ville": "Ville", "numero_pajemploi": "Y00000000DUPONT"}, lu[("Dupont", "2026-01")]["fiche_employeur"]
     assert lu[("Martin", "2026-01")]["montants"]["rupture"] == 120.0
     assert lu[("Martin", "2026-01")]["montants"]["brut"] == 500.0
     assert not lu[("Dupont", "2026-03")]["lu"]
