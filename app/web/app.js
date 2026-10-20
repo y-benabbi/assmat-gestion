@@ -454,9 +454,17 @@ const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dim
 const formContrat = $("#form-contrat");
 let contratEdite = null;
 
-$("#horaires-contrat").innerHTML = `<thead><tr><th></th>${JOURS.map((j) => `<th>${j.slice(0, 3)}.</th>`).join("")}</tr></thead>
-  <tbody>${[["horaires_scolaire", "Période scolaire"], ["horaires_vacances", "Vacances scolaires"]].map(([cle, nom]) =>
-    `<tr><th scope="row">${nom}</th>${JOURS.map((j) => `<td><input name="${cle}.${j}" aria-label="${nom}, ${j}" placeholder="—"></td>`).join("")}</tr>`).join("")}</tbody>`;
+// Une ligne par jour ; la colonne « vacances » n'apparaît que si la case « différent » est cochée.
+$("#horaires-contrat").innerHTML = `<thead><tr><th scope="col">Jour</th><th scope="col">Période scolaire</th>
+  <th scope="col" class="col-vacances">Vacances scolaires</th></tr></thead>
+  <tbody>${JOURS.map((j) => `<tr><th scope="row">${j.charAt(0).toUpperCase() + j.slice(1)}</th>
+    <td><input name="horaires_scolaire.${j}" aria-label="Période scolaire, ${j}" placeholder="—"></td>
+    <td class="col-vacances"><input name="horaires_vacances.${j}" aria-label="Vacances scolaires, ${j}" placeholder="—"></td></tr>`).join("")}</tbody>`;
+
+function afficherColonneVacances() {
+  $("#horaires-contrat").classList.toggle("sans-vacances", !$("#vacances-differentes").checked);
+}
+$("#vacances-differentes").addEventListener("change", afficherColonneVacances);
 
 async function afficherContrats() {
   const liste = await api("contrats").catch(() => []);
@@ -484,6 +492,8 @@ function editerContrat(c) {
     const [cle, jour] = champ.name.split(".");
     champ.value = (jour ? c?.[cle]?.[jour] : c?.[cle]) ?? (champ.tagName === "SELECT" ? champ.options[0].value : "");
   }
+  $("#vacances-differentes").checked = Object.values(c?.horaires_vacances || {}).some((v) => v);
+  afficherColonneVacances();
   $("#titre-form-contrat").textContent = c ? `${c.enfant_prenom} ${c.enfant_nom || ""}` : "Nouvel enfant";
   $("#supprimer-contrat").classList.toggle("cache", !c);
   formContrat.classList.remove("cache");
@@ -505,6 +515,8 @@ formContrat.addEventListener("submit", async (e) => {
     const [cle, jour] = champ.name.split(".");
     if (jour) d[cle][jour] = champ.value; else d[cle] = champ.value;
   }
+  // Case décochée : mêmes horaires qu'en période scolaire.
+  if (!$("#vacances-differentes").checked) d.horaires_vacances = {};
   await api("contrats", d).catch((err) => alert(err.message));
   formContrat.classList.add("cache");
   afficherContrats();
