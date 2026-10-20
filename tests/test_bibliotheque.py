@@ -51,10 +51,10 @@ liste = [
     {"employeur": "Mme DUPONT MARIE", "periode": "2026-02"},     # présent (racine)
     {"employeur": "Mme DUPONT MARIE", "periode": "2026-08"},     # manquant
     {"employeur": "M. DURAND Pierre", "periode": "2025-07"},     # présent (mal rangé)
-    {"employeur": "M. MARTIN PAUL", "periode": "2026-01"},       # 2 enfants -> 2 présents
-    {"employeur": "M. MARTIN PAUL", "periode": "2026-01"},
-    {"employeur": "M. MARTIN PAUL", "periode": "2026-04"},       # 1 présent
-    {"employeur": "M. MARTIN PAUL", "periode": "2026-04"},       # 2e manquant
+    {"employeur": "M. MARTIN PAUL", "periode": "2026-01", "enfant": "Lucas"},  # 2 enfants -> 2 présents
+    {"employeur": "M. MARTIN PAUL", "periode": "2026-01", "enfant": "Emma"},
+    {"employeur": "M. MARTIN PAUL", "periode": "2026-04", "enfant": "Lucas"},  # manquant (le fichier est celui d'Emma)
+    {"employeur": "M. MARTIN PAUL", "periode": "2026-04", "enfant": "Emma"},   # présent
     {"employeur": "Mme BERNARD", "periode": "2026-08"},          # manquant
     {"employeur": "M. NOUVEAU Client", "periode": "2026-09"},    # nouveau client
 ]
@@ -62,9 +62,14 @@ b.comparer(liste, params, {})
 for x in liste:
     etat = "PRESENT " if x["present"] else "MANQUANT"
     print(f"{x['employeur']:<22} {x['periode']}  rang {x['rang']}  {etat}  -> {Path(x['cible']).relative_to(racine)}")
-attendus = [True, True, True, False, True, True, True, True, False, False, False]
+attendus = [True, True, True, False, True, True, True, False, True, False, False]
 assert [x["present"] for x in liste] == attendus, [x["present"] for x in liste]
 assert liste[3]["client"] == "DUPONT Marie" and liste[5]["client"] == "Martin"
+assert "Emma" in liste[8]["fichier_existant"]
+assert Path(liste[7]["cible"]).name == "Bulletin de salaire - Martin - 2026-04 - Lucas.pdf"
+assert Path(liste[0]["cible"]).name == "Bulletin de salaire - DUPONT Marie - 2026-01.pdf"
+assert b.appliquer_format("NOM CLIENT - ENFANT - YYYY-MM", "Dupont", "2025-08", "") == "Dupont - 2025-08"
+assert b.appliquer_format("NOM CLIENT - ENFANT - YYYY-MM", "Dupont", "2025-08", "Léa") == "Dupont - Léa - 2025-08"
 assert liste[10]["client"] == "NOUVEAU Client"
 assert b.nom_client("M. MARTIN PAUL", str(racine), {"m. martin paul": "Famille Martin"}) == "Famille Martin"
 assert b.appliquer_format("MOIS YYYY - NOM CLIENT (MM/YY)", "Dupont", "2025-08") == "Août 2025 - Dupont (08-25)"

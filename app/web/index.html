@@ -66,6 +66,7 @@
       <div class="boutons">
         <button id="btn-analyser" class="principal">Vérifier sur Pajemploi</button>
         <button id="btn-telecharger" class="principal vert cache"></button>
+        <button id="btn-diag-erreur" data-ouvrir="diagnostics" class="cache">Ouvrir le dossier des diagnostics</button>
       </div>
       <details class="avance">
         <summary>Si la détection automatique ne fonctionne pas</summary>
@@ -121,7 +122,9 @@
         <input name="format_dossier">
       </label>
       <p class="petit">Mots remplacés automatiquement : <code>NOM CLIENT</code>, <code>YYYY</code> (année),
-        <code>YY</code>, <code>MM</code> (mois en chiffres), <code>MOIS</code> (mois en lettres).<br>
+        <code>YY</code>, <code>MM</code> (mois en chiffres), <code>MOIS</code> (mois en lettres),
+        <code>ENFANT</code> (prénom de l'enfant). Si une famille a plusieurs enfants le même mois, le prénom est
+        ajouté automatiquement.<br>
         Exemple : <span id="apercu"></span></p>
       <label>Ignorer les bulletins antérieurs à (facultatif)
         <input name="periode_min" type="month">

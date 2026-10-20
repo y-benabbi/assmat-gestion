@@ -66,6 +66,7 @@ function afficherEtat() {
   btn.classList.toggle("cache", manquants === 0);
   btn.textContent = `Récupérer les ${manquants} bulletin${manquants > 1 ? "s" : ""} de salaire manquant${manquants > 1 ? "s" : ""}`;
   $$("#btn-analyser, #btn-telecharger, #btn-visible, #btn-page").forEach((b) => (b.disabled = occupe));
+  $("#btn-diag-erreur").classList.toggle("cache", etat.phase !== "erreur");
 
   if (etat.bulletins.length) {
     $("#tuile-bulletins").textContent = manquants
@@ -94,8 +95,10 @@ async function afficherListe() {
         if (seulementManquants && b.present) return;
         const s = document.createElement("span");
         s.className = b.present ? "present" : "manquant";
-        s.textContent = libelleMois(b.periode) + (b.rang > 1 ? ` (${b.rang})` : "");
-        s.title = b.present ? `Présent : ${b.fichier_existant}\n(cliquer pour ouvrir)` : `Manquant — sera enregistré ici :\n${b.cible}\nPajemploi : ${b.employeur}`;
+        const plusieurs = liste.filter((x) => x.periode === b.periode).length > 1;
+        s.textContent = libelleMois(b.periode) + (plusieurs ? ` · ${b.enfant || b.rang}` : "");
+        const detail = `Pajemploi : ${b.employeur}${b.enfant ? ` — enfant : ${b.enfant}` : ""}`;
+        s.title = b.present ? `Présent : ${b.fichier_existant}\n${detail}\n(cliquer pour ouvrir)` : `Manquant — sera enregistré ici :\n${b.cible}\n${detail}`;
         if (b.present) s.addEventListener("click", () => api("ouvrir", { quoi: b.fichier_existant }).catch(() => {}));
         mois.appendChild(s);
       });

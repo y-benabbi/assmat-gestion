@@ -75,6 +75,7 @@ py -m venv .venv
 .venv\Scripts\python -m playwright install chromium
 .venv\Scripts\python app\main.py
 .venv\Scripts\python tests\test_bibliotheque.py
+.venv\Scripts\python tests\test_api.py
 .venv\Scripts\python tests\test_extraction.py
 .venv\Scripts\python tests\test_page_connexion.py
 ```

@@ -14,6 +14,7 @@ Vérifications supplémentaires gérées :
 Le profil du navigateur est conservé, ce qui permet à Pajemploi de reconnaître
 l'appareil et limite les vérifications aux connexions suivantes.
 """
+import base64
 import json
 import queue
 import re
@@ -29,7 +30,20 @@ import parametres
 from chemins import DIAGNOSTICS, PROFIL_NAVIGATEUR, JOURNAUX
 
 URL_ACCUEIL = "https://www.pajemploi.urssaf.fr/"
+URL_BULLETINS = "https://pajemploi.urssaf.fr/salarie/documents/bulletins"
 HOTE_CONNEXION = "login.urssaf.fr"
+
+# API utilisée par la page « Bulletins de salaire » de Pajemploi (relevée dans son code) :
+#  - recherche : POST documents/voletsSociaux/rechercher
+#      {"typeDocuments": ["BS"], "periodeDeclarationDebut": "AAAA-MM", "periodeDeclarationFin": "AAAA-MM"}
+#  - PDF       : POST documents/generer
+#      {"codeParamDoc": "PAJE_BULLETIN_SALAIRE",
+#       "criteresAggregation": [{"key": "refDoc", "value": idDeclaration}, {"key": "rangVSO", "value": "0"}]}
+#      -> {"documentData": "<PDF en base64>"}
+URL_API = "https://api.urssaf.fr/paje/apaj/v1/"
+ENTETES_INTERDITS = {"content-length", "host", "connection", "accept-encoding", "cookie", "origin",
+                     "referer", "user-agent"}
+ANNEE_MINI = 2005
 
 RE_CODE = re.compile(r"code|otp|verif|securit|totp|pin", re.I)
 RE_BULLETIN = re.compile(r"bulletin", re.I)
@@ -63,6 +77,10 @@ class Pajemploi:
         self._visible = False
         self._url_liste = None
         self._reponses_json = []
+        self._requetes = []
+        # En-têtes (dont l'autorisation) utilisés par la page Pajemploi pour appeler son API.
+        # Gardés uniquement en mémoire, jamais écrits sur le disque.
+        self._entetes_api = None
         threading.Thread(target=self._boucle, daemon=True, name="pajemploi").start()
 
     # ------------------------------------------------------------------ état
@@ -133,6 +151,7 @@ class Pajemploi:
             no_viewport=True,
         )
         self._contexte.on("response", self._noter_reponse)
+        self._contexte.on("request", self._noter_requete)
         self._page = self._contexte.pages[0] if self._contexte.pages else self._contexte.new_page()
         self._visible = visible
 
@@ -159,9 +178,28 @@ class Pajemploi:
         self._contexte = None
         self._page = None
 
+    def _noter_requete(self, requete):
+        """Repère les appels de la page à l'API Pajemploi pour pouvoir faire les mêmes."""
+        try:
+            if URL_API not in requete.url:
+                return
+            entetes = requete.headers
+            if "authorization" in entetes:
+                self._entetes_api = {k: v for k, v in entetes.items()
+                                     if not k.startswith(":") and k not in ENTETES_INTERDITS}
+            # Pour le diagnostic : adresse et contenu envoyé, sans aucun en-tête.
+            self._requetes.append({"methode": requete.method, "url": requete.url,
+                                   "contenu": (requete.post_data or "")[:2000]})
+            self._requetes = self._requetes[-60:]
+        except Exception:
+            pass
+
     def _noter_reponse(self, reponse):
         """Garde les réponses JSON de Pajemploi pour le mode diagnostic."""
         try:
+            # Jamais de jeton d'authentification ni de document dans les diagnostics.
+            if re.search(r"/token|jwks|documents/generer|habilitation", reponse.url):
+                return
             if "json" in (reponse.headers.get("content-type") or "") and "urssaf" in reponse.url:
                 self._reponses_json.append({"url": reponse.url, "statut": reponse.status,
                                             "contenu": reponse.text()[:20000]})
@@ -392,10 +430,10 @@ class Pajemploi:
 
     # -------------------------------------------- liste des bulletins
     def _aller_aux_bulletins(self, page):
-        if self._url_liste:
-            page.goto(self._url_liste, wait_until="domcontentloaded")
+        for url in dict.fromkeys(u for u in (self._url_liste, URL_BULLETINS) if u):
+            page.goto(url, wait_until="domcontentloaded")
             self._attendre_stable(page)
-            if self._semble_connecte(page):
+            if self._semble_connecte(page) and "bulletins" in page.url:
                 return
         self._refuser_cookies(page)
         # Plusieurs chemins possibles selon la présentation du site.
@@ -421,6 +459,102 @@ class Pajemploi:
         self._lire_liste(page)
 
     def _lire_liste(self, page):
+        """Liste les bulletins : par l'API de Pajemploi si possible (historique complet),
+        sinon en lisant la page affichée."""
+        bulletins = None
+        if self._entetes_api:
+            try:
+                bulletins = self._lister_via_api()
+            except Exception as e:  # noqa: BLE001
+                self.log(f"Lecture par l'API impossible ({str(e).splitlines()[0]}), lecture de la page")
+                self._sauver_diagnostic("api-recherche")
+        if bulletins is None:
+            bulletins = self._lister_via_page(page)
+        self._url_liste = page.url
+        if not bulletins:
+            self._sauver_diagnostic("aucun-bulletin-detecte")
+            raise RuntimeError("Aucun bulletin reconnu sur Pajemploi. Un diagnostic a été enregistré : "
+                               "cliquez sur « Ouvrir le dossier des diagnostics ».")
+        self._finaliser_liste(bulletins)
+
+    # ----------------------------------------------------- API Pajemploi
+    def _appel_api(self, chemin, corps, essai=0):
+        """Appelle l'API depuis la page connectée, comme le fait le site lui-même."""
+        reponse = self._page.evaluate(
+            """async ({url, entetes, corps}) => {
+                const r = await fetch(url, {method: 'POST', headers: entetes, body: JSON.stringify(corps),
+                                            credentials: 'include'});
+                return {statut: r.status, texte: await r.text()};
+            }""",
+            {"url": URL_API + chemin, "entetes": self._entetes_api, "corps": corps},
+        )
+        if reponse["statut"] in (401, 403) and essai == 0:
+            # Autorisation expirée : recharger la page des bulletins la renouvelle.
+            self.log("Autorisation Pajemploi expirée, renouvellement")
+            self._entetes_api = None
+            self._aller_aux_bulletins(self._page)
+            if not self._entetes_api:
+                raise RuntimeError("autorisation Pajemploi introuvable")
+            return self._appel_api(chemin, corps, essai=1)
+        if reponse["statut"] >= 400:
+            raise RuntimeError(f"Pajemploi a répondu {reponse['statut']} à {chemin}")
+        return json.loads(reponse["texte"]) if reponse["texte"].strip() else None
+
+    def _lister_via_api(self):
+        mini = parametres.charger().get("periode_min") or ""
+        annee_mini = max(ANNEE_MINI, int(mini[:4])) if mini[:4].isdigit() else ANNEE_MINI
+        annee = datetime.now().year
+        bulletins, vides = [], 0
+        while annee >= annee_mini and vides < 3:
+            self._maj(message=f"Recherche des bulletins de {annee} sur Pajemploi…")
+            resultat = self._appel_api("documents/voletsSociaux/rechercher", {
+                "typeDocuments": ["BS"],
+                "periodeDeclarationDebut": f"{annee}-01",
+                "periodeDeclarationFin": f"{annee}-12",
+            }) or []
+            vides = vides + 1 if not resultat else 0
+            for d in resultat:
+                b = self._bulletin_depuis_api(d)
+                if b:
+                    bulletins.append(b)
+            annee -= 1
+        # Une même déclaration peut apparaître deux fois (années qui se chevauchent).
+        uniques = {b["idDeclaration"]: b for b in bulletins}
+        self.log(f"API Pajemploi : {len(uniques)} bulletins trouvés")
+        return list(uniques.values())
+
+    @staticmethod
+    def _bulletin_depuis_api(d):
+        employeur = d.get("employeur") or {}
+        periode = (d.get("periode") or "")[:7]
+        if not d.get("idDeclaration") or not re.match(r"\d{4}-\d{2}$", periode):
+            return None
+        enfants = [e for e in (d.get("enfants") or []) if e.get("isGarde", True)]
+        return {
+            "idDeclaration": d["idDeclaration"],
+            "employeur": " ".join(x for x in (employeur.get("nom"), employeur.get("prenoms")) if x).strip(),
+            "enfant": ", ".join((e.get("prenoms") or "").title() for e in enfants if e.get("prenoms")),
+            "periode": periode,
+            "montant": d.get("mntSalaireNetPaye"),
+            "libelle": d.get("libType") or "Bulletin de salaire",
+        }
+
+    def _telecharger_via_api(self, b, cible):
+        resultat = self._appel_api("documents/generer", {
+            "codeParamDoc": "PAJE_BULLETIN_SALAIRE",
+            "criteresAggregation": [{"key": "refDoc", "value": str(b["idDeclaration"])},
+                                    {"key": "rangVSO", "value": "0"}],
+        })
+        donnees = (resultat or {}).get("documentData")
+        if not donnees:
+            raise RuntimeError("Pajemploi n'a pas renvoyé de document")
+        pdf = base64.b64decode(donnees)
+        if not pdf.startswith(b"%PDF"):
+            raise RuntimeError("le document reçu n'est pas un PDF")
+        cible.write_bytes(pdf)
+
+    # ------------------------------------------------- lecture de la page
+    def _lister_via_page(self, page):
         # Afficher toute la liste si elle est paginée / repliée.
         for _ in range(30):
             if not self._cliquer_texte(page, r"^\s*(afficher|voir|charger) plus|tout afficher"):
@@ -443,13 +577,9 @@ class Pajemploi:
             suivant.first.click()
             numero_page += 1
             self._attendre_stable(page, 8000)
+        return bulletins
 
-        self._url_liste = page.url
-        if not bulletins:
-            self._sauver_diagnostic("aucun-bulletin-detecte")
-            raise RuntimeError("Aucun bulletin reconnu sur cette page. Un diagnostic a été enregistré "
-                               "(bouton « Ouvrir le dossier des diagnostics »).")
-
+    def _finaliser_liste(self, bulletins):
         params = parametres.charger()
         mini = params.get("periode_min") or ""
         bulletins = [b for b in bulletins if b["periode"] >= mini]
@@ -565,21 +695,28 @@ class Pajemploi:
             self._maj(message="Aucun bulletin manquant.")
             return
         self._verifier_dossier()
-        if not self._page or not self._semble_connecte(self._page):
+        if not self._page or self._page.is_closed() or not self._semble_connecte(self._page):
+            self._entetes_api = None
             self._connecter()
         page = self._page
+        par_api = any(b.get("idDeclaration") for b in a_faire)
+        if par_api and not self._entetes_api:
+            self._aller_aux_bulletins(page)
         self._maj(phase="telechargement", progression={"fait": 0, "total": len(a_faire)})
         reussis = 0
         page_courante = None
         for n, b in enumerate(a_faire, 1):
             self._maj(message=f"Téléchargement {n}/{len(a_faire)} : {b['client']} — {b['periode']}")
             try:
-                if page_courante != b.get("page", 0) or not self._url_liste or page.url != self._url_liste:
-                    self._revenir_a_la_page(page, b.get("page", 0))
-                    page_courante = b.get("page", 0)
                 cible = Path(b["cible"])
                 cible.parent.mkdir(parents=True, exist_ok=True)
-                self._telecharger(page, b, cible)
+                if b.get("idDeclaration"):
+                    self._telecharger_via_api(b, cible)
+                else:
+                    if page_courante != b.get("page", 0) or not self._url_liste or page.url != self._url_liste:
+                        self._revenir_a_la_page(page, b.get("page", 0))
+                        page_courante = b.get("page", 0)
+                    self._telecharger(page, b, cible)
                 reussis += 1
                 self.log(f"Enregistré : {cible}")
                 self._marquer_present(b, str(cible))
@@ -671,6 +808,8 @@ class Pajemploi:
             (dossier / "adresse.txt").write_text(self._page.url, encoding="utf-8")
             (dossier / "reponses.json").write_text(
                 json.dumps(self._reponses_json, ensure_ascii=False, indent=1), encoding="utf-8")
+            (dossier / "requetes.json").write_text(
+                json.dumps(self._requetes, ensure_ascii=False, indent=1), encoding="utf-8")
             self.log(f"Diagnostic enregistré : {dossier.name}")
         except Exception:
             pass

@@ -10,7 +10,6 @@ afin de savoir quels bulletins sont déjà présents.
 """
 import re
 import unicodedata
-from collections import Counter
 from pathlib import Path
 
 MOIS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet",
@@ -111,48 +110,81 @@ def nom_client(nom_pajemploi: str, dossier: str, correspondances: dict) -> str:
     return nom
 
 
-def appliquer_format(modele: str, client: str, periode: str) -> str:
+def appliquer_format(modele: str, client: str, periode: str, enfant: str = "") -> str:
     annee, mois = periode.split("-")
     remplacements = {
         "NOM CLIENT": client,
+        "ENFANT": enfant,
         "YYYY": annee,
         "YY": annee[2:],
         "MM": mois,
         "MOIS": MOIS_AFFICHAGE[int(mois) - 1],
     }
-    texte = re.sub(r"NOM CLIENT|YYYY|YY|MOIS|MM", lambda m: remplacements[m.group(0)], modele)
-    return re.sub(r'[<>:"/\\|?*]', "-", texte).strip().rstrip(".")
+    texte = re.sub(r"NOM CLIENT|ENFANT|YYYY|YY|MOIS|MM", lambda m: remplacements[m.group(0)], modele)
+    texte = re.sub(r"\s*-\s*-\s*", " - ", texte)          # « ENFANT » vide
+    return re.sub(r'[<>:"/\\|?*]', "-", texte).strip(" -").rstrip(".")
 
 
-def chemin_cible(params: dict, client: str, periode: str, rang: int = 1) -> Path:
-    dossier = Path(params["dossier_bulletins"]) / appliquer_format(params["format_dossier"], client, periode)
-    nom = appliquer_format(params["format_fichier"], client, periode)
-    if rang > 1:
+def chemin_cible(params: dict, client: str, periode: str, rang: int = 1, enfant: str = "",
+                 plusieurs: bool = False) -> Path:
+    """Chemin du fichier à créer. Si le client a plusieurs bulletins ce mois-là (plusieurs
+    enfants) et que le format ne contient pas ENFANT, on ajoute le prénom de l'enfant."""
+    dossier = Path(params["dossier_bulletins"]) / appliquer_format(params["format_dossier"], client, periode, enfant)
+    nom = appliquer_format(params["format_fichier"], client, periode, enfant)
+    if plusieurs and "ENFANT" not in params["format_fichier"]:
+        nom += f" - {enfant}" if enfant else f" ({rang})"
+    elif rang > 1 and not enfant:
         nom += f" ({rang})"
-    return dossier / f"{nom}.pdf"
+    nom = re.sub(r'[<>:"/\\|?*]', "-", nom)
+    return dossier / (nom + ".pdf")
 
 
 def comparer(bulletins: list, params: dict, correspondances: dict) -> list:
-    """Ajoute à chaque bulletin Pajemploi son client, son rang et s'il est déjà présent.
+    """Ajoute à chaque bulletin Pajemploi son client, son chemin cible et s'il est déjà présent.
 
-    Un client peut avoir plusieurs bulletins le même mois (ex. deux enfants) :
-    on compare donc des nombres de fichiers par (client, mois).
+    Un client peut avoir plusieurs bulletins le même mois (un par enfant) : les fichiers
+    existants qui citent le prénom de l'enfant lui sont attribués en priorité, les autres
+    sont répartis dans l'ordre.
     """
     dossier = params["dossier_bulletins"]
     fichiers = inventaire(dossier)
-    rangs = Counter()
+    groupes = {}
     for b in bulletins:
-        client = nom_client(b["employeur"], dossier, correspondances)
-        b["client"] = client
-        rangs[(client, b["periode"])] += 1
-        b["rang"] = rangs[(client, b["periode"])]
-        cible = chemin_cible(params, client, b["periode"], b["rang"])
-        b["cible"] = str(cible)
-        mots_client = mots(client) | mots(CIVILITES.sub("", b["employeur"]))
-        presents = [f for f in fichiers if f["periode"] == b["periode"] and f["mots"] & mots_client]
-        b["present"] = cible.exists() or len(presents) >= b["rang"]
-        if b["present"]:
-            b["fichier_existant"] = str(cible) if cible.exists() else presents[b["rang"] - 1]["chemin"]
+        b["client"] = nom_client(b["employeur"], dossier, correspondances)
+        b.setdefault("enfant", "")
+        groupes.setdefault((b["client"], b["periode"]), []).append(b)
+
+    for (client, periode), groupe in groupes.items():
+        plusieurs = len(groupe) > 1
+        mots_client = mots(client)
+        for b in groupe:
+            mots_client |= mots(CIVILITES.sub("", b["employeur"]))
+        candidats = [f for f in fichiers if f["periode"] == periode and f["mots"] & mots_client]
+        attribues = {}
+        for rang, b in enumerate(groupe, 1):
+            b["rang"] = rang
+            cible = chemin_cible(params, client, periode, rang, b["enfant"], plusieurs)
+            b["cible"] = str(cible)
+            if cible.exists():
+                attribues[rang] = str(cible)
+                candidats = [f for f in candidats if f["chemin"] != str(cible)]
+        # Fichiers qui citent le prénom de l'enfant
+        for b in groupe:
+            if b["rang"] in attribues or not b["enfant"]:
+                continue
+            for f in candidats:
+                if mots(b["enfant"]) & f["mots"]:
+                    attribues[b["rang"]] = f["chemin"]
+                    candidats.remove(f)
+                    break
+        # Puis les fichiers restants, dans l'ordre (noms sans prénom d'enfant)
+        for b in groupe:
+            if b["rang"] not in attribues and candidats:
+                attribues[b["rang"]] = candidats.pop(0)["chemin"]
+        for b in groupe:
+            b["present"] = b["rang"] in attribues
+            if b["present"]:
+                b["fichier_existant"] = attribues[b["rang"]]
     return bulletins
 
 

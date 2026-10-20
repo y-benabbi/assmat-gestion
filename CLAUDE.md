@@ -53,7 +53,8 @@ py -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 .venv\Scripts\python -m playwright install chromium
 .venv\Scripts\python tests\test_bibliotheque.py      # détection des fichiers, formats de nom
-.venv\Scripts\python tests\test_extraction.py        # lecture de listes imitant Pajemploi + téléchargement
+.venv\Scripts\python tests\test_api.py               # API Pajemploi imitée : liste + PDF
+.venv\Scripts\python tests\test_extraction.py        # repli : lecture de pages imitant Pajemploi
 .venv\Scripts\python tests\test_page_connexion.py    # vraie page de connexion Pajemploi, sans se connecter
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
@@ -69,11 +70,23 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   est nécessaire. Ne pas contourner autrement la détection du site.
 - Connexion : `https://pajemploi.urssaf.fr/` redirige vers `login.urssaf.fr` (champs `#mail`/`username`,
   `#password`, bouton « Se connecter », bannière cookies `#footer_tc_privacy_button_2` = « Tout refuser »).
-- **La partie après connexion n'a jamais été testée sur le vrai site** (pas d'identifiants côté développeur).
-  La page des bulletins est trouvée et lue par heuristiques (`_aller_aux_bulletins`, `_extraire_lignes`,
-  `_deviner_employeur`). En cas d'échec, un diagnostic (capture, HTML, réponses JSON) est enregistré dans
-  `journaux\diagnostics` : s'en servir pour adapter ces fonctions, et ajouter le cas à `tests/test_extraction.py`
-  avec des noms fictifs.
+- Page des bulletins : `https://pajemploi.urssaf.fr/salarie/documents/bulletins` (tableau paginé par 5,
+  filtré sur l'année en cours, téléchargement caché derrière un menu « ⋮ »). On ne lit donc **pas** le tableau :
+  on utilise l'API que la page appelle elle-même (relevée dans le code JS public du site, modules
+  `bulletins-salaire` / `generateAndDownloadBulletinSalaireDoc`) :
+  - `POST https://api.urssaf.fr/paje/apaj/v1/documents/voletsSociaux/rechercher`
+    `{"typeDocuments":["BS"],"periodeDeclarationDebut":"AAAA-MM","periodeDeclarationFin":"AAAA-MM"}` →
+    liste de déclarations (`idDeclaration`, `periode`, `employeur{nom,prenoms}`, `enfants[{prenoms,isGarde}]`).
+    Une déclaration = un enfant : une famille peut avoir plusieurs bulletins le même mois.
+  - `POST .../documents/generer` `{"codeParamDoc":"PAJE_BULLETIN_SALAIRE","criteresAggregation":
+    [{"key":"refDoc","value":idDeclaration},{"key":"rangVSO","value":"0"}]}` → `{"documentData": base64 PDF}`.
+  - Les appels sont faits par `fetch` dans la page connectée, avec les en-têtes (dont `authorization`)
+    capturés sur les requêtes de la page (`_noter_requete`). Ces en-têtes restent en mémoire : ne jamais les
+    écrire dans un fichier ni dans les diagnostics (les réponses `/token`, `jwks`, `generer` en sont exclues).
+  - Repli si l'API échoue : lecture du tableau affiché (`_lister_via_page`, heuristiques).
+- En cas d'échec, un diagnostic (capture, HTML, réponses JSON, requêtes sans en-têtes) est enregistré dans
+  `journaux\diagnostics` ; ces fichiers contiennent des données personnelles réelles : ne jamais les copier
+  dans le dépôt. Reproduire le cas dans `tests/` avec des noms fictifs.
 - Playwright exige que toutes ses actions se fassent dans le fil `Pajemploi._boucle` : passer par
   `demander()` / `_cmd_*`, jamais depuis les routes Flask.
 - PowerShell 5.1 : les `.ps1` doivent être en **UTF-8 avec BOM** (accents), les `.bat`/`.ps1` en CRLF
@@ -84,6 +97,6 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   sur `C:\` (parcours du disque entier).
 - `.bat` : texte ASCII uniquement ; une mise à jour peut réécrire le `.bat` en cours d'exécution, d'où
   `& exit /b` sur la même ligne que l'appel PowerShell.
-- Formats de nom : mots-clés `NOM CLIENT`, `YYYY`, `YY`, `MM`, `MOIS` (`bibliotheque.appliquer_format`).
-  Plusieurs bulletins d'un même client le même mois (plusieurs enfants) : suffixe ` (2)`, comparaison par
-  nombre de fichiers.
+- Formats de nom : mots-clés `NOM CLIENT`, `ENFANT`, `YYYY`, `YY`, `MM`, `MOIS`
+  (`bibliotheque.appliquer_format`). Plusieurs bulletins d'un même client le même mois : suffixe
+  ` - Prénom` de l'enfant ; les fichiers existants qui citent le prénom sont attribués en priorité.
