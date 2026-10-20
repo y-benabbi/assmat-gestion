@@ -1,31 +1,92 @@
-"""Point d'entrée : serveur web local + ouverture de la page dans le navigateur."""
+"""Point d'entrée : serveur web local + ouverture de la page dans le navigateur.
+
+Chaque session Windows a son propre serveur : port propre à la session et clé secrète
+(« jeton ») rangée dans %LOCALAPPDATA%\\assmat-gestion\\serveur.json, lisible par cette session
+seulement. Le navigateur reçoit le jeton à l'ouverture (cookie) ; toute requête sans jeton est
+refusée. Ainsi une autre session du même PC ne peut ni ouvrir ni piloter cette application.
+"""
+import getpass
+import hmac
+import json
 import os
+import secrets
+import socket
 import sys
 import threading
 import urllib.request
 import webbrowser
+import zlib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from chemins import (AMORCE, BRANCHE_STABLE, DEPOT_GITHUB, DIAGNOSTICS, DOSSIER_WEB,  # noqa: E402
-                     FICHIER_PROGRAMME, JOURNAUX, PORT, version_locale)
+                     FICHIER_PROGRAMME, FICHIER_SERVEUR, JOURNAUX, PORT_FORCE, version_locale)
 
-ADRESSE = f"http://127.0.0.1:{PORT}/"
 # Passe à vrai dès qu'une page de l'application interroge le serveur.
 PAGE_OUVERTE = threading.Event()
+IDENTITE = f"assistante-maternelle:{getpass.getuser().lower()}"
+
+
+def lire_serveur():
+    try:
+        return json.loads(FICHIER_SERVEUR.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def port_libre(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return True
+        except OSError:
+            return False
+
+
+def preparer_serveur():
+    """Port et jeton de cette session (réutilisés d'un lancement à l'autre)."""
+    info = lire_serveur()
+    jeton = info.get("jeton") or secrets.token_urlsafe(32)
+    if PORT_FORCE:
+        port = PORT_FORCE
+    else:
+        # Port de départ propre à l'utilisateur, puis le premier port libre.
+        prefere = info.get("port") or 8700 + zlib.crc32(getpass.getuser().lower().encode()) % 800
+        port = next((p for p in [prefere] + list(range(8700, 9500)) if port_libre(p)), prefere)
+    FICHIER_SERVEUR.write_text(json.dumps({"port": port, "jeton": jeton}), encoding="utf-8")
+    return port, jeton
+
+
+def adresse(port, jeton=None):
+    return f"http://127.0.0.1:{port}/" + (f"?jeton={jeton}" if jeton else "")
 
 
 def deja_lance():
+    """Adresse de l'application de CETTE session si elle tourne déjà, sinon None."""
+    info = lire_serveur()
+    if not info.get("port") or not info.get("jeton") or PORT_FORCE:
+        return None
     try:
-        with urllib.request.urlopen(ADRESSE + "api/ping", timeout=1.5) as r:
-            return r.read() == b"assistante-maternelle"
+        requete = urllib.request.Request(adresse(info["port"]) + "api/ping",
+                                         headers={"X-Jeton": info["jeton"]})
+        with urllib.request.urlopen(requete, timeout=1.5) as r:
+            if r.read().decode() == IDENTITE:
+                return adresse(info["port"], info["jeton"])
     except Exception:
-        return False
+        pass
+    return None
 
 
-def creer_app():
-    from flask import Flask, jsonify, request, send_from_directory
+PAGE_REFUSEE = """<!doctype html><html lang="fr"><meta charset="utf-8"><title>Assistante Maternelle</title>
+<body style="font-family:sans-serif;max-width:560px;margin:80px auto;padding:0 16px;color:#3a3552">
+<h1>Accès refusé</h1><p>Ouvrez l'application avec son raccourci « Assistante Maternelle ».</p>
+<p style="color:#6f6a86">Cette page appartient peut-être à une autre session Windows de cet ordinateur.</p>
+</body></html>"""
+
+
+def creer_app(port, jeton):
+    from flask import Flask, jsonify, make_response, redirect, request, send_from_directory
 
     import bibliotheque
     import parametres
@@ -35,6 +96,21 @@ def creer_app():
     paje = Pajemploi()
     actions = {"connecter_et_analyser", "telecharger_manquants", "ouvrir_visible",
                "analyser_page_affichee", "diagnostic", "fermer"}
+    cookie = f"assmat_jeton_{port}"
+
+    def jeton_valide(valeur):
+        return bool(valeur) and hmac.compare_digest(valeur, jeton)
+
+    @app.before_request
+    def verifier_jeton():
+        # Ouverture par le raccourci : le jeton arrive dans l'adresse, on le garde en cookie.
+        if request.path == "/" and jeton_valide(request.args.get("jeton")):
+            reponse = make_response(redirect("/"))
+            reponse.set_cookie(cookie, jeton, httponly=True, samesite="Strict")
+            return reponse
+        if not (jeton_valide(request.cookies.get(cookie)) or jeton_valide(request.headers.get("X-Jeton"))):
+            return PAGE_REFUSEE, 403
+        return None
 
     @app.get("/")
     def accueil():
@@ -46,7 +122,7 @@ def creer_app():
 
     @app.get("/api/ping")
     def ping():
-        return "assistante-maternelle"
+        return IDENTITE
 
     @app.get("/api/etat")
     def etat():
@@ -67,10 +143,18 @@ def creer_app():
 
     @app.post("/api/apercu-nom")
     def apercu_nom():
+        """Exemple de rangement avec des familles fictives, pour l'aperçu des paramètres."""
         d = request.get_json(force=True)
-        p = {"dossier_bulletins": d.get("dossier_bulletins") or "…",
-             "format_fichier": d.get("format_fichier") or "", "format_dossier": d.get("format_dossier") or ""}
-        return jsonify({"chemin": str(bibliotheque.chemin_cible(p, "DUPONT", "2025-03"))})
+        racine = d.get("dossier_bulletins") or "Bulletins de salaire"
+        p = {"dossier_bulletins": racine, "format_fichier": d.get("format_fichier") or "",
+             "organisation": d.get("organisation") or "client"}
+        exemples = [("Dupont", "2025-12"), ("Dupont", "2026-01"), ("Martin", "2026-01")]
+        chemins = [bibliotheque.chemin_cible(p, client, periode) for client, periode in exemples]
+        return jsonify({
+            "chemin": str(chemins[0]),
+            "racine": Path(racine).name or racine,
+            "fichiers": [list(c.relative_to(racine).parts) for c in chemins],
+        })
 
     @app.post("/api/action")
     def action():
@@ -80,6 +164,12 @@ def creer_app():
         if paje.occupe() and nom not in ("fermer", "diagnostic"):
             return jsonify({"erreur": "Une opération est déjà en cours."}), 409
         paje.demander(nom)
+        return jsonify({"ok": True})
+
+    @app.post("/api/interrompre")
+    def interrompre():
+        if not paje.interrompre():
+            return jsonify({"erreur": "Aucun téléchargement en cours."}), 409
         return jsonify({"ok": True})
 
     @app.post("/api/code")
@@ -178,16 +268,19 @@ def creer_app():
 
 
 def main():
-    if deja_lance():
-        webbrowser.open(ADRESSE)
+    existante = deja_lance()
+    if existante:
+        webbrowser.open(existante)
         return
-    app = creer_app()
+    port, jeton = preparer_serveur()
+    app = creer_app(port, jeton)
+    ouvrir = lambda: webbrowser.open(adresse(port, jeton))  # noqa: E731
     if "--apres-mise-a-jour" in sys.argv:
         # La page restée ouverte se recharge seule ; on n'ouvre un onglet que si elle a été fermée.
-        threading.Timer(15, lambda: PAGE_OUVERTE.is_set() or webbrowser.open(ADRESSE)).start()
+        threading.Timer(15, lambda: PAGE_OUVERTE.is_set() or ouvrir()).start()
     elif "--sans-navigateur" not in sys.argv:
-        threading.Timer(1.2, lambda: webbrowser.open(ADRESSE)).start()
-    app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=False, threaded=True)
+        threading.Timer(1.2, ouvrir).start()
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False, threaded=True)
 
 
 if __name__ == "__main__":

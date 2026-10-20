@@ -1,6 +1,6 @@
 # assmat-gestion
 
-Application locale (page web + serveur sur `http://127.0.0.1:8765`) pour centraliser les démarches
+Application locale (page web + serveur local propre à chaque session Windows) pour centraliser les démarches
 d'une assistante maternelle.
 
 **Première fonctionnalité : bulletins de salaire Pajemploi**

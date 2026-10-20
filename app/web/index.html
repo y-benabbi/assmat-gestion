@@ -72,6 +72,7 @@
       <div class="boutons">
         <button id="btn-analyser" class="principal">Vérifier sur Pajemploi</button>
         <button id="btn-telecharger" class="surligne cache"></button>
+        <button id="btn-interrompre" class="secondaire cache">Interrompre le téléchargement</button>
         <button id="btn-diag-erreur" data-ouvrir="diagnostics" class="secondaire cache">Ouvrir le dossier des diagnostics</button>
       </div>
       <details class="aide">
@@ -129,17 +130,26 @@
             <button type="button" id="choisir-dossier" class="secondaire">Parcourir…</button>
           </span>
         </label>
+        <div class="organisation" role="radiogroup" aria-labelledby="titre-organisation">
+          <p id="titre-organisation" class="libelle">Classer les bulletins</p>
+          <div class="choix-organisation">
+            <label><input type="radio" name="organisation" value="client"><span>Par famille</span></label>
+            <label><input type="radio" name="organisation" value="client_annee"><span>Par famille, puis par année</span></label>
+            <label><input type="radio" name="organisation" value="annee"><span>Par année</span></label>
+            <label><input type="radio" name="organisation" value="annee_client"><span>Par année, puis par famille</span></label>
+          </div>
+        </div>
         <label>Nom des fichiers
           <input name="format_fichier">
-        </label>
-        <label>Nom du dossier de chaque famille
-          <input name="format_dossier">
         </label>
         <p class="petit">Mots remplacés automatiquement : <code>NOM CLIENT</code>, <code>YYYY</code> (année),
           <code>YY</code>, <code>MM</code> (mois en chiffres), <code>MOIS</code> (mois en lettres),
           <code>ENFANT</code> (prénom de l'enfant). Si une famille a plusieurs enfants le même mois, le prénom est
           ajouté automatiquement.</p>
-        <p class="apercu">Exemple : <span id="apercu"></span></p>
+        <div class="apercu">
+          <p class="petit">Exemple avec deux familles :</p>
+          <ul id="apercu" class="arbre"></ul>
+        </div>
         <label>Ignorer les bulletins antérieurs à (facultatif)
           <input name="periode_min" type="month">
         </label>

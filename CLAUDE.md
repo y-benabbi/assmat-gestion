@@ -1,6 +1,6 @@
 # CLAUDE.md — assmat-gestion
 
-Application Windows locale (serveur Flask sur `127.0.0.1:8765` + page web) pour centraliser les démarches
+Application Windows locale (serveur Flask local, un par session Windows, + page web) pour centraliser les démarches
 d'une assistante maternelle. Première fonctionnalité : récupérer et ranger les bulletins de salaire Pajemploi.
 Utilisatrice finale non technicienne, sur une **autre session Windows** que celle du développeur.
 
@@ -67,6 +67,13 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 
 ## Pièges connus
 
+- **Plusieurs sessions Windows sur le même PC** partagent les ports de `127.0.0.1`. Chaque session a donc
+  son serveur : port dérivé du nom d'utilisateur (repli sur un port libre) et jeton secret, tous deux dans
+  `%LOCALAPPDATA%\assmat-gestion\serveur.json`. Toute requête doit présenter le jeton (cookie posé à
+  l'ouverture via `/?jeton=…`, ou en-tête `X-Jeton`). `deja_lance()` vérifie l'identité (`/api/ping` renvoie
+  `assistante-maternelle:<utilisateur>`). Ne jamais revenir à un port fixe ni à une API sans jeton.
+  Les scripts (amorce.ps1) ne ferment que l'application de la session courante.
+
 - **Pajemploi refuse les navigateurs headless** (`ERR_CONNECTION_RESET`) : toujours `headless=False`,
   fenêtre réduite (`--start-minimized`) et affichée via CDP (`_montrer_fenetre`) quand une action manuelle
   est nécessaire. Ne pas contourner autrement la détection du site.
@@ -99,6 +106,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   sur `C:\` (parcours du disque entier).
 - `.bat` : texte ASCII uniquement ; une mise à jour peut réécrire le `.bat` en cours d'exécution, d'où
   `& exit /b` sur la même ligne que l'appel PowerShell.
+- Classement (paramètre `organisation`) : `client`, `client_annee`, `annee`, `annee_client`
+  (`bibliotheque.ORGANISATIONS`). La détection des fichiers existants est récursive et traverse les
+  dossiers d'année (`RE_ANNEE`) : elle doit marcher quel que soit le classement, même mélangé.
 - Formats de nom : mots-clés `NOM CLIENT`, `ENFANT`, `YYYY`, `YY`, `MM`, `MOIS`
   (`bibliotheque.appliquer_format`). Plusieurs bulletins d'un même client le même mois : suffixe
   ` - Prénom` de l'enfant ; les fichiers existants qui citent le prénom sont attribués en priorité.

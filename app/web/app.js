@@ -66,6 +66,12 @@ function afficherEtat() {
   $$("#btn-analyser, #btn-telecharger, #btn-visible, #btn-page").forEach((b) => (b.disabled = occupe));
   $("#btn-diag-erreur").classList.toggle("cache", etat.phase !== "erreur");
 
+  const telechargement = etat.phase === "telechargement";
+  const interrompre = $("#btn-interrompre");
+  interrompre.classList.toggle("cache", !telechargement);
+  btn.classList.toggle("cache", manquants === 0 || telechargement);
+  if (!telechargement) interrompre.disabled = false;
+
   if (etat.bulletins.length) {
     const familles = new Set(etat.bulletins.filter((b) => !b.present).map((b) => b.client)).size;
     $("#tuile-bulletins").textContent = manquants
@@ -190,6 +196,12 @@ $("#btn-telecharger").addEventListener("click", () => action("telecharger_manqua
 $("#btn-visible").addEventListener("click", () => action("ouvrir_visible"));
 $("#btn-page").addEventListener("click", () => action("analyser_page_affichee"));
 $("#btn-diagnostic").addEventListener("click", () => action("diagnostic"));
+$("#btn-interrompre").addEventListener("click", async () => {
+  const bouton = $("#btn-interrompre");
+  bouton.disabled = true;
+  await api("interrompre", {}).catch((e) => { bouton.disabled = false; alert(e.message); });
+  rafraichir();
+});
 $("#form-code").addEventListener("submit", async (e) => {
   e.preventDefault();
   await api("code", { code: $("#code").value });
@@ -216,15 +228,33 @@ async function chargerParametres() {
   if (!p.identifiant || !p.dossier_bulletins) ouvrirOnglet("parametres");
 }
 
+// Arborescence d'exemple : [["Dupont", "2025", "Bulletin….pdf"], …] -> listes imbriquées.
+function arbreHtml(fichiers) {
+  const racine = {};
+  fichiers.forEach((parties) => {
+    let noeud = racine;
+    parties.forEach((p) => (noeud = noeud[p] ??= {}));
+  });
+  const rendu = (noeud) => Object.keys(noeud).map((nom) => {
+    const enfants = Object.keys(noeud[nom]);
+    return enfants.length
+      ? `<li class="dossier"><span>${echapper(nom)}</span><ul>${rendu(noeud[nom])}</ul></li>`
+      : `<li class="fichier"><span>${echapper(nom)}</span></li>`;
+  }).join("");
+  return rendu(racine);
+}
+
 async function apercu() {
   const r = await api("apercu-nom", {
     dossier_bulletins: form.elements.dossier_bulletins.value,
     format_fichier: form.elements.format_fichier.value,
-    format_dossier: form.elements.format_dossier.value,
+    organisation: form.elements.organisation.value || "client",
   }).catch(() => null);
-  if (r) $("#apercu").textContent = r.chemin;
+  if (r) $("#apercu").innerHTML = `<li class="dossier"><span>${echapper(r.racine)}</span><ul>${arbreHtml(r.fichiers)}</ul></li>`;
 }
-["dossier_bulletins", "format_fichier", "format_dossier"].forEach((n) => form.elements[n].addEventListener("input", apercu));
+form.elements.dossier_bulletins.addEventListener("input", apercu);
+form.elements.format_fichier.addEventListener("input", apercu);
+$$("input[name=organisation]").forEach((r) => r.addEventListener("change", apercu));
 
 $("#choisir-dossier").addEventListener("click", async () => {
   const r = await api("choisir-dossier", {});
@@ -235,7 +265,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const d = {};
   for (const champ of form.elements) {
-    if (!champ.name) continue;
+    if (!champ.name || (champ.type === "radio" && !champ.checked)) continue;
     d[champ.name] = champ.type === "checkbox" ? champ.checked : champ.value;
   }
   if (!d.mot_de_passe) delete d.mot_de_passe;

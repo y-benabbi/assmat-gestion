@@ -81,6 +81,7 @@ class Pajemploi:
         # En-têtes (dont l'autorisation) utilisés par la page Pajemploi pour appeler son API.
         # Gardés uniquement en mémoire, jamais écrits sur le disque.
         self._entetes_api = None
+        self._arret = threading.Event()
         threading.Thread(target=self._boucle, daemon=True, name="pajemploi").start()
 
     # ------------------------------------------------------------------ état
@@ -110,10 +111,21 @@ class Pajemploi:
     def fournir_code(self, code):
         self._codes.put(code.strip())
 
+    def interrompre(self):
+        """Demande l'arrêt du téléchargement en cours (appelé depuis l'interface).
+        Le bulletin en cours se termine, pour ne jamais laisser de fichier incomplet."""
+        if self.etat["phase"] == "telechargement" and not self._arret.is_set():
+            self._arret.set()
+            self.log("Interruption demandée")
+            self._maj(message="Interruption demandée : fin du bulletin en cours…")
+            return True
+        return False
+
     # ------------------------------------------------------- fil Playwright
     def _boucle(self):
         while True:
             commande, args = self._commandes.get()
+            self._arret.clear()
             try:
                 getattr(self, "_cmd_" + commande)(**args)
             except Exception as e:  # noqa: BLE001
@@ -706,6 +718,13 @@ class Pajemploi:
         reussis = 0
         page_courante = None
         for n, b in enumerate(a_faire, 1):
+            if self._arret.is_set():
+                restants = len(a_faire) - n + 1
+                self.log(f"Téléchargement interrompu ({reussis} récupéré(s), {restants} restant(s))")
+                self._maj(phase="connecte", progression=None,
+                          message=f"Téléchargement interrompu : {reussis} bulletin(s) récupéré(s), "
+                                  f"{restants} restant(s) à récupérer.")
+                return
             self._maj(message=f"Téléchargement {n}/{len(a_faire)} : {b['client']} — {b['periode']}")
             try:
                 cible = Path(b["cible"])

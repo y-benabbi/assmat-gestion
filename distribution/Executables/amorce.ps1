@@ -18,6 +18,21 @@ if (-not $DossierProgramme -and (Split-Path -Leaf $PSScriptRoot) -eq "Executable
 Write-Host "Assistante Maternelle — installation / mise à jour" -ForegroundColor Cyan
 try {
     if ($Relancer) { Start-Sleep -Seconds 3 }   # laisser l'application se fermer
+
+    # Fermer l'application de CETTE session si elle tourne encore (jamais celle d'une autre session).
+    $infoServeur = Join-Path $Base "serveur.json"
+    if (Test-Path $infoServeur) {
+        try {
+            $s = Get-Content $infoServeur -Raw | ConvertFrom-Json
+            Invoke-WebRequest "http://127.0.0.1:$($s.port)/api/quitter" -Method Post -UseBasicParsing `
+                -Headers @{ "X-Jeton" = $s.jeton } -TimeoutSec 3 | Out-Null
+            Start-Sleep -Seconds 2
+        } catch {}
+    }
+    Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like "*$Application*" } |
+        Where-Object { (Invoke-CimMethod -InputObject $_ -MethodName GetOwner).User -eq $env:USERNAME } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     New-Item -ItemType Directory -Force $Base | Out-Null
     $temp = Join-Path $env:TEMP ("assmat-" + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force $temp | Out-Null

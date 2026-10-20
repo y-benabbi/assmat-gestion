@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -34,6 +35,8 @@ appels = []
 
 
 class Serveur(BaseHTTPRequestHandler):
+    lenteur = 0.0
+
     def log_message(self, *a):
         pass
 
@@ -57,6 +60,7 @@ class Serveur(BaseHTTPRequestHandler):
             return self._repondre(200, json.dumps(DONNEES.get(annee, [])).encode())
         if self.path.endswith("documents/generer"):
             assert corps["codeParamDoc"] == "PAJE_BULLETIN_SALAIRE"
+            time.sleep(Serveur.lenteur)
             ref = corps["criteresAggregation"][0]["value"]
             pdf = b"%PDF-1.4 bulletin " + ref.encode()
             return self._repondre(200, json.dumps({"documentData": base64.b64encode(pdf).decode()}).encode())
@@ -90,6 +94,21 @@ with sync_playwright() as pw:
     sortie = Path(tempfile.mkdtemp()) / "b.pdf"
     p._telecharger_via_api(bulletins[1], sortie)
     assert sortie.read_bytes() == b"%PDF-1.4 bulletin D2"
+
+    # Interruption : le bulletin en cours se termine, les suivants ne sont pas téléchargés.
+    dossier = Path(tempfile.mkdtemp())
+    p.etat["bulletins"] = [dict(x, client="Famille", present=False, cible=str(dossier / f"{x['idDeclaration']}.pdf"))
+                           for x in bulletins]
+    p._semble_connecte = lambda page: True
+    p._verifier_dossier = lambda: None
+    Serveur.lenteur = 1.0
+    threading.Timer(0.5, p.interrompre).start()
+    p._cmd_telecharger_manquants()
+    enregistres = sorted(f.name for f in dossier.iterdir())
+    print("après interruption :", enregistres, "|", p.etat["message"])
+    assert enregistres == ["D1.pdf"], enregistres
+    assert p.etat["phase"] == "connecte" and "interrompu" in p.etat["message"]
+    assert not p.interrompre(), "aucun téléchargement en cours : rien à interrompre"
     contexte.close()
 serveur.shutdown()
 print("API OK")

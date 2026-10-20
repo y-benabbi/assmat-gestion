@@ -77,11 +77,33 @@ def inventaire(dossier: str) -> list:
     return resultat
 
 
+RE_ANNEE = re.compile(r"^(19|20)\d\d$")
+
+
 def sous_dossiers_clients(dossier: str) -> list:
+    """Noms des dossiers de clients existants, à la racine ou sous un dossier d'année
+    (organisations « client », « client puis année » et « année puis client »)."""
     racine = Path(dossier)
     if not racine.is_dir():
         return []
-    return [d.name for d in racine.iterdir() if d.is_dir()]
+    noms = []
+    for d in racine.iterdir():
+        if not d.is_dir():
+            continue
+        if RE_ANNEE.match(d.name):
+            noms += [s.name for s in d.iterdir() if s.is_dir() and not RE_ANNEE.match(s.name)]
+        else:
+            noms.append(d.name)
+    return list(dict.fromkeys(noms))
+
+
+# Organisation des dossiers : liste des niveaux sous le dossier des bulletins.
+ORGANISATIONS = {
+    "client": ["client"],
+    "client_annee": ["client", "annee"],
+    "annee": ["annee"],
+    "annee_client": ["annee", "client"],
+}
 
 
 CIVILITES = re.compile(r"^(m\.|mme\.?|mr\.?|mlle\.?|monsieur|madame)\s+", re.I)
@@ -129,8 +151,10 @@ def chemin_cible(params: dict, client: str, periode: str, rang: int = 1, enfant:
                  plusieurs: bool = False) -> Path:
     """Chemin du fichier à créer. Si le client a plusieurs bulletins ce mois-là (plusieurs
     enfants) et que le format ne contient pas ENFANT, on ajoute le prénom de l'enfant."""
-    dossier = Path(params["dossier_bulletins"]) / appliquer_format(params["format_dossier"], client, periode, enfant)
-    nom = appliquer_format(params["format_fichier"], client, periode, enfant)
+    dossier = Path(params["dossier_bulletins"])
+    for niveau in ORGANISATIONS.get(params.get("organisation"), ORGANISATIONS["client"]):
+        dossier /= re.sub(r'[<>:"/\\|?*]', "-", client).strip(" .") if niveau == "client" else periode[:4]
+    nom =appliquer_format(params["format_fichier"], client, periode, enfant)
     if plusieurs and "ENFANT" not in params["format_fichier"]:
         nom += f" - {enfant}" if enfant else f" ({rang})"
     elif rang > 1 and not enfant:
@@ -189,11 +213,18 @@ def comparer(bulletins: list, params: dict, correspondances: dict) -> list:
 
 
 def resume_dossier(dossier: str) -> dict:
-    """Vue hors connexion : pour chaque sous-dossier, les mois trouvés."""
+    """Vue hors connexion : pour chaque famille (dossier), les mois trouvés.
+    Les dossiers d'année sont traversés : « 2026/Dupont/… » compte pour « Dupont »."""
     resultat = {}
     racine = Path(dossier)
+    familles = sous_dossiers_clients(dossier)
     for f in inventaire(dossier):
-        rel = Path(f["chemin"]).relative_to(racine)
-        groupe = rel.parts[0] if len(rel.parts) > 1 else "(racine du dossier)"
+        dossiers = [p for p in Path(f["chemin"]).relative_to(racine).parts[:-1] if not RE_ANNEE.match(p)]
+        if dossiers:
+            groupe = dossiers[0]
+        else:
+            # Fichier rangé seulement par année : famille retrouvée d'après le nom du fichier.
+            groupe = next((fam for fam in familles if mots(fam) & f["mots"]), None) \
+                or " ".join(sorted(f["mots"])).title() or "(sans nom de famille)"
         resultat.setdefault(groupe, set()).add(f["periode"])
     return {k: sorted(v) for k, v in sorted(resultat.items())}

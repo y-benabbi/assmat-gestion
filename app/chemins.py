@@ -31,7 +31,11 @@ DIAGNOSTICS = JOURNAUX / "diagnostics"
 AMORCE = RACINE_CODE / "distribution" / "Executables" / "amorce.ps1"
 FICHIER_PROGRAMME = BASE / "dossier-programme.txt"
 
-PORT = int(os.environ.get("ASSMAT_PORT") or 8765)   # autre port possible pour les tests
+# Serveur local : port et clé secrète propres à la session Windows (voir main.py).
+# Plusieurs sessions d'un même PC partagent les ports de 127.0.0.1 : sans cela, une session
+# ouvrirait l'application (et les paramètres) d'une autre.
+FICHIER_SERVEUR = BASE / "serveur.json"
+PORT_FORCE = int(os.environ.get("ASSMAT_PORT") or 0)   # tests
 
 for d in (DOSSIER_DONNEES, JOURNAUX, DIAGNOSTICS):
     d.mkdir(parents=True, exist_ok=True)

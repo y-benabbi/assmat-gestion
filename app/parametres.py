@@ -16,7 +16,8 @@ DEFAUTS = {
     "identifiant": "",
     "dossier_bulletins": "",
     "format_fichier": "Bulletin de salaire - NOM CLIENT - YYYY-MM",
-    "format_dossier": "NOM CLIENT",
+    # Rangement : "client", "client_annee", "annee" ou "annee_client" (bibliotheque.ORGANISATIONS)
+    "organisation": "client",
     "periode_min": "",
     "navigateur_visible": False,
     # Lignes « NOM AFFICHÉ PAR PAJEMPLOI = Nom du dossier »

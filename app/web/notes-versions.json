@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.3.0",
+    "date": "2026-10-20",
+    "titre": "Classement au choix et téléchargement interruptible",
+    "nouveautes": [
+      "Correction importante : quand plusieurs sessions Windows utilisent l'application sur le même ordinateur, chacune a désormais sa propre application et ses propres paramètres (auparavant, une session pouvait ouvrir celle d'une autre et écraser ses réglages).",
+      "L'application ne peut plus être ouverte depuis une autre session Windows de l'ordinateur.",
+      "Nouveau choix du classement des bulletins dans les Paramètres : par famille, par famille puis par année, par année, ou par année puis par famille. Un exemple montre l'arborescence obtenue.",
+      "Les bulletins déjà rangés par année sont reconnus, quel que soit le classement choisi.",
+      "Nouveau bouton « Interrompre le téléchargement » pendant la récupération des bulletins.",
+      "Le bulletin en cours se termine avant l'arrêt : aucun fichier n'est laissé à moitié enregistré.",
+      "Les bulletins restants restent signalés « à récupérer » et peuvent être téléchargés plus tard."
+    ]
+  },
+  {
     "version": "1.2.0",
     "date": "2026-10-20",
     "titre": "Nouvelle présentation, mises à jour en un clic",

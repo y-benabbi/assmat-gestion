@@ -44,7 +44,7 @@ for f in fichiers:
     p.write_bytes(b"%PDF-1.4 test")
 
 params = {"dossier_bulletins": str(racine), "format_fichier": "Bulletin de salaire - NOM CLIENT - YYYY-MM",
-          "format_dossier": "NOM CLIENT"}
+          "organisation": "client"}
 liste = [
     {"employeur": "Mme DUPONT MARIE", "periode": "2026-01"},     # présent
     {"employeur": "Mme DUPONT MARIE", "periode": "2025-11"},     # présent (nom via dossier)
@@ -74,4 +74,31 @@ assert liste[10]["client"] == "NOUVEAU Client"
 assert b.nom_client("M. MARTIN PAUL", str(racine), {"m. martin paul": "Famille Martin"}) == "Famille Martin"
 assert b.appliquer_format("MOIS YYYY - NOM CLIENT (MM/YY)", "Dupont", "2025-08") == "Août 2025 - Dupont (08-25)"
 print(b.resume_dossier(str(racine)))
+
+# Organisations des dossiers
+attendu = {
+    "client": "Dupont/Bulletin de salaire - Dupont - 2025-08.pdf",
+    "client_annee": "Dupont/2025/Bulletin de salaire - Dupont - 2025-08.pdf",
+    "annee": "2025/Bulletin de salaire - Dupont - 2025-08.pdf",
+    "annee_client": "2025/Dupont/Bulletin de salaire - Dupont - 2025-08.pdf",
+}
+for organisation, chemin in attendu.items():
+    p = dict(params, organisation=organisation)
+    obtenu = b.chemin_cible(p, "Dupont", "2025-08").relative_to(racine).as_posix()
+    assert obtenu == chemin, (organisation, obtenu)
+print("organisations OK")
+
+# Classement « année puis famille » déjà en place : les dossiers de familles sont retrouvés
+# sous les dossiers d'année, et les fichiers existants y sont reconnus.
+racine2 = Path(tempfile.mkdtemp())
+(racine2 / "2026" / "Leroy").mkdir(parents=True)
+(racine2 / "2026" / "Leroy" / "Bulletin de salaire - Leroy - 2026-02.pdf").write_bytes(b"%PDF")
+assert "Leroy" in b.sous_dossiers_clients(str(racine2)) and "2026" not in b.sous_dossiers_clients(str(racine2))
+p2 = {"dossier_bulletins": str(racine2), "format_fichier": "Bulletin de salaire - NOM CLIENT - YYYY-MM",
+      "organisation": "annee_client"}
+l2 = b.comparer([{"employeur": "Mme LEROY ANNE", "periode": "2026-02"},
+                 {"employeur": "Mme LEROY ANNE", "periode": "2026-03"}], p2, {})
+assert [x["present"] for x in l2] == [True, False] and l2[0]["client"] == "Leroy"
+assert Path(l2[1]["cible"]).relative_to(racine2).as_posix() == "2026/Leroy/Bulletin de salaire - Leroy - 2026-03.pdf"
+print("classement par année OK")
 print("comparaison OK")
