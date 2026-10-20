@@ -14,9 +14,21 @@ async function api(chemin, donnees) {
 function ouvrirOnglet(nom) {
   $$("[data-onglet]").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
   $$(".onglet").forEach((s) => s.classList.toggle("actif", s.id === nom));
+  $("#menu").classList.remove("ouvert");
+  $("#bouton-menu").setAttribute("aria-expanded", "false");
   window.scrollTo(0, 0);
   if (nom === "bulletins") afficherListe();
+  if (nom === "accueil") afficherTableauDeBord();
+  if (nom === "revenus") afficherRevenus($("#annee-revenus").value);
+  if (nom === "contrats") afficherContrats();
+  if (nom === "echeances") afficherEcheances();
+  if (nom === "courriers") preparerCourriers();
+  if (nom === "profil") chargerProfil();
 }
+$("#bouton-menu").addEventListener("click", () => {
+  const ouvert = $("#menu").classList.toggle("ouvert");
+  $("#bouton-menu").setAttribute("aria-expanded", String(ouvert));
+});
 $$("[data-onglet]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.onglet)));
 $$("[data-aller]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); ouvrirOnglet(b.dataset.aller); }));
 
@@ -165,8 +177,8 @@ async function afficherListe() {
   dossierLocal = await api("dossier").catch(() => null);
   if (!dossierLocal || !dossierLocal.configure) {
     zone.innerHTML = `<div class="vide-classeur"><p>Pour commencer, indiquez où ranger les bulletins de salaire.</p>
-      <button class="principal" id="lien-param">Choisir le dossier dans les paramètres</button></div>`;
-    $("#lien-param").addEventListener("click", () => ouvrirOnglet("parametres"));
+      <button class="principal" id="lien-param">Choisir le dossier dans « Mes fonctionnalités »</button></div>`;
+    $("#lien-param").addEventListener("click", () => ouvrirOnglet("fonctionnalites"));
     return;
   }
   const familles = Object.entries(dossierLocal.clients);
@@ -219,13 +231,19 @@ async function chargerParametres() {
     if (!champ) continue;
     if (champ.type === "checkbox") champ.checked = !!val; else champ.value = val ?? "";
   }
+  for (const [cle, val] of Object.entries(p.modules || {})) {
+    const champ = form.elements["modules." + cle];
+    if (champ) champ.checked = !!val;
+  }
+  appliquerModules(p.modules || {});
   form.elements.mot_de_passe.value = "";
   form.elements.mot_de_passe.placeholder = p.mot_de_passe_enregistre ? "•••••••• (enregistré)" : "";
   $("#info-mdp").textContent = p.mot_de_passe_enregistre
     ? "Mot de passe enregistré de façon sécurisée dans Windows. Laissez vide pour le conserver."
     : "Le mot de passe sera rangé dans le Gestionnaire d'identifiants de Windows (jamais dans un fichier).";
   apercu();
-  if (!p.identifiant || !p.dossier_bulletins) ouvrirOnglet("parametres");
+  parametresActuels = p;
+  if (p.modules?.bulletins !== false && (!p.identifiant || !p.dossier_bulletins)) ouvrirOnglet("fonctionnalites");
 }
 
 // Arborescence d'exemple : [["Dupont", "2025", "Bulletin….pdf"], …] -> listes imbriquées.
@@ -263,19 +281,330 @@ $("#choisir-dossier").addEventListener("click", async () => {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const d = {};
+  const d = { modules: {} };
   for (const champ of form.elements) {
     if (!champ.name || (champ.type === "radio" && !champ.checked)) continue;
-    d[champ.name] = champ.type === "checkbox" ? champ.checked : champ.value;
+    const valeur = champ.type === "checkbox" ? champ.checked : champ.value;
+    if (champ.name.startsWith("modules.")) d.modules[champ.name.slice(8)] = valeur;
+    else d[champ.name] = valeur;
   }
   if (!d.mot_de_passe) delete d.mot_de_passe;
   try {
     await api("parametres", d);
-    $("#enregistre").textContent = "Paramètres enregistrés.";
+    $("#enregistre").textContent = "Réglages enregistrés.";
     setTimeout(() => ($("#enregistre").textContent = ""), 3000);
     await chargerParametres();
     dossierLocal = null;
   } catch (err) { alert(err.message); }
+});
+
+// ------------------------------------------------------------- rubriques affichées
+let parametresActuels = {};
+
+function appliquerModules(modules) {
+  $$("[data-module]").forEach((el) => el.classList.toggle("cache", modules[el.dataset.module] === false));
+  // Une catégorie du menu sans rubrique visible disparaît aussi.
+  $$(".menu .categorie").forEach((titre) => {
+    let el = titre.nextElementSibling, visible = false;
+    while (el && el.tagName === "BUTTON") { visible ||= !el.classList.contains("cache"); el = el.nextElementSibling; }
+    titre.classList.toggle("cache", !visible);
+  });
+}
+
+// ------------------------------------------------------------- tableau de bord et revenus
+const MOIS_COURTS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+const euros = (v, decimales = 0) => (v || 0).toLocaleString("fr-FR",
+  { style: "currency", currency: "EUR", minimumFractionDigits: decimales, maximumFractionDigits: decimales });
+const heures = (v) => `${Math.round(v || 0).toLocaleString("fr-FR")} h`;
+let revenusCharges = {};
+
+async function chargerRevenus(annee) {
+  const cle = annee || "";
+  revenusCharges[cle] ??= api("revenus" + (annee ? `?annee=${annee}` : "")).catch(() => null);
+  return revenusCharges[cle];
+}
+
+// Les clés « 10 », « 11 », « 12 » passeraient avant « 01 » dans un objet JS : on trie.
+const moisTries = (r) => Object.keys(r.mois).sort().map((k) => r.mois[k]);
+
+function periodeCouverte(r) {
+  const mois = Object.keys(r.mois).filter((k) => r.mois[k].bulletins).map(Number);
+  if (!mois.length) return "aucun bulletin";
+  const a = MOIS_COURTS[Math.min(...mois) - 1], b = MOIS_COURTS[Math.max(...mois) - 1];
+  return a === b ? a : `${a} à ${b}`;
+}
+
+function chiffresHtml(r) {
+  const g = r.general;
+  const part = g.brut ? Math.round((100 * g.cotisations) / g.brut) : 0;
+  return `
+    <div class="chiffre"><span class="libelle-chiffre">Salaire brut</span><span class="valeur">${euros(g.brut)}</span><span class="detail">${periodeCouverte(r)}</span></div>
+    <div class="chiffre"><span class="libelle-chiffre">Cotisations prélevées</span><span class="valeur">${euros(g.cotisations)}</span><span class="detail">${part} % du brut</span></div>
+    <div class="chiffre net"><span class="libelle-chiffre">Salaire net</span><span class="valeur">${euros(g.net)}</span><span class="detail">versé par les familles</span></div>
+    <div class="chiffre"><span class="libelle-chiffre">Indemnités</span><span class="valeur">${euros(g.indemnites)}</span><span class="detail">entretien, repas, km</span></div>
+    <div class="chiffre total"><span class="libelle-chiffre">Total encaissé</span><span class="valeur">${euros(g.encaisse)}</span><span class="detail">net + indemnités</span></div>`;
+}
+
+function graphiqueHtml(r) {
+  const mois = moisTries(r);
+  const max = Math.max(1, ...mois.map((m) => m.brut + m.indemnites));
+  const h = (v) => Math.round((170 * v) / max);
+  return `<div class="legende-graphique"><span><i class="c-net"></i>Net</span><span><i class="c-cot"></i>Cotisations</span>
+      <span><i class="c-ind"></i>Indemnités</span></div>
+    <div class="defilement"><div class="graphique" role="img" aria-label="Revenus mois par mois">
+    ${mois.map((m, i) => `<div class="barre-mois" title="${MOIS_COURTS[i]} : brut ${euros(m.brut, 2)}, net ${euros(m.net, 2)}, indemnités ${euros(m.indemnites, 2)}">
+      <span class="montant">${m.bulletins ? euros(m.encaisse) : ""}</span>
+      <div class="pile"><div class="c-ind" style="height:${h(m.indemnites)}px"></div>
+        <div class="c-cot" style="height:${h(m.cotisations)}px"></div><div class="c-net" style="height:${h(m.net)}px"></div></div>
+      <span class="mois">${MOIS_COURTS[i]}</span></div>`).join("")}
+    </div></div>`;
+}
+
+function aucunRevenu(zone) {
+  zone.innerHTML = `<p class="petit">Aucun bulletin lu pour l'instant. Les montants apparaîtront dès que des bulletins
+    seront rangés dans le dossier choisi dans « Mes fonctionnalités ».</p>`;
+}
+
+async function afficherTableauDeBord() {
+  const modules = parametresActuels.modules || {};
+  const aFaire = [];
+  const manquants = etat.bulletins.filter((b) => !b.present).length;
+  if (modules.bulletins !== false && manquants)
+    aFaire.push({ couleur: "attente", texte: `${manquants} bulletin${manquants > 1 ? "s" : ""} de salaire à récupérer.`, aller: "bulletins", bouton: "Récupérer" });
+
+  const [r, ech, contrats, profil] = await Promise.all([
+    modules.revenus !== false ? chargerRevenus() : null,
+    modules.echeances !== false ? api("echeances").catch(() => []) : [],
+    api("contrats").catch(() => []), api("profil").catch(() => ({})),
+  ]);
+  if (r && r.illisibles.length)
+    aFaire.push({ couleur: "erreur", texte: `${r.illisibles.length} bulletin${r.illisibles.length > 1 ? "s" : ""} dont les montants n'ont pas pu être lus.`, aller: "revenus", bouton: "Voir" });
+  ech.filter((e) => e.urgent).forEach((e) => aFaire.push({ couleur: "attente", texte: `${dateFr(e.date)} : ${e.titre}.`, aller: "echeances", bouton: "Voir" }));
+  if (modules.contrats !== false && !contrats.length)
+    aFaire.push({ couleur: "", texte: "Ajoutez une fiche par enfant accueilli (dates, emploi du temps).", aller: "contrats", bouton: "Contrats" });
+  if (!profil.nom || !profil.agrement_numero)
+    aFaire.push({ couleur: "", texte: "Complétez votre profil (identité, agrément) pour les courriers et les échéances.", aller: "profil", bouton: "Mon profil" });
+  $("#liste-a-faire").innerHTML = aFaire.length
+    ? aFaire.map((a) => `<li><span class="pastille ${a.couleur}" aria-hidden="true"></span><span class="texte">${echapper(a.texte)}</span>
+        <button class="secondaire" data-aller-vers="${a.aller}">${a.bouton}</button></li>`).join("")
+    : `<li><span class="pastille ok" aria-hidden="true"></span><span class="texte">Rien d'urgent : tout est à jour.</span></li>`;
+  $$("[data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
+
+  if (r) {
+    $("#annee-accueil").textContent = r.general.bulletins ? `en ${r.annee}` : "";
+    if (r.general.bulletins) {
+      $("#chiffres-accueil").innerHTML = chiffresHtml(r);
+      $("#graphique-accueil").innerHTML = graphiqueHtml(r);
+    } else {
+      $("#chiffres-accueil").innerHTML = "";
+      aucunRevenu($("#graphique-accueil"));
+    }
+  }
+  $("#echeances-accueil").innerHTML = ech.length ? ech.slice(0, 4).map(ligneEcheance).join("")
+    : `<li class="petit">Aucune échéance connue : complétez Mon profil et les contrats.</li>`;
+}
+
+async function afficherRevenus(annee) {
+  const r = await chargerRevenus(annee);
+  const choix = $("#annee-revenus");
+  if (!r) return;
+  choix.innerHTML = (r.annees.length ? r.annees : [r.annee]).map((a) => `<option ${a === r.annee ? "selected" : ""}>${a}</option>`).join("");
+  if (!r.general.bulletins) {
+    $("#chiffres-revenus").innerHTML = "";
+    aucunRevenu($("#graphique-revenus"));
+    $("#tableau-familles").innerHTML = $("#tableau-mois").innerHTML = "";
+    return;
+  }
+  $("#chiffres-revenus").innerHTML = chiffresHtml(r);
+  $("#graphique-revenus").innerHTML = graphiqueHtml(r);
+  const total = r.general.brut || 1;
+  const ligne = (nom, m, avecPart) => `<tr><td>${nom}</td><td>${m.bulletins}</td><td>${heures(m.heures)}</td><td>${euros(m.brut, 2)}</td>
+    <td>${euros(m.cotisations, 2)}</td><td>${euros(m.net, 2)}</td><td>${euros(m.indemnites, 2)}</td><td>${euros(m.encaisse, 2)}</td>
+    ${avecPart ? `<td><span class="part"><span style="width:${Math.round((100 * m.brut) / total)}%"></span></span>${Math.round((100 * m.brut) / total)} %</td>` : ""}</tr>`;
+  const entete = (premier, avecPart) => `<thead><tr><th>${premier}</th><th>Bulletins</th><th>Heures</th><th>Brut</th><th>Cotisations</th>
+    <th>Net</th><th>Indemnités</th><th>Encaissé</th>${avecPart ? "<th>Part du brut</th>" : ""}</tr></thead>`;
+  $("#tableau-familles").innerHTML = entete("Famille", true)
+    + `<tbody>${Object.entries(r.familles).map(([nom, m]) => ligne(`<strong>${echapper(nom)}</strong>`, m, true)).join("")}</tbody>`
+    + `<tfoot>${ligne("Total", r.general, false).replace("</tr>", "<td></td></tr>")}</tfoot>`;
+  $("#tableau-mois").innerHTML = entete("Mois", false)
+    + `<tbody>${Object.keys(r.mois).sort().filter((k) => r.mois[k].bulletins).map((k) => ligne(MOIS_COURTS[+k - 1], r.mois[k], false)).join("")}</tbody>`
+    + `<tfoot>${ligne("Total", r.general, false)}</tfoot>`;
+  $("#illisibles").textContent = r.illisibles.length
+    ? `Montants non lus pour : ${r.illisibles.map((f) => f.split(/[\\/]/).pop()).join(", ")}.` : "";
+}
+$("#annee-revenus").addEventListener("change", (e) => afficherRevenus(e.target.value));
+
+// ------------------------------------------------------------- échéances
+function ligneEcheance(e) {
+  const d = new Date(e.date + "T12:00:00");
+  const quand = d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+    + (d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : "");
+  return `<li class="${e.urgent ? "urgent" : ""}"><span class="quand">${quand}</span>
+    <span>${echapper(e.titre)}${e.detail ? `<span class="detail">${echapper(e.detail)}</span>` : ""}</span></li>`;
+}
+
+async function afficherEcheances() {
+  const ech = await api("echeances").catch(() => []);
+  $("#liste-echeances").innerHTML = ech.length ? ech.map(ligneEcheance).join("")
+    : `<li class="petit">Aucune échéance connue pour l'instant.</li>`;
+}
+
+// ------------------------------------------------------------- contrats
+const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+const formContrat = $("#form-contrat");
+let contratEdite = null;
+
+$("#horaires-contrat").innerHTML = `<thead><tr><th></th>${JOURS.map((j) => `<th>${j.slice(0, 3)}.</th>`).join("")}</tr></thead>
+  <tbody>${[["horaires_scolaire", "Période scolaire"], ["horaires_vacances", "Vacances scolaires"]].map(([cle, nom]) =>
+    `<tr><th scope="row">${nom}</th>${JOURS.map((j) => `<td><input name="${cle}.${j}" aria-label="${nom}, ${j}" placeholder="—"></td>`).join("")}</tr>`).join("")}</tbody>`;
+
+async function afficherContrats() {
+  const liste = await api("contrats").catch(() => []);
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  $("#liste-contrats").innerHTML = liste.length ? "" : `<p class="vide-classeur">Aucune fiche pour l'instant.</p>`;
+  liste.forEach((c) => {
+    const b = document.createElement("button");
+    const termine = c.fin && c.fin < aujourdhui;
+    b.className = "carte-contrat" + (termine ? " termine" : "");
+    const jours = JOURS.filter((j) => c.horaires_scolaire?.[j]).map((j) => j.slice(0, 3) + ".").join(" ");
+    b.innerHTML = `<span class="nom">${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")}</span>
+      <span class="petit">Famille ${echapper(c.famille)}${c.debut ? ` · depuis ${dateFr(c.debut)}` : ""}${termine ? " · terminé" : ""}</span>
+      <span class="petit">${c.semaines === "52" ? "52 semaines" : "46 semaines ou moins"} · ${c.accueil === "periscolaire" ? "périscolaire" : "journée"}${jours ? ` · ${jours}` : ""}</span>`;
+    b.addEventListener("click", () => editerContrat(c));
+    $("#liste-contrats").appendChild(b);
+  });
+  return liste;
+}
+
+function editerContrat(c) {
+  contratEdite = c;
+  formContrat.reset();
+  for (const champ of formContrat.elements) {
+    if (!champ.name) continue;
+    const [cle, jour] = champ.name.split(".");
+    champ.value = (jour ? c?.[cle]?.[jour] : c?.[cle]) ?? (champ.tagName === "SELECT" ? champ.options[0].value : "");
+  }
+  $("#titre-form-contrat").textContent = c ? `${c.enfant_prenom} ${c.enfant_nom || ""}` : "Nouvel enfant";
+  $("#supprimer-contrat").classList.toggle("cache", !c);
+  formContrat.classList.remove("cache");
+  formContrat.scrollIntoView({ behavior: "smooth" });
+}
+$("#nouveau-contrat").addEventListener("click", () => editerContrat(null));
+$("#annuler-contrat").addEventListener("click", () => formContrat.classList.add("cache"));
+$("#supprimer-contrat").addEventListener("click", async () => {
+  if (!contratEdite || !confirm(`Supprimer la fiche de ${contratEdite.enfant_prenom} ?`)) return;
+  await api("contrats/supprimer", { id: contratEdite.id });
+  formContrat.classList.add("cache");
+  afficherContrats();
+});
+formContrat.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const d = { id: contratEdite?.id, horaires_scolaire: {}, horaires_vacances: {} };
+  for (const champ of formContrat.elements) {
+    if (!champ.name) continue;
+    const [cle, jour] = champ.name.split(".");
+    if (jour) d[cle][jour] = champ.value; else d[cle] = champ.value;
+  }
+  await api("contrats", d).catch((err) => alert(err.message));
+  formContrat.classList.add("cache");
+  afficherContrats();
+});
+
+// ------------------------------------------------------------- mon profil
+const formProfil = $("#form-profil");
+async function chargerProfil() {
+  const p = await api("profil").catch(() => ({}));
+  for (const [cle, val] of Object.entries(p)) if (formProfil.elements[cle]) formProfil.elements[cle].value = val ?? "";
+  return p;
+}
+formProfil.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const d = Object.fromEntries([...formProfil.elements].filter((c) => c.name).map((c) => [c.name, c.value]));
+  await api("profil", d).catch((err) => alert(err.message));
+  $("#profil-enregistre").textContent = "Profil enregistré.";
+  setTimeout(() => ($("#profil-enregistre").textContent = ""), 3000);
+});
+
+// ------------------------------------------------------------- courriers
+const formDerog = $("#form-derogation");
+const formTexte = $("#form-texte");
+let propositionCourrier = null;
+let contratsCourrier = [];
+
+async function preparerCourriers() {
+  contratsCourrier = await api("contrats").catch(() => []);
+  const choix = formDerog.elements.contrat_id;
+  const actuel = choix.value;
+  choix.innerHTML = contratsCourrier.length
+    ? contratsCourrier.map((c) => `<option value="${c.id}">${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")} (famille ${echapper(c.famille)})</option>`).join("")
+    : `<option value="">Aucune fiche contrat : ajoutez d'abord l'enfant dans Contrats</option>`;
+  if (actuel) choix.value = actuel;
+  if (!formDerog.elements.date_courrier.value) formDerog.elements.date_courrier.value = new Date().toISOString().slice(0, 10);
+}
+
+$("#jusqua-6-ans").addEventListener("click", () => {
+  const c = contratsCourrier.find((x) => x.id === formDerog.elements.contrat_id.value);
+  if (!c?.enfant_naissance) { alert("Indiquez d'abord la date de naissance de l'enfant dans sa fiche contrat."); return; }
+  const n = new Date(c.enfant_naissance + "T12:00:00");
+  n.setFullYear(n.getFullYear() + 6);
+  formDerog.elements.date_fin.value = n.toISOString().slice(0, 10);
+});
+
+const CHAMPS_TEXTE = ["entete", "lieu_date", "objet", "destinataire", "corps", "suite", "annexe_intro", "conclusion", "signature"];
+
+function texteCourrier() {
+  const t = { ...propositionCourrier };
+  CHAMPS_TEXTE.forEach((k) => (t[k] = formTexte.elements[k].value));
+  t.periodes = formTexte.elements.periodes.value.split("\n").map((l) => l.trim()).filter(Boolean);
+  const c = contratsCourrier.find((x) => x.id === formDerog.elements.contrat_id.value);
+  t.enfant = c?.enfant_prenom || "";
+  return t;
+}
+
+let minuterieApercu = null;
+async function rafraichirApercu() {
+  const r = await fetch("/api/courriers/apercu", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(texteCourrier()) });
+  $("#apercu-courrier").srcdoc = await r.text();
+}
+formTexte.addEventListener("input", () => { clearTimeout(minuterieApercu); minuterieApercu = setTimeout(rafraichirApercu, 400); });
+
+formDerog.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const d = Object.fromEntries([...formDerog.elements].filter((c) => c.name).map((c) => [c.name, c.value]));
+  const bouton = formDerog.querySelector("button.principal");
+  bouton.disabled = true; bouton.textContent = "Préparation…";
+  const r = await api("courriers/derogation", d).catch((err) => ({ erreur: err.message }));
+  bouton.disabled = false; bouton.textContent = "Préparer le courrier";
+  const zone = $("#manquants");
+  if (r.erreur) { zone.innerHTML = `<p>${echapper(r.erreur)}</p>`; zone.classList.remove("cache"); return; }
+  zone.classList.toggle("cache", !r.manquants.length);
+  zone.innerHTML = r.manquants.length ? `<strong>Informations à compléter pour un courrier complet :</strong>
+    <ul>${r.manquants.map((m) => `<li>${echapper(m)}</li>`).join("")}</ul>
+    <div class="boutons"><button class="secondaire" data-aller-vers="profil">Mon profil</button>
+    <button class="secondaire" data-aller-vers="contrats">Contrats</button></div>` : "";
+  zone.querySelectorAll("[data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
+  propositionCourrier = r.proposition;
+  CHAMPS_TEXTE.forEach((k) => (formTexte.elements[k].value = r.proposition[k] || ""));
+  formTexte.elements.periodes.value = (r.proposition.periodes || []).join("\n");
+  $("#source-periodes").textContent = { calendrier: "(vacances de votre zone, calendrier de l'Éducation nationale)",
+    aucune: "(calendrier indisponible ou zone non renseignée dans Mon profil : saisissez-les)" }[r.source_periodes] || "";
+  $("#pdf-cree").textContent = "";
+  formTexte.classList.remove("cache");
+  await rafraichirApercu();
+  formTexte.scrollIntoView({ behavior: "smooth" });
+});
+
+formTexte.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const bouton = formTexte.querySelector("button.principal");
+  bouton.disabled = true; bouton.textContent = "Création du PDF…";
+  try {
+    const r = await api("courriers/pdf", texteCourrier());
+    $("#pdf-cree").innerHTML = `PDF enregistré : ${echapper(r.chemin)} <button type="button" class="lien" id="ouvrir-pdf">Ouvrir</button>`;
+    $("#ouvrir-pdf").addEventListener("click", () => api("ouvrir", { quoi: r.chemin }).catch((err) => alert(err.message)));
+  } catch (err) { alert(err.message); }
+  bouton.disabled = false; bouton.textContent = "Créer le PDF";
 });
 
 // ------------------------------------------------------------- mises à jour
@@ -381,7 +710,7 @@ async function afficherNotesDisponibles(locale, distante) {
   $("#carte-nouvelle-version").classList.remove("cache");
 }
 
-chargerParametres();
+chargerParametres().then(afficherTableauDeBord);
 afficherNotes();
 verifierVersion();
 rafraichir();

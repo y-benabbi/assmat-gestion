@@ -22,6 +22,10 @@ DEFAUTS = {
     "navigateur_visible": False,
     # Lignes « NOM AFFICHÉ PAR PAJEMPLOI = Nom du dossier »
     "correspondances": "",
+    # Rubriques affichées (« Mes fonctionnalités ») : une rubrique masquée garde ses données.
+    "modules": {"bulletins": True, "revenus": True, "contrats": True, "echeances": True, "courriers": True},
+    "regime_impots": "specifique",          # specifique, classique ou comparer
+    "dossier_courriers": "",                # vide : dossier « Courriers » à côté des bulletins
 }
 
 _verrou = threading.Lock()
@@ -35,6 +39,7 @@ def charger() -> dict:
                 donnees.update(json.loads(FICHIER_PARAMETRES.read_text(encoding="utf-8")))
             except (ValueError, OSError):
                 pass
+        donnees["modules"] = DEFAUTS["modules"] | (donnees.get("modules") or {})
         return donnees
 
 
@@ -43,7 +48,11 @@ def enregistrer(nouveaux: dict) -> dict:
     mot_de_passe = nouveaux.pop("mot_de_passe", None)
     for cle in DEFAUTS:
         if cle in nouveaux:
-            actuels[cle] = nouveaux[cle]
+            if cle == "modules" and isinstance(nouveaux[cle], dict):
+                actuels[cle] = DEFAUTS["modules"] | actuels.get("modules", {}) | {
+                    k: bool(v) for k, v in nouveaux[cle].items() if k in DEFAUTS["modules"]}
+            else:
+                actuels[cle] = nouveaux[cle]
     with _verrou:
         FICHIER_PARAMETRES.write_text(
             json.dumps(actuels, ensure_ascii=False, indent=2), encoding="utf-8"

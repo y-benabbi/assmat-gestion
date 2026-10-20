@@ -21,7 +21,10 @@ app/                 code Python (lancé par app/main.py)
   main.py            serveur Flask, routes /api/*, ouverture du navigateur
   pajemploi.py       pilotage de Pajemploi avec Playwright (un seul fil dédié + file de commandes)
   bibliotheque.py    analyse du dossier local, détection des bulletins présents, format des noms
-  parametres.py      paramètres JSON + mot de passe via keyring
+  parametres.py      paramètres JSON (dont rubriques affichées « modules ») + mot de passe via keyring
+  donnees.py         profil (champs globaux des courriers), fiches contrats, échéances (JSON dans donnees\)
+  revenus.py         lecture des montants des bulletins PDF (pypdf, cache donnees\revenus.json), totaux
+  courriers.py       demande de dérogation : texte proposé, page imprimable, PDF via Chromium sans fenêtre
   chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
   web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
 scripts/             installer.ps1, verifier.ps1, commun.ps1 (exécutés depuis l'application installée)
@@ -58,6 +61,8 @@ py -m venv .venv
 .venv\Scripts\python tests\test_api.py               # API Pajemploi imitée : liste + PDF
 .venv\Scripts\python tests\test_extraction.py        # repli : lecture de pages imitant Pajemploi
 .venv\Scripts\python tests\test_page_connexion.py    # vraie page de connexion Pajemploi, sans se connecter
+.venv\Scripts\python tests\test_revenus.py         # montants lus dans des bulletins PDF fictifs, totaux
+.venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
 
@@ -112,3 +117,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Formats de nom : mots-clés `NOM CLIENT`, `ENFANT`, `YYYY`, `YY`, `MM`, `MOIS`
   (`bibliotheque.appliquer_format`). Plusieurs bulletins d'un même client le même mois : suffixe
   ` - Prénom` de l'enfant ; les fichiers existants qui citent le prénom sont attribués en priorité.
+- Interface : menu latéral par catégories (`data-onglet`), chaque rubrique optionnelle porte `data-module`
+  (masquée si `parametres.modules[nom]` est faux). Les anciens Paramètres sont dans « Mes fonctionnalités ».
+- `profil.json`, `contrats.json`, `revenus.json` (dans `donnees\`) contiennent des données personnelles réelles :
+  jamais dans le dépôt. Les libellés lus dans les bulletins sont dans `revenus.RUBRIQUES` (augmenter
+  `VERSION_LECTURE` quand ils changent, pour relire les bulletins).

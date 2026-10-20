@@ -16,6 +16,7 @@ import threading
 import urllib.request
 import webbrowser
 import zlib
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -89,7 +90,10 @@ def creer_app(port, jeton):
     from flask import Flask, jsonify, make_response, redirect, request, send_from_directory
 
     import bibliotheque
+    import courriers
+    import donnees
     import parametres
+    import revenus
     from pajemploi import Pajemploi
 
     app = Flask(__name__, static_folder=None)
@@ -156,6 +160,70 @@ def creer_app(port, jeton):
             "fichiers": [list(c.relative_to(racine).parts) for c in chemins],
         })
 
+    # ------------------------------------------------ profil, contrats, échéances
+    @app.get("/api/profil")
+    def lire_profil():
+        return jsonify(donnees.profil())
+
+    @app.post("/api/profil")
+    def ecrire_profil():
+        return jsonify(donnees.enregistrer_profil(request.get_json(force=True)))
+
+    @app.get("/api/contrats")
+    def lire_contrats():
+        return jsonify(donnees.contrats())
+
+    @app.post("/api/contrats")
+    def ecrire_contrat():
+        return jsonify(donnees.enregistrer_contrat(request.get_json(force=True)))
+
+    @app.post("/api/contrats/supprimer")
+    def supprimer_contrat():
+        donnees.supprimer_contrat(request.get_json(force=True).get("id", ""))
+        return jsonify({"ok": True})
+
+    @app.get("/api/echeances")
+    def lire_echeances():
+        return jsonify(donnees.echeances(date.today()))
+
+    @app.get("/api/revenus")
+    def lire_revenus():
+        lignes = revenus.releve(parametres.charger().get("dossier_bulletins", ""))
+        annee = request.args.get("annee") or (max(l["periode"][:4] for l in lignes) if lignes else str(date.today().year))
+        return jsonify(revenus.totaux(lignes, annee))
+
+    # ------------------------------------------------ courriers
+    courriers_generes = set()
+
+    def dossier_courriers():
+        p = parametres.charger()
+        if p.get("dossier_courriers"):
+            return Path(p["dossier_courriers"])
+        if p.get("dossier_bulletins"):
+            return Path(p["dossier_bulletins"]).parent / "Courriers"
+        return Path.home() / "Documents" / "Courriers"
+
+    @app.post("/api/courriers/derogation")
+    def proposer_derogation():
+        return jsonify(courriers.proposer_derogation(request.get_json(force=True)))
+
+    @app.post("/api/courriers/apercu")
+    def apercu_courrier():
+        return courriers.html_derogation(request.get_json(force=True)), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+    @app.post("/api/courriers/pdf")
+    def pdf_courrier():
+        texte = request.get_json(force=True)
+        nom = courriers.nom_fichier(f"{date.today().isoformat()} - {texte.get('objet') or 'Courrier'}"
+                                    + (f" - {texte['enfant']}" if texte.get("enfant") else ""))
+        cible = dossier_courriers() / f"{nom}.pdf"
+        try:
+            courriers.generer_pdf(courriers.html_derogation(texte), cible)
+        except Exception as e:
+            return jsonify({"erreur": "Le PDF n'a pas pu être créé : " + str(e).splitlines()[0]}), 500
+        courriers_generes.add(str(cible))
+        return jsonify({"chemin": str(cible)})
+
     @app.post("/api/action")
     def action():
         nom = request.get_json(force=True).get("action")
@@ -200,10 +268,13 @@ def creer_app(port, jeton):
     def ouvrir():
         quoi = request.get_json(force=True).get("quoi")
         cible = {"bulletins": parametres.charger().get("dossier_bulletins", ""),
+                 "courriers": str(dossier_courriers()) if dossier_courriers().is_dir() else "",
                  "diagnostics": str(DIAGNOSTICS), "journaux": str(JOURNAUX)}.get(quoi)
         if not cible:
-            # Un fichier précis : uniquement s'il fait partie de la dernière analyse.
-            connus = {b.get("fichier_existant") for b in paje.lire_etat()["bulletins"]}
+            # Un fichier précis : uniquement s'il fait partie de la dernière analyse, des bulletins
+            # lus pour le tableau de bord ou des courriers créés.
+            connus = {b.get("fichier_existant") for b in paje.lire_etat()["bulletins"]} | courriers_generes
+            connus |= {l["fichier"] for l in revenus.releve(parametres.charger().get("dossier_bulletins", ""))}
             cible = quoi if quoi in connus else None
         if cible and os.path.exists(cible):
             os.startfile(cible)

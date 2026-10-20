@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.4.0",
+    "date": "2026-10-20",
+    "titre": "Tableau de bord, contrats et courriers",
+    "nouveautes": [
+      "Nouveau menu à gauche, rangé par catégories : Mon argent, Mes familles, Mes démarches. Sur un petit écran, il s'ouvre avec le bouton « Menu ».",
+      "Nouveau tableau de bord : ce qu'il y a à faire, vos revenus de l'année et les prochaines échéances.",
+      "Nouvelle rubrique Revenus : salaire brut, cotisations prélevées, salaire net et indemnités, lus dans vos bulletins de salaire, avec le détail par mois et par famille.",
+      "Nouvelle rubrique Contrats : une fiche par enfant (dates, tarif, emploi du temps en période scolaire et en vacances).",
+      "Nouvelle rubrique Échéances : renouvellement de l'agrément, assurances, congés payés, déclaration de revenus.",
+      "Nouvelle rubrique Courriers : la demande de dérogation à la PMI se prépare en quelques champs, se relit, puis s'enregistre en PDF.",
+      "Nouveau « Mon profil » : vos informations (identité, agrément, PMI) saisies une seule fois pour les courriers.",
+      "Les Paramètres deviennent « Mes fonctionnalités » : réglages rangés par rubrique, et possibilité de masquer les rubriques dont vous n'avez pas besoin."
+    ]
+  },
+  {
     "version": "1.3.0",
     "date": "2026-10-20",
     "titre": "Classement au choix et téléchargement interruptible",
