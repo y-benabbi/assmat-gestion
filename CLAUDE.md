@@ -1,0 +1,89 @@
+# CLAUDE.md — assmat-gestion
+
+Application Windows locale (serveur Flask sur `127.0.0.1:8765` + page web) pour centraliser les démarches
+d'une assistante maternelle. Première fonctionnalité : récupérer et ranger les bulletins de salaire Pajemploi.
+Utilisatrice finale non technicienne, sur une **autre session Windows** que celle du développeur.
+
+## Règles impératives
+
+- **Aucune trace d'une personne réelle** dans le dépôt (code, tests, exemples, placeholders, commits) :
+  utiliser des noms génériques (Dupont, Martin, Durand, Bernard, Petit…). Le dépôt est **public**.
+- Aucun identifiant, mot de passe ou donnée personnelle dans les fichiers : le mot de passe Pajemploi est dans
+  le Gestionnaire d'identifiants Windows (`keyring`, service `AssistanteMaternelle-Pajemploi`).
+- Interface, messages, commentaires et documentation **en français**, compréhensibles par une non-technicienne.
+- Ne jamais écrire dans les dossiers de l'utilisatrice finale pour tester : utiliser un dossier `_test/`
+  (ignoré par git) dans ce dépôt.
+
+## Organisation
+
+```
+app/                 code Python (lancé par app/main.py)
+  main.py            serveur Flask, routes /api/*, ouverture du navigateur
+  pajemploi.py       pilotage de Pajemploi avec Playwright (un seul fil dédié + file de commandes)
+  bibliotheque.py    analyse du dossier local, détection des bulletins présents, format des noms
+  parametres.py      paramètres JSON + mot de passe via keyring
+  chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
+  web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
+scripts/             installer.ps1, verifier.ps1, commun.ps1 (exécutés depuis l'application installée)
+distribution/        ce que l'on copie dans le dossier « Programme » de l'utilisatrice
+  Executables/       amorce.ps1 (télécharge stable.zip puis lance installer.ps1), Installer.bat,
+                     Mettre a jour.bat, Verifier.bat
+Lancer.bat           lanceur ciblé par le raccourci « Assistante Maternelle.lnk »
+VERSION              numéro de version comparé à celui de la branche stable (bandeau de mise à jour)
+tests/               scripts de test autonomes (pas de pytest)
+```
+
+Sur le poste de l'utilisatrice, tout est dans `%LOCALAPPDATA%\assmat-gestion\` : `application\` (code,
+remplacé à chaque mise à jour par robocopy /MIR), `python\` (venv), `navigateurs\` (Chromium Playwright),
+`profil-navigateur\` (cookies : appareil reconnu par Pajemploi), `donnees\parametres.json`, `journaux\`
+(dont `diagnostics\`). `ASSMAT_BASE` permet de rediriger ce dossier (tests). Ne pas mettre ces éléments
+dans OneDrive : l'installation de Chromium y échoue.
+
+## Branches et publication
+
+- `main` : développement. `stable` : version téléchargée par l'installateur et la mise à jour.
+- Publier : augmenter `VERSION`, committer sur `main`, puis
+  `git checkout stable && git merge --ff-only main && git push && git checkout main`.
+- Ne pousser sur `stable` que si les tests passent : c'est immédiatement distribué.
+
+## Tests
+
+```bash
+py -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m playwright install chromium
+.venv\Scripts\python tests\test_bibliotheque.py      # détection des fichiers, formats de nom
+.venv\Scripts\python tests\test_extraction.py        # lecture de listes imitant Pajemploi + téléchargement
+.venv\Scripts\python tests\test_page_connexion.py    # vraie page de connexion Pajemploi, sans se connecter
+.venv\Scripts\python app\main.py                     # lancer l'application
+```
+
+Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, définir
+`$env:LOCALAPPDATA` vers `_test\...\localappdata`, puis lancer
+`distribution\Executables\amorce.ps1 -Source <racine du dépôt> -DossierProgramme <_test\...\Programme>`.
+
+## Pièges connus
+
+- **Pajemploi refuse les navigateurs headless** (`ERR_CONNECTION_RESET`) : toujours `headless=False`,
+  fenêtre réduite (`--start-minimized`) et affichée via CDP (`_montrer_fenetre`) quand une action manuelle
+  est nécessaire. Ne pas contourner autrement la détection du site.
+- Connexion : `https://pajemploi.urssaf.fr/` redirige vers `login.urssaf.fr` (champs `#mail`/`username`,
+  `#password`, bouton « Se connecter », bannière cookies `#footer_tc_privacy_button_2` = « Tout refuser »).
+- **La partie après connexion n'a jamais été testée sur le vrai site** (pas d'identifiants côté développeur).
+  La page des bulletins est trouvée et lue par heuristiques (`_aller_aux_bulletins`, `_extraire_lignes`,
+  `_deviner_employeur`). En cas d'échec, un diagnostic (capture, HTML, réponses JSON) est enregistré dans
+  `journaux\diagnostics` : s'en servir pour adapter ces fonctions, et ajouter le cas à `tests/test_extraction.py`
+  avec des noms fictifs.
+- Playwright exige que toutes ses actions se fassent dans le fil `Pajemploi._boucle` : passer par
+  `demander()` / `_cmd_*`, jamais depuis les routes Flask.
+- PowerShell 5.1 : les `.ps1` doivent être en **UTF-8 avec BOM** (accents), les `.bat`/`.ps1` en CRLF
+  (`.gitattributes`). Dans les scripts, `$ErrorActionPreference = "Continue"` (py/pip écrivent sur stderr) :
+  vérifier `$LASTEXITCODE` et mettre `-ErrorAction Stop` sur les cmdlets critiques.
+- Détection de Python : utiliser `py -0p` (liste sans installer) ; ne jamais appeler `py -3.x` (le
+  gestionnaire Python récent peut proposer une installation et bloquer). Ne pas utiliser de joker + `-Recurse`
+  sur `C:\` (parcours du disque entier).
+- `.bat` : texte ASCII uniquement ; une mise à jour peut réécrire le `.bat` en cours d'exécution, d'où
+  `& exit /b` sur la même ligne que l'appel PowerShell.
+- Formats de nom : mots-clés `NOM CLIENT`, `YYYY`, `YY`, `MM`, `MOIS` (`bibliotheque.appliquer_format`).
+  Plusieurs bulletins d'un même client le même mois (plusieurs enfants) : suffixe ` (2)`, comparaison par
+  nombre de fichiers.
