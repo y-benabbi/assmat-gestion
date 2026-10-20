@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-10-20",
+    "titre": "Familles, contrats et avenants",
+    "nouveautes": [
+      "Nouvelle page « Familles et contrats » : une fiche par famille employeur (parents, adresse, téléphone, n° Pajemploi), avec ses enfants rangés dessous.",
+      "Les familles de vos bulletins ont leur fiche créée automatiquement : parent employeur, adresse et n° employeur Pajemploi sont repris du bulletin le plus récent. Seules les cases vides sont remplies, rien de ce que vous avez saisi n'est remplacé.",
+      "Pendant la saisie, les noms et prénoms déjà connus (bulletins, Pajemploi, autres fiches) sont proposés.",
+      "Emploi du temps : heures d'arrivée et de départ avec des champs horaires, bouton « + Coupure » pour une deuxième plage, et bouton pour recopier le lundi sur les autres jours. Un résumé indique les heures par semaine et les heures mensualisées.",
+      "Le nombre de semaines d'accueil par an se saisit exactement (de 1 à 52).",
+      "Avenants : ajoutez un avenant daté qui modifie les horaires, le tarif ou les semaines. Échéances, courriers et impôts utilisent les conditions en vigueur à chaque date.",
+      "Au premier lancement, les bulletins sont relus une fois pour y trouver les informations des familles."
+    ]
+  },
+  {
     "version": "1.4.3",
     "date": "2026-10-20",
     "titre": "Revenus : bulletins relus sur toutes les sessions",
