@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistante Maternelle</title>
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+<header>
+  <h1>Assistante Maternelle</h1>
+  <nav>
+    <button data-onglet="accueil" class="actif">Accueil</button>
+    <button data-onglet="bulletins">Bulletins de salaire</button>
+    <button data-onglet="parametres">Paramètres</button>
+  </nav>
+  <button id="quitter" class="discret" title="Arrêter l'application">Quitter</button>
+</header>
+
+<div id="bandeau-maj" class="bandeau cache">
+  <span id="texte-maj"></span>
+  <button id="btn-maj" class="principal">Mettre à jour maintenant</button>
+</div>
+
+<main>
+  <!-- ======================= ACCUEIL ======================= -->
+  <section id="accueil" class="onglet actif">
+    <p class="intro">Toutes vos démarches au même endroit.</p>
+    <div class="tuiles">
+      <button class="tuile" data-aller="bulletins">
+        <span class="tuile-titre">Bulletins de salaire</span>
+        <span class="tuile-texte" id="tuile-bulletins">Récupérer et ranger les bulletins Pajemploi.</span>
+      </button>
+      <button class="tuile" data-aller="parametres">
+        <span class="tuile-titre">Paramètres</span>
+        <span class="tuile-texte">Identifiants Pajemploi, dossier de rangement, format des noms.</span>
+      </button>
+      <div class="tuile a-venir">
+        <span class="tuile-titre">Contrats &amp; documents</span>
+        <span class="tuile-texte">Bientôt disponible.</span>
+      </div>
+      <div class="tuile a-venir">
+        <span class="tuile-titre">Attestations &amp; déclarations</span>
+        <span class="tuile-texte">Bientôt disponible.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- =================== BULLETINS DE SALAIRE =================== -->
+  <section id="bulletins" class="onglet">
+    <div class="carte" id="carte-etat">
+      <div class="etat-ligne">
+        <span id="pastille" class="pastille"></span>
+        <span id="message">Non connecté.</span>
+      </div>
+      <div id="progression" class="progression cache"><div></div></div>
+
+      <form id="form-code" class="cache">
+        <p id="consigne-code" class="petit"></p>
+        <label>Code de vérification reçu
+          <input id="code" autocomplete="one-time-code" inputmode="numeric" required>
+        </label>
+        <button class="principal">Valider le code</button>
+      </form>
+
+      <div class="boutons">
+        <button id="btn-analyser" class="principal">Vérifier sur Pajemploi</button>
+        <button id="btn-telecharger" class="principal vert cache"></button>
+      </div>
+      <details class="avance">
+        <summary>Si la détection automatique ne fonctionne pas</summary>
+        <p class="petit">1. Ouvrez Pajemploi dans une fenêtre, connectez-vous si besoin et allez sur la page
+          qui liste vos bulletins de salaire. 2. Cliquez sur « Analyser la page affichée ».</p>
+        <div class="boutons">
+          <button id="btn-visible">Ouvrir Pajemploi dans une fenêtre</button>
+          <button id="btn-page">Analyser la page affichée</button>
+          <button id="btn-diagnostic">Enregistrer un diagnostic</button>
+          <button data-ouvrir="diagnostics">Ouvrir le dossier des diagnostics</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="carte">
+      <div class="titre-carte">
+        <h2>Bulletins</h2>
+        <label class="petit"><input type="checkbox" id="seulement-manquants"> Afficher seulement les manquants</label>
+        <button data-ouvrir="bulletins" class="discret">Ouvrir le dossier</button>
+      </div>
+      <div id="liste"></div>
+    </div>
+
+    <details class="carte">
+      <summary>Journal</summary>
+      <pre id="journal"></pre>
+    </details>
+  </section>
+
+  <!-- ======================= PARAMÈTRES ======================= -->
+  <section id="parametres" class="onglet">
+    <form id="form-parametres" class="carte">
+      <h2>Connexion Pajemploi</h2>
+      <label>Identifiant (adresse e-mail ou numéro Pajemploi)
+        <input name="identifiant" autocomplete="off">
+      </label>
+      <label>Mot de passe
+        <input name="mot_de_passe" type="password" autocomplete="new-password">
+      </label>
+      <p class="petit" id="info-mdp"></p>
+
+      <h2>Rangement des bulletins</h2>
+      <label>Dossier des bulletins de salaire
+        <span class="ligne">
+          <input name="dossier_bulletins" placeholder="Choisissez un dossier…">
+          <button type="button" id="choisir-dossier">Parcourir…</button>
+        </span>
+      </label>
+      <label>Nom des fichiers
+        <input name="format_fichier">
+      </label>
+      <label>Nom du dossier de chaque client
+        <input name="format_dossier">
+      </label>
+      <p class="petit">Mots remplacés automatiquement : <code>NOM CLIENT</code>, <code>YYYY</code> (année),
+        <code>YY</code>, <code>MM</code> (mois en chiffres), <code>MOIS</code> (mois en lettres).<br>
+        Exemple : <span id="apercu"></span></p>
+      <label>Ignorer les bulletins antérieurs à (facultatif)
+        <input name="periode_min" type="month">
+      </label>
+
+      <h2>Noms des clients</h2>
+      <p class="petit">Par défaut, chaque employeur est rangé dans le sous-dossier existant qui porte le même nom
+        de famille. Pour imposer un autre nom, ajoutez une ligne <code>NOM SUR PAJEMPLOI = Nom du dossier</code>.</p>
+      <textarea name="correspondances" rows="4" placeholder="M. DUPONT JEAN = Dupont"></textarea>
+
+      <h2>Avancé</h2>
+      <label class="case"><input type="checkbox" name="navigateur_visible">
+        Afficher la fenêtre du navigateur pendant la connexion</label>
+      <p class="petit">Sinon, elle reste réduite dans la barre des tâches et ne s'affiche que si Pajemploi
+        demande une vérification à faire vous-même.</p>
+
+      <div class="boutons">
+        <button class="principal">Enregistrer</button>
+        <span id="enregistre" class="petit"></span>
+      </div>
+    </form>
+  </section>
+</main>
+<footer class="petit">Version <span id="version">…</span></footer>
+<script src="/web/app.js"></script>
+</body>
+</html>

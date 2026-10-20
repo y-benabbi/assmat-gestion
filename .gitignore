@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+_test/
+.venv/
+tests/Bulletins de salaire/

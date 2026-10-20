@@ -1,0 +1,25 @@
+ASSISTANTE MATERNELLE — mode d'emploi
+=====================================
+
+PREMIÈRE INSTALLATION (une seule fois, sur cette session Windows)
+  1. Ouvrir le dossier « Executables ».
+  2. Double-cliquer sur « Installer.bat ».
+     Une fenêtre noire s'ouvre : elle télécharge l'application, installe Python si besoin
+     et le navigateur utilisé pour Pajemploi. Compter 5 à 10 minutes.
+     Si Windows affiche « Windows a protégé votre ordinateur », cliquer sur
+     « Informations complémentaires » puis « Exécuter quand même ».
+  3. À la fin, le raccourci « Assistante Maternelle » apparaît dans ce dossier.
+
+UTILISATION
+  Double-cliquer sur le raccourci « Assistante Maternelle ».
+  La première fois, remplir l'onglet « Paramètres » :
+    - identifiant et mot de passe Pajemploi,
+    - dossier où ranger les bulletins de salaire (bouton « Parcourir… »).
+
+MISE À JOUR
+  Quand une nouvelle version existe, un bandeau vert s'affiche dans l'application :
+  cliquer sur « Mettre à jour maintenant ».
+  On peut aussi lancer « Executables\Mettre a jour.bat ».
+
+EN CAS DE PROBLÈME
+  Lancer « Executables\Verifier.bat » : il indique ce qui ne va pas et quoi faire.
