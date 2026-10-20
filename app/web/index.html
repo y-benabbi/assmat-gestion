@@ -48,7 +48,7 @@
 
   <p class="categorie" data-categorie="familles">Mes familles</p>
   <button data-onglet="contrats" data-module="contrats">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="10" r="2.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M15 15.2c2.8-.4 5 1.3 6 4.8"/></svg>Contrats</button>
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="10" r="2.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M15 15.2c2.8-.4 5 1.3 6 4.8"/></svg>Familles et contrats</button>
 
   <p class="categorie" data-categorie="demarches">Mes démarches</p>
   <button data-onglet="echeances" data-module="echeances">
@@ -210,12 +210,55 @@
   <!-- ======================= CONTRATS ======================= -->
   <section id="contrats" class="onglet">
     <div class="titre-page">
-      <h1>Contrats</h1>
-      <button class="principal" id="nouveau-contrat">Ajouter un enfant</button>
+      <h1>Familles et contrats</h1>
+      <button class="principal" id="nouvelle-famille">Ajouter une famille</button>
     </div>
-    <p class="petit">Une fiche par enfant accueilli. Ces informations servent au tableau de bord, aux échéances
-      et aux courriers (âge des enfants, emploi du temps…).</p>
-    <div id="liste-contrats" class="cartes-contrats"></div>
+    <p class="petit">Créez d'abord la fiche de la famille employeur (parents, coordonnées), puis une fiche par
+      enfant accueilli, avec son contrat et ses avenants. Ces informations servent au tableau de bord, aux échéances,
+      aux impôts et aux courriers.</p>
+    <div id="familles-a-creer" class="panneau cache"></div>
+    <div id="liste-familles-contrats"></div>
+
+    <form id="form-famille" class="formulaire cache">
+      <fieldset>
+        <legend id="titre-form-famille">Nouvelle famille</legend>
+        <div class="grille-champs">
+          <label>Nom de la famille (celui du dossier des bulletins)
+            <input name="nom" required list="liste-familles" autocomplete="off"></label>
+          <label>N° employeur Pajemploi <input name="numero_pajemploi" autocomplete="off"></label>
+        </div>
+        <datalist id="liste-familles"></datalist>
+        <p class="petit">Les familles trouvées dans vos bulletins sont proposées pendant la saisie, avec le nom du
+          parent employeur écrit sur le bulletin.</p>
+        <h3 class="sous-titre">Parent employeur</h3>
+        <div class="grille-champs parent">
+          <label>Civilité <select name="parent1_civilite"><option value="">—</option><option>Mme</option><option>M.</option></select></label>
+          <label>Prénom <input name="parent1_prenom" autocomplete="off"></label>
+          <label>Nom <input name="parent1_nom" autocomplete="off"></label>
+        </div>
+        <h3 class="sous-titre">Deuxième parent (facultatif)</h3>
+        <div class="grille-champs parent">
+          <label>Civilité <select name="parent2_civilite"><option value="">—</option><option>Mme</option><option>M.</option></select></label>
+          <label>Prénom <input name="parent2_prenom" autocomplete="off"></label>
+          <label>Nom <input name="parent2_nom" autocomplete="off"></label>
+        </div>
+        <h3 class="sous-titre">Coordonnées</h3>
+        <div class="grille-champs">
+          <label>Adresse <input name="adresse" autocomplete="off"></label>
+          <label>Code postal <input name="code_postal" inputmode="numeric" autocomplete="off"></label>
+          <label>Ville <input name="ville" autocomplete="off" list="liste-villes"></label>
+          <label>Téléphone <input name="telephone" type="tel" autocomplete="off"></label>
+          <label>E-mail <input name="email" type="email" autocomplete="off"></label>
+        </div>
+        <datalist id="liste-villes"></datalist>
+        <label>Notes <textarea name="notes" rows="2"></textarea></label>
+      </fieldset>
+      <div class="boutons">
+        <button class="principal">Enregistrer la famille</button>
+        <button type="button" class="secondaire" id="annuler-famille">Annuler</button>
+        <button type="button" class="secondaire danger cache" id="supprimer-famille">Supprimer la famille</button>
+      </div>
+    </form>
 
     <form id="form-contrat" class="formulaire cache">
       <fieldset>
@@ -227,12 +270,9 @@
           <label>L'enfant est
             <select name="enfant_genre"><option value="">—</option><option value="fille">une fille</option><option value="garcon">un garçon</option></select>
           </label>
-          <label>Famille (nom du dossier des bulletins) <input name="famille" required list="liste-familles" autocomplete="off"></label>
-          <label>Parents <input name="parents" placeholder="M. et Mme Dupont" list="liste-parents" autocomplete="off"></label>
+          <label>Famille employeur <select name="famille" required></select></label>
         </div>
-        <p class="petit" id="aide-famille">Les familles, parents et prénoms déjà connus (bulletins, Pajemploi, autres fiches)
-          sont proposés pendant la saisie.</p>
-        <datalist id="liste-familles"></datalist><datalist id="liste-parents"></datalist>
+        <p class="petit">Les prénoms connus pour cette famille (Pajemploi, autres fiches) sont proposés pendant la saisie.</p>
         <datalist id="liste-prenoms"></datalist><datalist id="liste-noms"></datalist>
       </fieldset>
       <fieldset>
@@ -263,9 +303,8 @@
           <p class="petit" id="changements-avenant"></p>
         </div>
         <div class="grille-champs">
-          <label>Semaines d'accueil par an
-            <select name="semaines"><option value="52">52 semaines (année complète)</option>
-              <option value="46">46 semaines ou moins</option></select>
+          <label>Semaines d'accueil par an (52 = année complète)
+            <input name="semaines" type="number" min="1" max="52" step="1" inputmode="numeric" required>
           </label>
           <label>Type d'accueil
             <select name="accueil"><option value="journee">En journée</option><option value="periscolaire">Périscolaire</option></select>
@@ -585,7 +624,7 @@
           <li><strong>Propositions pendant la saisie</strong> (familles, parents, prénoms) : noms des dossiers de
             bulletins, nom de l'employeur écrit sur chaque bulletin (« Référence employeur »), prénoms des enfants
             donnés par Pajemploi lors de la dernière vérification, et ce que contiennent déjà vos autres fiches.</li>
-          <li><strong>Profil, contrats, jours de garde confirmés</strong> : ce que vous avez saisi vous-même. Tout reste
+          <li><strong>Profil, familles, contrats, jours de garde confirmés</strong> : ce que vous avez saisi vous-même. Tout reste
             sur cet ordinateur (dossier de l'application), rien n'est envoyé ailleurs.</li>
           <li><strong>Vacances scolaires</strong> (courriers) : calendrier officiel publié par l'Éducation nationale,
             consulté au moment de préparer le courrier, selon la zone de votre profil.</li>
@@ -625,11 +664,12 @@
           <li>Totaux par mois, par famille et par année : sommes des bulletins correspondants. Part du brut d'une famille
             = brut de la famille ÷ brut total.</li>
         </ul>
-        <h3 class="sous-titre">Fiches enfants</h3>
+        <h3 class="sous-titre">Familles et fiches enfants</h3>
         <ul>
           <li>Heures par semaine = somme, jour par jour, des plages saisies (départ − arrivée ; avec une coupure,
             les deux plages sont additionnées).</li>
-          <li>Heures mensualisées (année complète, mêmes horaires toute l'année) = heures par semaine × 52 ÷ 12.</li>
+          <li>Heures mensualisées (mêmes horaires toute l'année) = heures par semaine × semaines d'accueil par an ÷ 12
+            (52 semaines en année complète, le nombre de semaines programmées sinon).</li>
           <li>Avenants : à partir de sa date d'effet, un avenant remplace les conditions précédentes (semaines,
             type d'accueil, tarif, indemnité d'entretien, emploi du temps). Les échéances, les courriers et les jours
             de garde des impôts utilisent les conditions en vigueur à la date concernée.</li>
@@ -656,7 +696,7 @@
           <li>Agrément : rappel 6 mois et 3 mois avant la fin (la demande de renouvellement doit arriver à la PMI au
             moins 3 mois avant), puis à la date de fin. Assurances : à leur date d'échéance.</li>
           <li>Bulletins : le 1er de chaque mois. Déclaration de revenus : mi-avril. Congés payés : 1er juin, pour les
-            contrats sur 46 semaines ou moins. Fin de contrat : à la date indiquée sur la fiche.</li>
+            contrats en année incomplète (moins de 52 semaines par an). Fin de contrat : à la date indiquée sur la fiche.</li>
           <li>Demande de dérogation : âge de chaque enfant à la date du courrier (« et demi » de 6 à 11 mois) ; nombre
             d'enfants accueillis chaque jour d'après les emplois du temps des contrats en cours ; jours où ce nombre
             dépasse l'agrément.</li>

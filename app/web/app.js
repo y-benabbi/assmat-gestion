@@ -382,7 +382,7 @@ async function afficherTableauDeBord() {
     aFaire.push({ couleur: "erreur", texte: `${r.illisibles.length} bulletin${r.illisibles.length > 1 ? "s" : ""} dont les montants n'ont pas pu être lus.`, aller: "revenus", bouton: "Voir" });
   ech.filter((e) => e.urgent).forEach((e) => aFaire.push({ couleur: "attente", texte: `${dateFr(e.date)} : ${e.titre}.`, aller: "echeances", bouton: "Voir" }));
   if (modules.contrats !== false && !contrats.length)
-    aFaire.push({ couleur: "", texte: "Ajoutez une fiche par enfant accueilli (dates, emploi du temps).", aller: "contrats", bouton: "Contrats" });
+    aFaire.push({ couleur: "", texte: "Créez la fiche de chaque famille employeur, puis une fiche par enfant accueilli (dates, emploi du temps).", aller: "contrats", bouton: "Familles" });
   // Saison de la déclaration de revenus (janvier à juin) : rappeler les jours de garde à confirmer.
   if (modules.impots !== false && new Date().getMonth() < 6) {
     const imp = await chargerImpots();
@@ -686,10 +686,10 @@ function afficherResume() {
   if (scolaire) html += ligne(differentes ? "Période scolaire" : "Accueil", scolaire);
   if (vacances) html += ligne("Vacances scolaires", vacances);
   else if (differentes) html += `<p class="petit">Vacances scolaires : aucun accueil prévu.</p>`;
-  const semaines = formContrat.elements.semaines.value;
-  if (scolaire && !differentes && semaines === "52")
-    html += `<p class="petit">Année complète : ${heuresFr(scolaire.total)} × 52 semaines ÷ 12 =
-      <strong>${heuresFr((scolaire.total * 52) / 12)} par mois</strong> (heures mensualisées).</p>`;
+  const semaines = Math.min(52, Math.max(0, parseInt(formContrat.elements.semaines.value, 10) || 0));
+  if (scolaire && !differentes && semaines)
+    html += `<p class="petit">${semaines === 52 ? "Année complète" : "Année incomplète"} : ${heuresFr(scolaire.total)}
+      × ${semaines} semaines ÷ 12 = <strong>${heuresFr((scolaire.total * semaines) / 12)} par mois</strong> (heures mensualisées).</p>`;
   $("#resume-horaires").innerHTML = html || `<p class="petit">Aucun horaire saisi pour l'instant.</p>`;
 }
 
@@ -711,7 +711,7 @@ $("#horaires-contrat").addEventListener("click", (e) => {
     afficherResume();
   }
 });
-formContrat.elements.semaines.addEventListener("change", afficherResume);
+formContrat.elements.semaines.addEventListener("input", afficherResume);
 
 function afficherColonneVacances() {
   $("#horaires-contrat").classList.toggle("sans-vacances", !$("#vacances-differentes").checked);
@@ -746,7 +746,7 @@ function chargerVersion(i) {
   const v = versions[i];
   ["semaines", "accueil", "tarif_horaire", "entretien_jour"].forEach((k) => {
     const champ = formContrat.elements[k];
-    champ.value = v[k] || (champ.tagName === "SELECT" ? champ.options[0].value : "");
+    champ.value = v[k] || (k === "semaines" ? "52" : champ.tagName === "SELECT" ? champ.options[0].value : "");
   });
   ecrireHoraires("scolaire", v.horaires_scolaire);
   ecrireHoraires("vacances", v.horaires_vacances);
@@ -794,71 +794,150 @@ $("#supprimer-avenant").addEventListener("click", () => {
 
 // --- valeurs déjà connues proposées pendant la saisie
 const options = (valeurs) => [...new Set(valeurs.filter(Boolean))].map((v) => `<option value="${echapper(v)}">`).join("");
-
-function proposerSelonFamille() {
-  const nom = formContrat.elements.famille.value.trim().toLowerCase();
-  const f = suggestions.familles.find((x) => x.nom.toLowerCase() === nom);
-  const autres = suggestions.familles.flatMap((x) => x.parents);
-  $("#liste-parents").innerHTML = options([...(f?.parents || []), ...(suggestions.champs.parents || []), ...autres]);
-  $("#liste-prenoms").innerHTML = options(f?.enfants || suggestions.familles.flatMap((x) => x.enfants));
-  $("#liste-noms").innerHTML = options([f?.nom, ...(suggestions.champs.enfant_nom || []), ...suggestions.familles.map((x) => x.nom)]);
-  if (!f) return;
-  // Famille reconnue : on complète ce qui est encore vide.
-  if (!formContrat.elements.parents.value && f.parents.length === 1) formContrat.elements.parents.value = f.parents[0];
-  if (!formContrat.elements.enfant_nom.value) formContrat.elements.enfant_nom.value = f.nom;
-  if (!formContrat.elements.enfant_prenom.value && f.enfants.length === 1) formContrat.elements.enfant_prenom.value = f.enfants[0];
-}
-formContrat.elements.famille.addEventListener("change", proposerSelonFamille);
+const texteParent = (p) => [p.civilite, p.prenom, p.nom].filter(Boolean).join(" ");
+const formFamille = $("#form-famille");
+let familles = [];
+let familleEditee = null;
 
 async function chargerSuggestions() {
   suggestions = await api("suggestions").catch(() => ({ familles: [], champs: {} }));
   $("#liste-familles").innerHTML = suggestions.familles.map((f) => `<option value="${echapper(f.nom)}">${
-    echapper([f.parents[0], f.enfants.join(", ")].filter(Boolean).join(" · "))}</option>`).join("");
+    echapper([f.parents.map(texteParent)[0], f.enfants.join(", ")].filter(Boolean).join(" · "))}</option>`).join("");
   $("#liste-tarifs").innerHTML = options(suggestions.champs.tarif_horaire || []);
   $("#liste-entretiens").innerHTML = options(suggestions.champs.entretien_jour || []);
-  proposerSelonFamille();
+  $("#liste-villes").innerHTML = options(familles.map((f) => f.ville));
+  return suggestions;
+}
+const suggestionFamille = (nom) => suggestions.familles.find((x) => x.nom.toLowerCase() === (nom || "").trim().toLowerCase());
+
+// Fiche enfant : prénoms et noms connus pour la famille choisie.
+function proposerSelonFamille() {
+  const f = suggestionFamille(formContrat.elements.famille.value);
+  $("#liste-prenoms").innerHTML = options(f?.enfants || []);
+  $("#liste-noms").innerHTML = options([f?.nom, ...(suggestions.champs.enfant_nom || [])]);
+  if (f && !formContrat.elements.enfant_nom.value) formContrat.elements.enfant_nom.value = f.nom;
+}
+formContrat.elements.famille.addEventListener("change", proposerSelonFamille);
+
+// Fiche famille : le nom d'une famille des bulletins complète le parent employeur (et le 2e parent s'il est connu).
+function completerFamille() {
+  const f = suggestionFamille(formFamille.elements.nom.value);
+  if (!f) return;
+  f.parents.slice(0, 2).forEach((p, i) => {
+    const n = i + 1;
+    if (formFamille.elements[`parent${n}_nom`].value || formFamille.elements[`parent${n}_prenom`].value) return;
+    formFamille.elements[`parent${n}_civilite`].value = p.civilite || "";
+    formFamille.elements[`parent${n}_prenom`].value = p.prenom || "";
+    formFamille.elements[`parent${n}_nom`].value = p.nom || "";
+  });
+}
+formFamille.elements.nom.addEventListener("change", completerFamille);
+
+// --- familles et leurs enfants
+function carteEnfant(c, aujourdhui) {
+  const b = document.createElement("button");
+  const termine = c.fin && c.fin < aujourdhui;
+  const v = enVigueur(c, aujourdhui);
+  const semaine = resumeSemaine(v.horaires_scolaire || {});
+  const nb = (c.avenants || []).length;
+  b.className = "carte-contrat" + (termine ? " termine" : "");
+  b.innerHTML = `<span class="nom">${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")}</span>
+    <span class="petit">${c.debut ? `Depuis le ${dateFr(c.debut)}` : "Date de début à compléter"}${termine ? " · terminé" : ""}</span>
+    <span class="petit">${v.semaines || 52} semaines par an · ${v.accueil === "periscolaire" ? "périscolaire" : "journée"}${
+      semaine ? ` · ${heuresFr(semaine.total)} par semaine (${semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")})` : ""}</span>
+    ${nb ? `<span class="petit">${nb} avenant${nb > 1 ? "s" : ""}</span>` : ""}`;
+  b.addEventListener("click", () => editerContrat(c));
+  return b;
 }
 
-// --- liste et fiche
 async function afficherContrats() {
-  const liste = await api("contrats").catch(() => []);
+  const [liste, fams] = await Promise.all([api("contrats").catch(() => []), api("familles").catch(() => [])]);
+  familles = fams;
+  await chargerSuggestions();
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  $("#liste-contrats").innerHTML = liste.length ? "" : `<p class="vide-classeur">Aucune fiche pour l'instant.</p>`;
-  liste.forEach((c) => {
-    const b = document.createElement("button");
-    const termine = c.fin && c.fin < aujourdhui;
-    const v = enVigueur(c, aujourdhui);
-    const semaine = resumeSemaine(v.horaires_scolaire || {});
-    const nb = (c.avenants || []).length;
-    b.className = "carte-contrat" + (termine ? " termine" : "");
-    b.innerHTML = `<span class="nom">${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")}</span>
-      <span class="petit">Famille ${echapper(c.famille)}${c.debut ? ` · depuis ${dateFr(c.debut)}` : ""}${termine ? " · terminé" : ""}</span>
-      <span class="petit">${v.semaines === "52" ? "52 semaines" : "46 semaines ou moins"} · ${v.accueil === "periscolaire" ? "périscolaire" : "journée"}${
-        semaine ? ` · ${heuresFr(semaine.total)} par semaine (${semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")})` : ""}</span>
-      ${nb ? `<span class="petit">${nb} avenant${nb > 1 ? "s" : ""}</span>` : ""}`;
-    b.addEventListener("click", () => editerContrat(c));
-    $("#liste-contrats").appendChild(b);
+  const zone = $("#liste-familles-contrats");
+  zone.innerHTML = familles.length ? "" : `<p class="vide-classeur">Aucune famille pour l'instant : commencez par « Ajouter une famille ».</p>`;
+  familles.forEach((f) => {
+    const enfants = liste.filter((c) => (c.famille || "").trim().toLowerCase() === f.nom.toLowerCase());
+    const bloc = document.createElement("section");
+    bloc.className = "panneau famille";
+    const parents = [1, 2].map((n) => [f[`parent${n}_civilite`], f[`parent${n}_prenom`], f[`parent${n}_nom`]].filter(Boolean).join(" ")).filter(Boolean);
+    bloc.innerHTML = `<div class="titre-panneau"><h2>Famille ${echapper(f.nom)}</h2>
+        <div class="boutons-famille"><button class="secondaire" data-modifier>${f.id ? "Modifier la famille" : "Compléter la fiche famille"}</button>
+        <button class="principal" data-enfant>Ajouter un enfant</button></div></div>
+      <p class="petit">${echapper(parents.join(" et ") || "Parents à compléter")}${f.ville ? ` · ${echapper(f.ville)}` : ""}${
+        f.telephone ? ` · ${echapper(f.telephone)}` : ""}${f.id ? "" : " · fiche famille à compléter"}</p>
+      <div class="cartes-contrats"></div>`;
+    enfants.forEach((c) => bloc.querySelector(".cartes-contrats").appendChild(carteEnfant(c, aujourdhui)));
+    if (!enfants.length) bloc.querySelector(".cartes-contrats").innerHTML = `<p class="petit">Aucun enfant pour l'instant.</p>`;
+    bloc.querySelector("[data-modifier]").addEventListener("click", () => editerFamille(f));
+    bloc.querySelector("[data-enfant]").addEventListener("click", () => editerContrat(null, f.nom));
+    zone.appendChild(bloc);
   });
+  // Familles des bulletins qui n'ont pas encore de fiche : création en un clic.
+  const connues = new Set(familles.map((f) => f.nom.toLowerCase()));
+  const nouvelles = suggestions.familles.filter((f) => !connues.has(f.nom.toLowerCase()));
+  $("#familles-a-creer").classList.toggle("cache", !nouvelles.length);
+  $("#familles-a-creer").innerHTML = nouvelles.length ? `<h2>Familles trouvées dans vos bulletins</h2>
+    <p class="petit">Elles n'ont pas encore de fiche : un clic la prépare avec le nom du parent employeur lu sur le bulletin.</p>
+    <div class="boutons">${nouvelles.map((f, i) => `<button class="secondaire" data-nouvelle="${i}">+ ${echapper(f.nom)}${
+      f.parents[0] ? ` (${echapper(texteParent(f.parents[0]))})` : ""}</button>`).join("")}</div>` : "";
+  $$("#familles-a-creer [data-nouvelle]").forEach((b) => b.addEventListener("click", () => {
+    editerFamille(null);
+    formFamille.elements.nom.value = nouvelles[+b.dataset.nouvelle].nom;
+    completerFamille();
+  }));
   return liste;
 }
 
-function editerContrat(c) {
+function editerFamille(f) {
+  familleEditee = f;
+  formContrat.classList.add("cache");
+  formFamille.reset();
+  for (const champ of formFamille.elements) if (champ.name) champ.value = f?.[champ.name] ?? "";
+  if (f && !f.id) completerFamille();          // ancienne famille sans fiche : parents lus sur les bulletins
+  $("#titre-form-famille").textContent = f ? `Famille ${f.nom}` : "Nouvelle famille";
+  $("#supprimer-famille").classList.toggle("cache", !f?.id);
+  formFamille.classList.remove("cache");
+  formFamille.scrollIntoView({ behavior: "smooth" });
+}
+$("#nouvelle-famille").addEventListener("click", () => editerFamille(null));
+$("#annuler-famille").addEventListener("click", () => formFamille.classList.add("cache"));
+$("#supprimer-famille").addEventListener("click", async () => {
+  if (!familleEditee?.id || !confirm(`Supprimer la fiche de la famille ${familleEditee.nom} ?`)) return;
+  try { await api("familles/supprimer", { id: familleEditee.id }); } catch (err) { alert(err.message); return; }
+  formFamille.classList.add("cache");
+  afficherContrats();
+});
+formFamille.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const d = Object.fromEntries([...formFamille.elements].filter((c) => c.name).map((c) => [c.name, c.value]));
+  d.id = familleEditee?.id || "";
+  d.ancien_nom = familleEditee?.nom || "";
+  try { await api("familles", d); } catch (err) { alert(err.message); return; }
+  formFamille.classList.add("cache");
+  afficherContrats();
+});
+
+function editerContrat(c, famille) {
   contratEdite = c;
+  formFamille.classList.add("cache");
   formContrat.reset();
+  formContrat.elements.famille.innerHTML = familles.map((f) => `<option>${echapper(f.nom)}</option>`).join("");
   for (const champ of formContrat.elements) {
     if (!champ.name || MODIFIABLES.includes(champ.name)) continue;
-    champ.value = c?.[champ.name] ?? (champ.tagName === "SELECT" ? champ.options[0].value : "");
+    champ.value = c?.[champ.name] ?? (champ.tagName === "SELECT" ? champ.options[0]?.value ?? "" : "");
   }
+  if (!c && famille) formContrat.elements.famille.value = famille;
   versions = [conditions(c), ...(c?.avenants || []).map((a) => ({ ...conditions(a), id: a.id, date: a.date, motif: a.motif }))];
   chargerVersion(0);
-  chargerSuggestions();
-  $("#titre-form-contrat").textContent = c ? `${c.enfant_prenom} ${c.enfant_nom || ""}` : "Nouvel enfant";
+  proposerSelonFamille();
+  $("#titre-form-contrat").textContent = c ? `${c.enfant_prenom} ${c.enfant_nom || ""}` : `Nouvel enfant${famille ? ` · famille ${famille}` : ""}`;
   $("#supprimer-contrat").classList.toggle("cache", !c);
   formContrat.classList.remove("cache");
   formContrat.scrollIntoView({ behavior: "smooth" });
 }
 formContrat.elements.debut.addEventListener("change", afficherOngletsVersions);
-$("#nouveau-contrat").addEventListener("click", () => editerContrat(null));
 $("#annuler-contrat").addEventListener("click", () => formContrat.classList.add("cache"));
 $("#supprimer-contrat").addEventListener("click", async () => {
   if (!contratEdite || !confirm(`Supprimer la fiche de ${contratEdite.enfant_prenom} ?`)) return;

@@ -22,7 +22,8 @@ app/                 code Python (lancé par app/main.py)
   pajemploi.py       pilotage de Pajemploi avec Playwright (un seul fil dédié + file de commandes)
   bibliotheque.py    analyse du dossier local, détection des bulletins présents, format des noms
   parametres.py      paramètres JSON (dont rubriques affichées « modules ») + mot de passe via keyring
-  donnees.py         profil (champs globaux des courriers), fiches contrats et avenants, échéances (JSON dans donnees\)
+  donnees.py         profil (champs globaux des courriers), familles employeurs, fiches enfants/contrats et
+                     avenants, échéances (JSON dans donnees\)
   revenus.py         lecture des montants des bulletins PDF (pypdf, cache donnees\revenus.json), totaux
   impots.py          déclaration de revenus : barèmes SMIC / déduction 10 %, jours de garde proposés puis
                      confirmés (donnees\impots.json), abattement, comparaison régime spécifique / classique
@@ -132,6 +133,11 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Revenus : le « Total encaissé » est le « Net payé en euros » de chaque bulletin (acompte compris, impôt déduit),
   reconstitué (net + indemnités + rupture + exonération heures complémentaires - impôt) s'il manque.
   Les heures affichées = heures normales + heures complémentaires.
+- Familles employeurs (`familles.json`, `donnees.CHAMPS_FAMILLE`) : créées avant les fiches enfants, qui s'y
+  rattachent par le **nom** (`contrat["famille"]`, aussi nom du dossier des bulletins). Renommer une famille
+  renomme ses fiches enfants ; une famille avec des enfants ne peut pas être supprimée. `donnees.familles()` ajoute
+  (id vide) les familles citées par d'anciennes fiches enfants sans fiche famille.
+- Semaines d'accueil par an : nombre exact saisi (1 à 52), heures mensualisées = heures/semaine × semaines ÷ 12.
 - Fiche enfant, avenants : `avenants` = liste datée ({id, date, motif} + toutes les conditions de
   `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /
   `donnees.contrats(jour)` donnent les conditions applicables à une date : échéances, courriers (date du courrier)
@@ -145,7 +151,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `contrats.json`, `revenus.json`, `impots.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).

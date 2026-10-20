@@ -474,3 +474,11 @@ fieldset { scroll-margin-top: 16px; }
   .plages { justify-items: start; }
   .horaires tfoot td:first-child { display: none; }
 }
+
+/* Familles employeurs */
+.famille .titre-panneau h2 { margin: 0; }
+.boutons-famille { display: flex; flex-wrap: wrap; gap: 8px; }
+.famille .cartes-contrats { margin: 10px 0 0; }
+.famille .carte-contrat { background: var(--eucalyptus-clair); }
+.grille-champs.parent { grid-template-columns: minmax(90px, 0.6fr) 1fr 1fr; }
+@media (max-width: 600px) { .grille-champs.parent { grid-template-columns: 1fr; } }

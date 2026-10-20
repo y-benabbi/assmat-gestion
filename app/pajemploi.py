@@ -545,6 +545,8 @@ class Pajemploi:
         return {
             "idDeclaration": d["idDeclaration"],
             "employeur": " ".join(x for x in (employeur.get("nom"), employeur.get("prenoms")) if x).strip(),
+            "employeur_nom": (employeur.get("nom") or "").strip(),
+            "employeur_prenom": (employeur.get("prenoms") or "").strip(),
             "enfant": ", ".join((e.get("prenoms") or "").title() for e in enfants if e.get("prenoms")),
             "periode": periode,
             "montant": d.get("mntSalaireNetPaye"),

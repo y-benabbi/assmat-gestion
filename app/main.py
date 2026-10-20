@@ -170,6 +170,25 @@ def creer_app(port, jeton):
     def ecrire_profil():
         return jsonify(donnees.enregistrer_profil(request.get_json(force=True)))
 
+    @app.get("/api/familles")
+    def lire_familles():
+        return jsonify(donnees.familles())
+
+    @app.post("/api/familles")
+    def ecrire_famille():
+        try:
+            return jsonify(donnees.enregistrer_famille(request.get_json(force=True)))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+
+    @app.post("/api/familles/supprimer")
+    def supprimer_famille():
+        try:
+            donnees.supprimer_famille(request.get_json(force=True).get("id", ""))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        return jsonify({"ok": True})
+
     @app.get("/api/contrats")
     def lire_contrats():
         return jsonify(donnees.contrats())
@@ -186,38 +205,50 @@ def creer_app(port, jeton):
     @app.get("/api/suggestions")
     def lire_suggestions():
         """Valeurs déjà connues, proposées pendant la saisie des fiches : familles des bulletins
-        (dossiers, Pajemploi), parents et enfants qui y figurent, et valeurs des autres fiches."""
+        (dossiers, Pajemploi), parents et enfants qui y figurent, et valeurs des autres fiches.
+        Un parent : {"civilite", "prenom", "nom"}."""
         familles = {}
 
         def famille(nom):
             nom = (nom or "").strip()
-            return familles.setdefault(nom.lower(), {"nom": nom, "parents": set(), "enfants": set()}) if nom else None
+            if not nom or nom.startswith("("):
+                return None
+            return familles.setdefault(nom.lower(), {"nom": nom, "parents": {}, "enfants": set(), "fiche": False})
+
+        def parent(f, civilite, prenom, nom):
+            p = {"civilite": civilite, "prenom": prenom.strip().title(), "nom": nom.strip().title()}
+            if p["nom"] or p["prenom"]:
+                f["parents"].setdefault((p["prenom"].lower(), p["nom"].lower()), p)
 
         for l in revenus.releve(parametres.charger().get("dossier_bulletins", "")):
             f = famille(l["famille"])
-            if f and not l["famille"].startswith("("):
-                if l.get("employeur"):
-                    f["parents"].add(l["employeur"])
-            elif f:
-                del familles[l["famille"].lower()]
+            if f and l.get("employeur"):
+                # « Mme Claire Dupont » : civilité, prénom, puis nom.
+                mots = l["employeur"].split()
+                civ = mots.pop(0) if mots and mots[0] in ("Mme", "M.") else ""
+                parent(f, civ, mots[0] if len(mots) > 1 else "", " ".join(mots[1:] if len(mots) > 1 else mots))
         for b in paje.lire_etat()["bulletins"]:
             f = famille(b.get("client"))
             if f:
-                if b.get("employeur"):
-                    f["parents"].add(b["employeur"].title())
+                if b.get("employeur_nom"):
+                    parent(f, "", b.get("employeur_prenom", ""), b["employeur_nom"])
                 for prenom in (b.get("enfant") or "").split(", "):
                     if prenom:
                         f["enfants"].add(prenom)
+        for fiche in donnees.familles():
+            f = famille(fiche["nom"])
+            if f:
+                f["fiche"] = bool(fiche.get("id"))
         contrats = donnees.contrats()
         for c in contrats:
             f = famille(c.get("famille"))
-            if f and c.get("parents"):
-                f["parents"].add(c["parents"])
+            if f and c.get("enfant_prenom"):
+                f["enfants"].add(c["enfant_prenom"])
         valeurs = lambda cle: sorted({str(c.get(cle)).strip() for c in contrats if str(c.get(cle) or "").strip()})
         return jsonify({
-            "familles": [{"nom": f["nom"], "parents": sorted(f["parents"]), "enfants": sorted(f["enfants"])}
-                         for _, f in sorted(familles.items())],
-            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "parents", "tarif_horaire", "entretien_jour")},
+            "familles": [{"nom": f["nom"], "parents": list(f["parents"].values()), "enfants": sorted(f["enfants"]),
+                          "fiche": f["fiche"]} for _, f in sorted(familles.items())],
+            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "tarif_horaire", "entretien_jour")},
         })
 
     @app.get("/api/echeances")

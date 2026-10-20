@@ -1,4 +1,4 @@
-"""Profil de l'assistante maternelle et fiches contrats (fichiers JSON dans donnees\\).
+"""Profil de l'assistante maternelle, familles employeurs et fiches contrats (JSON dans donnees\\).
 
 Le profil regroupe les « champs globaux » réutilisés par les courriers (identité, agrément,
 PMI…). Les contrats décrivent chaque enfant accueilli. Ces fichiers contiennent des données
@@ -13,6 +13,7 @@ from chemins import DOSSIER_DONNEES
 
 FICHIER_PROFIL = DOSSIER_DONNEES / "profil.json"
 FICHIER_CONTRATS = DOSSIER_DONNEES / "contrats.json"
+FICHIER_FAMILLES = DOSSIER_DONNEES / "familles.json"
 
 CHAMPS_PROFIL = {
     "civilite": "Madame",
@@ -36,6 +37,18 @@ CHAMPS_PROFIL = {
     "assurance_auto_echeance": "",
 }
 
+# Famille employeur : les fiches enfants s'y rattachent par le nom (« famille »), qui est aussi celui
+# du dossier des bulletins.
+CHAMPS_FAMILLE = {
+    "nom": "",
+    "parent1_civilite": "", "parent1_prenom": "", "parent1_nom": "",
+    "parent2_civilite": "", "parent2_prenom": "", "parent2_nom": "",
+    "adresse": "", "code_postal": "", "ville": "",
+    "telephone": "", "email": "",
+    "numero_pajemploi": "",        # « N° employeur » du bulletin
+    "notes": "",
+}
+
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 
 CHAMPS_CONTRAT = {
@@ -47,7 +60,7 @@ CHAMPS_CONTRAT = {
     "enfant_genre": "",            # « fille » ou « garcon » (accords dans les courriers)
     "debut": "",                   # début de l'accueil
     "fin": "",                     # vide : contrat en cours
-    "semaines": "52",              # « 52 » ou nombre de semaines programmées (46 ou moins)
+    "semaines": "52",              # semaines d'accueil par an : « 52 » (année complète) ou moins
     "tarif_horaire": "",
     "entretien_jour": "",
     "abattement_majore": "",       # « oui » : enfant handicapé, malade ou inadapté (impôts : 4 × SMIC)
@@ -89,6 +102,61 @@ def enregistrer_profil(nouveau: dict) -> dict:
     with _verrou:
         _ecrire(FICHIER_PROFIL, actuel)
     return actuel
+
+
+def _cle(nom) -> str:
+    return " ".join((nom or "").lower().split())
+
+
+def familles() -> list:
+    """Familles employeurs enregistrées, plus celles citées par une fiche enfant sans fiche famille
+    (anciennes fiches) : ces dernières ont un id vide jusqu'à leur premier enregistrement."""
+    with _verrou:
+        liste = [CHAMPS_FAMILLE | f for f in _lire(FICHIER_FAMILLES, []) if isinstance(f, dict)]
+    connues = {_cle(f["nom"]) for f in liste}
+    for c in contrats():
+        if c.get("famille") and _cle(c["famille"]) not in connues:
+            connues.add(_cle(c["famille"]))
+            liste.append(CHAMPS_FAMILLE | {"id": "", "nom": c["famille"].strip(), "parent1_nom": c.get("parents", "")})
+    return sorted(liste, key=lambda f: _cle(f["nom"]))
+
+
+def nom_parents(f: dict) -> str:
+    """« Mme Claire Dupont et M. Paul Dupont »."""
+    noms = [" ".join(x for x in (f.get(f"parent{n}_civilite"), f.get(f"parent{n}_prenom"), f.get(f"parent{n}_nom")) if x)
+            for n in (1, 2)]
+    return " et ".join(n for n in noms if n)
+
+
+def enregistrer_famille(f: dict) -> dict:
+    propre = {k: str(f.get(k) or "").strip() for k in CHAMPS_FAMILLE}
+    if not propre["nom"]:
+        raise ValueError("Indiquez le nom de la famille.")
+    propre["id"] = f.get("id") or secrets.token_hex(4)
+    with _verrou:
+        liste = _lire(FICHIER_FAMILLES, [])
+        if any(_cle(x.get("nom")) == _cle(propre["nom"]) and x.get("id") != propre["id"] for x in liste):
+            raise ValueError(f"Une famille {propre['nom']} existe déjà.")
+        ancien = next((x.get("nom") for x in liste if x.get("id") == propre["id"]), f.get("ancien_nom"))
+        liste = [x for x in liste if x.get("id") != propre["id"]] + [propre]
+        _ecrire(FICHIER_FAMILLES, sorted(liste, key=lambda x: _cle(x.get("nom"))))
+        # Nom changé : les fiches enfants suivent.
+        if ancien and _cle(ancien) != _cle(propre["nom"]):
+            fiches = _lire(FICHIER_CONTRATS, [])
+            for c in fiches:
+                if _cle(c.get("famille")) == _cle(ancien):
+                    c["famille"] = propre["nom"]
+            _ecrire(FICHIER_CONTRATS, fiches)
+    return propre
+
+
+def supprimer_famille(ident: str) -> None:
+    with _verrou:
+        liste = _lire(FICHIER_FAMILLES, [])
+        f = next((x for x in liste if x.get("id") == ident), None)
+        if f and any(_cle(c.get("famille")) == _cle(f.get("nom")) for c in _lire(FICHIER_CONTRATS, [])):
+            raise ValueError("Supprimez ou rattachez d'abord les fiches enfants de cette famille.")
+        _ecrire(FICHIER_FAMILLES, [x for x in liste if x.get("id") != ident])
 
 
 def _nettoyer_horaires(h) -> dict:
@@ -146,6 +214,13 @@ def supprimer_contrat(ident: str) -> bool:
         reste = [x for x in liste if x.get("id") != ident]
         _ecrire(FICHIER_CONTRATS, reste)
     return len(reste) != len(liste)
+
+
+def _semaines(c: dict) -> int:
+    try:
+        return min(52, max(1, int(str(c.get("semaines") or "52").strip())))
+    except ValueError:
+        return 52
 
 
 def actif(c: dict, jour: date) -> bool:
@@ -210,10 +285,10 @@ def echeances(jour: date, horizon_jours: int = 400) -> list:
     for annee in (jour.year, jour.year + 1):
         ajouter(date(annee, 4, 15), "Déclaration de revenus",
                 "Période habituelle d'avril à juin : la rubrique Impôts calcule le montant à déclarer.")
-        incomplets = sorted({c["famille"] for c in actifs if (c.get("semaines") or "52").strip() not in ("", "52")})
+        incomplets = sorted({c["famille"] for c in actifs if _semaines(c) < 52})
         if incomplets:
             ajouter(date(annee, 6, 1), "Congés payés à verser en juin",
-                    "Contrats sur 46 semaines ou moins : " + ", ".join(incomplets) + ".")
+                    "Contrats en année incomplète (moins de 52 semaines) : " + ", ".join(incomplets) + ".")
     for c in actifs:
         fin = lire(c.get("fin"))
         if fin:
