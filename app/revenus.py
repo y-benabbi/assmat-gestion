@@ -17,26 +17,38 @@ import bibliotheque
 from chemins import DOSSIER_DONNEES
 
 FICHIER_CACHE = DOSSIER_DONNEES / "revenus.json"
-VERSION_LECTURE = 1       # à augmenter quand les règles changent : les bulletins sont relus
+VERSION_LECTURE = 2       # à augmenter quand les règles changent : les bulletins sont relus
 
 RE_MONTANT = re.compile(r"-?\d{1,3}(?:[ \u202f\xa0.]\d{3})*,\d{1,2}|-?\d+(?:[.,]\d{1,2})?")
 
 # Rubrique -> libellés possibles (texte normalisé : minuscules, sans accents).
-# L'ordre compte : le premier libellé trouvé l'emporte.
+# L'ordre compte : le premier libellé trouvé l'emporte. Les libellés en tête de liste sont ceux
+# des bulletins Pajemploi actuels (vérifiés sur de vrais bulletins, de 2016 à 2024).
 RUBRIQUES = {
     "brut": [r"salaire brut", r"remuneration brute", r"total brut"],
-    "cotisations": [r"total (des )?cotisations( et contributions)? salariales", r"cotisations salariales",
-                    r"total (des )?retenues"],
-    "net": [r"salaire net\b(?! a payer)(?! imposable)", r"remuneration nette", r"net avant impot"],
+    "cotisations": [r"montant total des cotisations", r"total (des )?cotisations( et contributions)? salariales",
+                    r"cotisations salariales", r"total (des )?retenues"],
+    "net": [r"salaire net declare(?! \(y compris)", r"salaire net\b(?! a payer)(?! imposable)(?! paye)",
+            r"remuneration nette", r"net avant impot"],
     "net_a_payer": [r"net a payer", r"montant net (verse|paye)", r"salaire net paye"],
+    "net_paye": [r"net paye en euros"],
     "net_imposable": [r"net imposable", r"montant net imposable", r"salaire imposable"],
     "impot": [r"^(montant (de l.)?)?impot sur le revenu", r"prelevement a la source"],
     "entretien": [r"indemnites? d.?entretien", r"frais d.?entretien"],
     "repas": [r"indemnites? de repas", r"frais de repas", r"indemnites? de nourriture"],
     "km": [r"indemnites? kilometriques?", r"frais kilometriques"],
-    "heures": [r"nombre d.?heures( normales)?", r"heures (normales|travaillees|d.?accueil)"],
-    "jours": [r"nombre de jours( d.?activite| d.?accueil| travailles)?", r"jours d.?(activite|accueil)"],
+    "rupture": [r"indemnites? de rupture"],
+    "exoneration": [r"montant de l.?exoneration"],
+    "heures": [r"nombre d.?heures normales", r"heures (normales|travaillees|d.?accueil)",
+               r"nombre d.?heures(?! compl)"],
+    "heures_comp": [r"nombre d.?heures complementaires"],
+    "jours": [r"nombre de jours d.?(activite|accueil)", r"nombre de jours travailles", r"jours d.?(activite|accueil)"],
 }
+
+# Sur le bulletin, ces lignes portent d'autres nombres après le bon : « Nombre d'heures normales 201
+# Salaire horaire net 4,00 », « Montant total des cotisations 353,07 (salarié) 700,10 (employeur) ».
+# On y garde donc le premier nombre, et le dernier partout ailleurs.
+PREMIER_NOMBRE = {"cotisations", "heures", "heures_comp", "jours"}
 
 _verrou = threading.Lock()
 
@@ -63,7 +75,8 @@ def lire_texte_pdf(chemin: str) -> str:
 
 def analyser_texte(texte: str) -> dict:
     """Montants trouvés dans le texte d'un bulletin : {rubrique: valeur}."""
-    lignes = [bibliotheque.normaliser(l) for l in texte.splitlines() if l.strip()]
+    brutes = [l.strip() for l in texte.splitlines() if l.strip()]
+    lignes = [bibliotheque.normaliser(l) for l in brutes]
     trouve = {}
     for rubrique, motifs in RUBRIQUES.items():
         for motif in motifs:
@@ -73,12 +86,16 @@ def analyser_texte(texte: str) -> dict:
                     continue
                 reste = ligne[m.end():]
                 montants = RE_MONTANT.findall(reste)
-                if not montants and i + 1 < len(lignes) and not re.search(r"[a-z]", lignes[i + 1]):
-                    # Montant parfois renvoyé seul à la ligne suivante.
-                    montants = RE_MONTANT.findall(lignes[i + 1])[:1]
+                if not montants and i + 1 < len(lignes):
+                    if not re.search(r"[a-z]", lignes[i + 1]):
+                        # Montant parfois renvoyé seul à la ligne suivante.
+                        montants = RE_MONTANT.findall(lignes[i + 1])[:1]
+                    elif brutes[i + 1][0].islower() or brutes[i + 1][0] in "(":
+                        # Libellé coupé en deux lignes : « … de l'exonération » / « fiscale) 1294,93 ».
+                        montants = RE_MONTANT.findall(lignes[i + 1])
                 valeurs = [v for v in (nombre(x) for x in montants) if v is not None]
                 if valeurs:
-                    trouve[rubrique] = abs(valeurs[-1])
+                    trouve[rubrique] = abs(valeurs[0] if rubrique in PREMIER_NOMBRE else valeurs[-1])
                     break
             if rubrique in trouve:
                 break
@@ -87,7 +104,19 @@ def analyser_texte(texte: str) -> dict:
         trouve["net"] = round(trouve["brut"] - trouve["cotisations"], 2)
     if "cotisations" not in trouve and "brut" in trouve and "net" in trouve:
         trouve["cotisations"] = round(trouve["brut"] - trouve["net"], 2)
+    trouve["encaisse"] = encaisse(trouve)
     return trouve
+
+
+def encaisse(m: dict) -> float:
+    """Somme versée pour le mois : « Net payé en euros » du bulletin (un acompte éventuel y est compris).
+    À défaut, on la reconstitue : net + indemnités + exonération des heures complémentaires - impôt."""
+    if "net_paye" in m:
+        return m["net_paye"]
+    if "net_a_payer" in m:
+        return round(m["net_a_payer"] - m.get("impot", 0.0), 2)
+    return round(sum(m.get(r, 0.0) for r in ("net", "entretien", "repas", "km", "rupture", "exoneration"))
+                 - m.get("impot", 0.0), 2)
 
 
 def _charger_cache() -> dict:
@@ -137,7 +166,8 @@ def releve(dossier: str) -> list:
 
 def totaux(lignes: list, annee: str) -> dict:
     """Totaux d'une année : général, par mois, par famille ; et les années disponibles."""
-    rubriques = ("brut", "cotisations", "net", "net_imposable", "entretien", "repas", "km", "heures", "jours")
+    rubriques = ("brut", "cotisations", "net", "net_imposable", "entretien", "repas", "km", "rupture", "heures",
+                 "jours", "encaisse")
 
     def vide():
         return {r: 0.0 for r in rubriques} | {"bulletins": 0, "illisibles": 0}
@@ -148,6 +178,7 @@ def totaux(lignes: list, annee: str) -> dict:
             cible["illisibles"] += 1
         for r in rubriques:
             cible[r] += l["montants"].get(r) or 0.0
+        cible["heures"] += l["montants"].get("heures_comp") or 0.0
 
     general, mois, familles = vide(), {f"{m:02d}": vide() for m in range(1, 13)}, {}
     for l in lignes:
@@ -158,7 +189,6 @@ def totaux(lignes: list, annee: str) -> dict:
         ajouter(familles.setdefault(l["famille"], vide()), l)
     for bloc in [general, *mois.values(), *familles.values()]:
         bloc["indemnites"] = bloc["entretien"] + bloc["repas"] + bloc["km"]
-        bloc["encaisse"] = bloc["net"] + bloc["indemnites"]
         for r in list(bloc):
             if isinstance(bloc[r], float):
                 bloc[r] = round(bloc[r], 2)

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.4.1",
+    "date": "2026-10-20",
+    "titre": "Revenus : lecture des bulletins corrigée",
+    "nouveautes": [
+      "Les heures et les jours d'accueil sont maintenant bien lus sur les bulletins (auparavant, le salaire horaire ou les jours de congés payés pouvaient être pris à leur place).",
+      "Les heures complémentaires sont ajoutées au total des heures.",
+      "Le « Total encaissé » reprend la somme « Net payé » de chaque bulletin : il compte désormais les indemnités de fin de contrat et l'exonération des heures complémentaires.",
+      "Vos bulletins sont relus automatiquement à la prochaine ouverture de la rubrique Revenus."
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-20",
     "titre": "Tableau de bord, contrats et courriers",

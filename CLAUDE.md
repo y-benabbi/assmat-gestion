@@ -120,5 +120,6 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Interface : menu latéral par catégories (`data-onglet`), chaque rubrique optionnelle porte `data-module`
   (masquée si `parametres.modules[nom]` est faux). Les anciens Paramètres sont dans « Mes fonctionnalités ».
 - `profil.json`, `contrats.json`, `revenus.json` (dans `donnees\`) contiennent des données personnelles réelles :
-  jamais dans le dépôt. Les libellés lus dans les bulletins sont dans `revenus.RUBRIQUES` (augmenter
+  jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
+  Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
