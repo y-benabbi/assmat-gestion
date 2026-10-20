@@ -124,7 +124,12 @@ def encaisse(m: dict) -> float:
 def _charger_cache() -> dict:
     try:
         cache = json.loads(FICHIER_CACHE.read_text(encoding="utf-8"))
-        return cache if cache.get("version") == VERSION_LECTURE else {"version": VERSION_LECTURE}
+        if cache.get("version") != VERSION_LECTURE:
+            return {"version": VERSION_LECTURE}
+        # Avant la 1.4.2, l'absence de pypdf (« No module named… ») était gardée en cache : ces
+        # bulletins seraient restés illisibles pour toujours. On les oublie pour les relire.
+        return {c: v for c, v in cache.items()
+                if c == "version" or "No module named" not in (v.get("erreur") or "")}
     except (OSError, ValueError):
         return {"version": VERSION_LECTURE}
 

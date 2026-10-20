@@ -153,6 +153,15 @@ def main():
     t = revenus.totaux(revenus.releve(str(dossier)), "2026")
     assert not t["module_absent"] and len(t["illisibles"]) == 1, t["illisibles"]
 
+    # Cache laissé par une version précédente sans pypdf : l'erreur est oubliée, le bulletin relu.
+    import json
+    cache = json.loads(revenus.FICHIER_CACHE.read_text(encoding="utf-8"))
+    cle = next(c for c in cache if "Durand" in c)
+    cache[cle] = {"montants": {}, "lu": False, "erreur": "No module named 'pypdf'"}
+    revenus.FICHIER_CACHE.write_text(json.dumps(cache), encoding="utf-8")
+    t = revenus.totaux(revenus.releve(str(dossier)), "2026")
+    assert len(t["illisibles"]) == 1, t["illisibles"]
+
     # Deuxième lecture : tout vient du fichier de cache.
     revenus.lire_texte_pdf = lambda chemin: (_ for _ in ()).throw(AssertionError("relu"))
     assert len(revenus.releve(str(dossier))) == 6

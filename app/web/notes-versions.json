@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.4.3",
+    "date": "2026-10-20",
+    "titre": "Revenus : bulletins relus sur toutes les sessions",
+    "nouveautes": [
+      "Correction : sur une session Windows qui était passée par la version 1.4.1 sans le composant de lecture des PDF, les bulletins restaient marqués illisibles même après la réparation. Ils sont maintenant relus automatiquement."
+    ]
+  },
+  {
     "version": "1.4.2",
     "date": "2026-10-20",
     "titre": "Nouvelle rubrique Impôts, bulletins de nouveau lisibles",
