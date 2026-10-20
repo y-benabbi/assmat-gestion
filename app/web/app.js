@@ -377,7 +377,7 @@ async function afficherTableauDeBord() {
     modules.echeances !== false ? api("echeances").catch(() => []) : [],
     api("contrats").catch(() => []), api("profil").catch(() => ({})),
   ]);
-  if (r && r.illisibles.length)
+  if (r && r.illisibles.length && !r.module_absent)
     aFaire.push({ couleur: "erreur", texte: `${r.illisibles.length} bulletin${r.illisibles.length > 1 ? "s" : ""} dont les montants n'ont pas pu être lus.`, aller: "revenus", bouton: "Voir" });
   ech.filter((e) => e.urgent).forEach((e) => aFaire.push({ couleur: "attente", texte: `${dateFr(e.date)} : ${e.titre}.`, aller: "echeances", bouton: "Voir" }));
   if (modules.contrats !== false && !contrats.length)
@@ -429,8 +429,9 @@ async function afficherRevenus(annee) {
   $("#tableau-mois").innerHTML = entete("Mois", false)
     + `<tbody>${Object.keys(r.mois).sort().filter((k) => r.mois[k].bulletins).map((k) => ligne(MOIS_COURTS[+k - 1], r.mois[k], false)).join("")}</tbody>`
     + `<tfoot>${ligne("Total", r.general, false)}</tfoot>`;
-  $("#illisibles").textContent = r.illisibles.length
-    ? `Montants non lus pour : ${r.illisibles.map((f) => f.split(/[\\/]/).pop()).join(", ")}.` : "";
+  $("#illisibles").textContent = r.module_absent
+    ? "La lecture des bulletins se prépare : un composant est en cours d'installation. Revenez sur cette page dans une ou deux minutes."
+    : r.illisibles.length ? `Montants non lus pour : ${r.illisibles.map((f) => f.split(/[\\/]/).pop()).join(", ")}.` : "";
 }
 $("#annee-revenus").addEventListener("change", (e) => afficherRevenus(e.target.value));
 

@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.4.2",
+    "date": "2026-10-20",
+    "titre": "Revenus : bulletins de nouveau lisibles",
+    "nouveautes": [
+      "Correction : sur certains ordinateurs, la mise à jour n'avait pas installé le composant qui lit les bulletins PDF, et aucun montant n'apparaissait dans Revenus. L'application l'installe maintenant toute seule au démarrage s'il manque.",
+      "Pendant cette installation (une ou deux minutes), la rubrique Revenus l'indique au lieu de signaler des bulletins illisibles."
+    ]
+  },
+  {
     "version": "1.4.1",
     "date": "2026-10-20",
     "titre": "Revenus : lecture des bulletins corrigée",

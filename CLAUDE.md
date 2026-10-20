@@ -72,6 +72,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 
 ## Pièges connus
 
+- **Nouveau module Python** : l'ajouter à `requirements.txt` ET à `main.MODULES` (installé au démarrage s'il
+  manque, car une mise à jour peut ne pas avoir relancé pip : cas réel de pypdf en 1.4.0) et au contrôle de
+  `verifier.ps1`. Une `ImportError` à la lecture d'un bulletin n'est jamais mise en cache (`revenus.MODULE_ABSENT`).
 - **Plusieurs sessions Windows sur le même PC** partagent les ports de `127.0.0.1`. Chaque session a donc
   son serveur : port dérivé du nom d'utilisateur (repli sur un port libre) et jeton secret, tous deux dans
   `%LOCALAPPDATA%\assmat-gestion\serveur.json`. Toute requête doit présenter le jeton (cookie posé à

@@ -16,13 +16,13 @@ import threading
 import urllib.request
 import webbrowser
 import zlib
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from chemins import (AMORCE, BRANCHE_STABLE, DEPOT_GITHUB, DIAGNOSTICS, DOSSIER_WEB,  # noqa: E402
-                     FICHIER_PROGRAMME, FICHIER_SERVEUR, JOURNAUX, PORT_FORCE, version_locale)
+                     FICHIER_PROGRAMME, FICHIER_SERVEUR, JOURNAUX, PORT_FORCE, RACINE_CODE, version_locale)
 
 # Passe à vrai dès qu'une page de l'application interroge le serveur.
 PAGE_OUVERTE = threading.Event()
@@ -338,11 +338,38 @@ def creer_app(port, jeton):
     return app
 
 
+# Modules Python nécessaires (requirements.txt) : nom à importer.
+MODULES = ("flask", "playwright", "keyring", "pypdf")
+
+
+def installer_modules_manquants():
+    """Une nouvelle version peut demander un module de plus (pypdf depuis la 1.4.0). Si la mise à jour
+    ne l'a pas installé, on l'installe ici, en arrière-plan : la rubrique Revenus le signale en attendant."""
+    import importlib.util
+    import subprocess
+
+    manquants = [m for m in MODULES if importlib.util.find_spec(m) is None]
+    if not manquants:
+        return
+    commande = [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "--quiet",
+                "-r", str(RACINE_CODE / "requirements.txt")]
+    try:
+        r = subprocess.run(commande, capture_output=True, text=True, timeout=600,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        bilan = "installés" if r.returncode == 0 else f"échec (code {r.returncode}) : {r.stderr.strip()[-500:]}"
+    except Exception as e:
+        bilan = f"échec : {e}"
+    importlib.invalidate_caches()
+    with open(JOURNAUX / f"{datetime.now():%Y-%m}.log", "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now():%Y-%m-%d %H:%M:%S} Modules manquants ({', '.join(manquants)}) : {bilan}\n")
+
+
 def main():
     existante = deja_lance()
     if existante:
         webbrowser.open(existante)
         return
+    threading.Thread(target=installer_modules_manquants, daemon=True).start()
     port, jeton = preparer_serveur()
     app = creer_app(port, jeton)
     ouvrir = lambda: webbrowser.open(adresse(port, jeton))  # noqa: E731

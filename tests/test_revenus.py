@@ -17,7 +17,7 @@ import revenus  # noqa: E402
 
 # Même disposition que les bulletins Pajemploi actuels : deux rubriques sur la même ligne dans
 # « Éléments pris en compte », cotisations salarié puis employeur, « Net payé en euros » en bas.
-MODELE = """<html><body style="font-family:Arial">
+MODELE = """<html><body style="font-family:Arial;font-size:11px"><style>td{{white-space:nowrap}}</style>
 <h1>BULLETIN DE SALAIRE</h1><p>Période du {periode}</p><p>Référence employeur : MADAME {nom} CLAIRE</p>
 <table border="1">
 <tr><td>Nombre de jours d'activité</td><td>{jours}</td><td>Nombre de jours de congés payés (a)</td><td>2,5</td></tr>
@@ -109,6 +109,10 @@ def main():
     m = revenus.analyser_texte("Salaire net déclaré 1250,00\nIndemnités d'entretien 80,00\n"
                                "Indemnités de rupture 25,00\nMontant de l'exonération au titre des heures 13,00")
     assert m["encaisse"] == 1368, m
+    # Libellé coupé sur deux lignes : la suite commence par une minuscule ; « Base » n'en est pas une.
+    m = revenus.analyser_texte("Salaire net imposable (tenant compte de l'exonération\nfiscale) 1290,00\n"
+                               " Impôt sur le revenu \nBase 1 290,00\nImpôt sur le revenu prélevé à la source 0,00")
+    assert m["net_imposable"] == 1290 and m["impot"] == 0, m
 
     lignes = revenus.releve(str(dossier))
     assert len(lignes) == 5, lignes
@@ -134,9 +138,24 @@ def main():
     assert t["mois"]["01"]["bulletins"] == 2 and t["mois"]["02"]["brut"] == 1000.0
     assert len(t["illisibles"]) == 1
 
+    # Module pypdf absent (mise à jour incomplète) : signalé, et rien n'est gardé en cache.
+    vrai_lire = revenus.lire_texte_pdf
+
+    def sans_pypdf(chemin):
+        raise ModuleNotFoundError("No module named 'pypdf'")
+    revenus.lire_texte_pdf = sans_pypdf
+    autre = dossier / "Durand" / "Bulletin de salaire - Durand - 2026-01.pdf"
+    autre.parent.mkdir()
+    autre.write_bytes((dossier / "Dupont" / "Bulletin de salaire - Dupont - 2026-02.pdf").read_bytes())
+    t = revenus.totaux(revenus.releve(str(dossier)), "2026")
+    assert t["module_absent"] and len(t["illisibles"]) == 2, t["illisibles"]
+    revenus.lire_texte_pdf = vrai_lire
+    t = revenus.totaux(revenus.releve(str(dossier)), "2026")
+    assert not t["module_absent"] and len(t["illisibles"]) == 1, t["illisibles"]
+
     # Deuxième lecture : tout vient du fichier de cache.
     revenus.lire_texte_pdf = lambda chemin: (_ for _ in ()).throw(AssertionError("relu"))
-    assert len(revenus.releve(str(dossier))) == 5
+    assert len(revenus.releve(str(dossier))) == 6
     print("OK : lecture des bulletins et totaux du tableau de bord")
 
 

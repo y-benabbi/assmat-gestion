@@ -50,6 +50,8 @@ RUBRIQUES = {
 # On y garde donc le premier nombre, et le dernier partout ailleurs.
 PREMIER_NOMBRE = {"cotisations", "heures", "heures_comp", "jours"}
 
+MODULE_ABSENT = "module de lecture des PDF absent"
+
 _verrou = threading.Lock()
 
 
@@ -135,6 +137,10 @@ def lire_bulletin(chemin: str, cache: dict) -> dict:
     try:
         montants = analyser_texte(lire_texte_pdf(chemin))
         resultat = {"montants": montants, "lu": bool(montants.get("brut") or montants.get("net"))}
+    except ImportError:
+        # Module de lecture des PDF absent (installé au démarrage s'il manque) : rien n'est gardé
+        # en cache, le bulletin sera relu à la prochaine visite.
+        return {"montants": {}, "lu": False, "erreur": MODULE_ABSENT}
     except Exception as e:  # PDF illisible : on le signale sans bloquer le reste
         resultat = {"montants": {}, "lu": False, "erreur": str(e).splitlines()[0][:200]}
     cache[cle] = resultat
@@ -195,4 +201,5 @@ def totaux(lignes: list, annee: str) -> dict:
     annees = sorted({l["periode"][:4] for l in lignes}, reverse=True)
     return {"annee": annee, "annees": annees, "general": general, "mois": mois,
             "familles": dict(sorted(familles.items(), key=lambda kv: -kv[1]["brut"])),
-            "illisibles": [l["fichier"] for l in lignes if l["periode"].startswith(annee) and not l["lu"]]}
+            "illisibles": [l["fichier"] for l in lignes if l["periode"].startswith(annee) and not l["lu"]],
+            "module_absent": any(l.get("erreur") == MODULE_ABSENT for l in lignes)}
