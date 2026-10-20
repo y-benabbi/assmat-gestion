@@ -169,6 +169,11 @@ def main():
     t = revenus.totaux(revenus.releve(str(dossier)), "2026")
     assert len(t["illisibles"]) == 1, t["illisibles"]
 
+    # Part du brut restée en net, pour le salaire net indicatif des fiches enfants.
+    t = revenus.taux_net(lignes)
+    assert t["source"] == "bulletins" and abs(t["taux"] - 0.78) < 0.001, t
+    assert revenus.taux_net([])["source"] == "estimation"
+
     # Deuxième lecture : tout vient du fichier de cache.
     revenus.lire_texte_pdf = lambda chemin: (_ for _ in ()).throw(AssertionError("relu"))
     assert len(revenus.releve(str(dossier))) == 6

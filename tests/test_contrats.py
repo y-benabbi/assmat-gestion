@@ -87,6 +87,14 @@ def main():
     assert bernard["parent1_prenom"] == "Julien" and bernard["ville"] == "Arles" and bernard["numero_pajemploi"] == "Y2", bernard
     assert not bernard["adresse"] and not bernard["code_postal"], bernard     # adresse déjà commencée : pas de mélange
     assert donnees.completer_familles(lignes) == []
+    # Famille saisie à la main : elle porte le nom du parent qui gère le contrat (prénom ajouté si déjà pris).
+    assert donnees.enregistrer_famille({"parent1_prenom": "Anne", "parent1_nom": "Durand"})["nom"] == "Durand"
+    assert donnees.enregistrer_famille({"parent1_prenom": "Marc", "parent1_nom": "Durand"})["nom"] == "Durand Marc"
+    try:
+        donnees.enregistrer_famille({"parent1_prenom": "Sans nom"})
+        raise AssertionError("famille sans nom acceptée")
+    except ValueError:
+        pass
     print("OK : familles employeurs")
     print("OK : avenants (conditions en vigueur, échéances, jours de garde)")
 

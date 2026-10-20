@@ -140,7 +140,18 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `donnees.completer_familles` (appelé par `GET /api/familles`) crée la fiche des familles des bulletins et
   remplit les champs **vides** (parent, adresse, n° employeur) d'après `fiche_employeur` du bulletin le plus récent
   (`revenus.lire_bloc_employeur` : nom, adresse jusqu'à la ligne « CP VILLE », « N°Employeur … »).
-- Semaines d'accueil par an : nombre exact saisi (1 à 52), heures mensualisées = heures/semaine × semaines ÷ 12.
+- Nom d'une famille : affiché = `parent1_nom` (parent qui gère le contrat) ; `nom` enregistré = clé reliant la
+  famille au dossier de ses bulletins et aux fiches enfants (`contrat["famille"]`). Une famille saisie à la main
+  reçoit `nom` = `parent1_nom` ; celui d'une famille existante ne change plus (le formulaire n'a pas de champ « nom »).
+- Semaines d'accueil par an : nombre exact saisi (1 à 52), heures mensualisées = heures/semaine × semaines ÷ 12 ;
+  horaires de vacances différents : semaines comptées d'abord à l'école (`SEMAINES_ECOLE` = 36 dans app.js).
+  Salaire net indicatif = brut × `revenus.taux_net` (6 derniers bulletins lus, 0,78 sinon), fourni par
+  `/api/suggestions`.
+- Formulaires : `marquerChamps` ajoute « obligatoire » (attribut `required` ou `data-obligatoire`) ou
+  « facultatif » à chaque libellé. Recherche instantanée : un `<input data-filtre="sélecteur">` masque les éléments
+  qui ne contiennent pas le texte (`appliquerFiltres()` à rappeler après chaque rendu de liste).
+- Tableau de bord : « À faire » ne contient que des actions possibles tout de suite ; les échéances sont dans leur
+  bloc (5 au plus, lien vers la liste complète).
 - Fiche enfant, avenants : `avenants` = liste datée ({id, date, motif} + toutes les conditions de
   `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /
   `donnees.contrats(jour)` donnent les conditions applicables à une date : échéances, courriers (date du courrier)

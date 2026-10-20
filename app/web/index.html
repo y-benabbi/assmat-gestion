@@ -175,7 +175,11 @@
         <span><i class="case-mois vide"></i>Aucun bulletin</span>
       </div>
       <label class="case-a-cocher"><input type="checkbox" id="seulement-manquants"> Seulement les familles à compléter</label>
+      <label class="case-a-cocher" title="Familles qui ont un bulletin dans les 6 derniers mois"><input type="checkbox" id="familles-recentes" checked>
+        Uniquement les familles récentes</label>
     </div>
+    <input type="search" class="recherche" data-filtre="#liste > .intercalaire" placeholder="Rechercher une famille…"
+      aria-label="Rechercher dans les bulletins">
     <div id="liste" class="classeur"></div>
 
     <details class="journal">
@@ -204,6 +208,8 @@
     <p class="petit">Pour chaque enfant : journées de 8 heures ou plus, journées plus courtes (avec leur total
       d'heures) et gardes de 24 heures. Les chiffres proposés viennent du bulletin (jours d'activité, quand la famille
       n'a qu'un enfant accueilli) et de l'emploi du temps de la fiche enfant. Corrigez-les si besoin, puis confirmez.</p>
+    <input type="search" class="recherche" data-filtre="#jours-impots > details" placeholder="Rechercher un enfant, une famille…"
+      aria-label="Rechercher dans les jours de garde">
     <div id="jours-impots"></div>
   </section>
 
@@ -217,27 +223,28 @@
       sont créées automatiquement d'après le bulletin le plus récent, les autres s'ajoutent à la main. Ajoutez ensuite
       une fiche par enfant accueilli, avec son contrat et ses avenants. Ces informations servent au tableau de bord, aux échéances,
       aux impôts et aux courriers.</p>
+    <input type="search" class="recherche" id="recherche-familles" data-filtre="#liste-familles-contrats > section.famille"
+      placeholder="Rechercher une famille, un parent, un enfant…" aria-label="Rechercher dans les familles">
     <div id="familles-a-creer" class="panneau cache"></div>
     <div id="liste-familles-contrats"></div>
 
     <form id="form-famille" class="formulaire cache">
       <fieldset>
         <legend id="titre-form-famille">Nouvelle famille</legend>
-        <div class="grille-champs">
-          <label>Nom de la famille (celui du dossier des bulletins)
-            <input name="nom" required list="liste-familles" autocomplete="off"></label>
-          <label>N° employeur Pajemploi <input name="numero_pajemploi" autocomplete="off"></label>
-        </div>
-        <datalist id="liste-familles"></datalist>
-        <p class="petit">Les familles trouvées dans vos bulletins sont proposées pendant la saisie, avec le nom du
-          parent employeur écrit sur le bulletin.</p>
-        <h3 class="sous-titre">Parent employeur</h3>
+        <p class="petit">La famille porte le nom du parent qui gère le contrat. Les parents trouvés dans vos bulletins
+          sont proposés pendant la saisie.</p>
+        <p class="petit cache" id="dossier-famille"></p>
+        <h3 class="sous-titre">Parent employeur (gère le contrat)</h3>
         <div class="grille-champs parent">
           <label>Civilité <select name="parent1_civilite"><option value="">—</option><option>Mme</option><option>M.</option></select></label>
           <label>Prénom <input name="parent1_prenom" autocomplete="off"></label>
-          <label>Nom <input name="parent1_nom" autocomplete="off"></label>
+          <label>Nom <input name="parent1_nom" required list="liste-parents-bulletins" autocomplete="off"></label>
         </div>
-        <h3 class="sous-titre">Deuxième parent (facultatif)</h3>
+        <datalist id="liste-parents-bulletins"></datalist>
+        <div class="grille-champs">
+          <label>N° employeur Pajemploi <input name="numero_pajemploi" autocomplete="off"></label>
+        </div>
+        <h3 class="sous-titre">Deuxième parent</h3>
         <div class="grille-champs parent">
           <label>Civilité <select name="parent2_civilite"><option value="">—</option><option>Mme</option><option>M.</option></select></label>
           <label>Prénom <input name="parent2_prenom" autocomplete="off"></label>
@@ -279,7 +286,7 @@
       <fieldset>
         <legend>Contrat</legend>
         <div class="grille-champs">
-          <label>Début de l'accueil <input name="debut" type="date"></label>
+          <label>Début de l'accueil <input name="debut" type="date" required></label>
           <label>Fin du contrat (si connue) <input name="fin" type="date"></label>
           <label>Abattement fiscal majoré
             <select name="abattement_majore"><option value="">Non</option>
@@ -294,7 +301,7 @@
         <div class="versions" id="versions-contrat" role="tablist"></div>
         <div id="entete-avenant" class="cache">
           <div class="grille-champs">
-            <label>Date d'effet de l'avenant <input type="date" id="avenant-date"></label>
+            <label>Date d'effet de l'avenant <input type="date" id="avenant-date" data-obligatoire></label>
             <label>Objet de l'avenant <input id="avenant-motif" list="liste-motifs" autocomplete="off"
               placeholder="Changement d'horaires"></label>
           </div>
@@ -310,10 +317,12 @@
           <label>Type d'accueil
             <select name="accueil"><option value="journee">En journée</option><option value="periscolaire">Périscolaire</option></select>
           </label>
-          <label>Tarif horaire brut (€) <input name="tarif_horaire" inputmode="decimal" list="liste-tarifs" autocomplete="off"></label>
+          <label>Tarif horaire brut (€) <input name="tarif_horaire" inputmode="decimal" list="liste-tarifs" autocomplete="off">
+            <span class="aide-calcul" id="net-horaire" aria-live="polite"></span></label>
           <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" inputmode="decimal" list="liste-entretiens" autocomplete="off"></label>
+          <label>Indemnité de repas par jour (€) <input name="repas_jour" inputmode="decimal" list="liste-repas" autocomplete="off"></label>
         </div>
-        <datalist id="liste-tarifs"></datalist><datalist id="liste-entretiens"></datalist>
+        <datalist id="liste-tarifs"></datalist><datalist id="liste-entretiens"></datalist><datalist id="liste-repas"></datalist>
         <h3 class="sous-titre">Emploi du temps type</h3>
         <p class="petit">Heure d'arrivée et heure de départ, jour par jour. « + Coupure » ajoute une deuxième plage
           (par exemple le matin avant l'école et le soir). Laissez vide les jours sans accueil.</p>
@@ -344,6 +353,8 @@
     <div class="titre-page"><h1>Échéances</h1></div>
     <p class="petit">Calculées à partir de votre profil (agrément, assurances) et des contrats. Complétez-les dans
       <button class="lien" data-aller="profil">Mon profil</button>.</p>
+    <input type="search" class="recherche" data-filtre="#liste-echeances > li" placeholder="Rechercher une échéance…"
+      aria-label="Rechercher dans les échéances">
     <ul class="liste-echeances panneau" id="liste-echeances"></ul>
   </section>
 
@@ -376,7 +387,7 @@
           <label>Date du courrier <input name="date_courrier" type="date"></label>
         </div>
         <label>Motif, en quelques mots (facultatif)
-          <input name="motif" placeholder="sa maman souhaiterait que je continue à l'accueillir jusqu'à ses 6 ans">
+          <input name="motif" placeholder="ses parents commencent un nouvel emploi et ont besoin d'une garde le mercredi">
         </label>
         <div class="boutons"><button class="principal">Préparer le courrier</button></div>
       </fieldset>
@@ -672,8 +683,13 @@
         <ul>
           <li>Heures par semaine = somme, jour par jour, des plages saisies (départ − arrivée ; avec une coupure,
             les deux plages sont additionnées).</li>
-          <li>Heures mensualisées (mêmes horaires toute l'année) = heures par semaine × semaines d'accueil par an ÷ 12
-            (52 semaines en année complète, le nombre de semaines programmées sinon).</li>
+          <li>Heures mensualisées = heures par semaine × semaines d'accueil par an ÷ 12 (52 semaines en année complète,
+            le nombre de semaines programmées sinon). Avec des horaires différents pendant les vacances, les semaines
+            programmées sont comptées d'abord en période scolaire (36 semaines d'école par an au plus), le reste en
+            vacances : (heures scolaires × semaines d'école + heures de vacances × semaines de vacances) ÷ 12.</li>
+          <li>Salaire mensualisé brut = heures mensualisées × tarif horaire brut. Net indicatif = brut × part du brut
+            restée en net sur vos 6 derniers bulletins lus (environ 78 % à défaut de bulletin).</li>
+          <li>Indemnités par mois ≈ jours d'accueil par mois (même calcul que les heures) × (entretien + repas par jour).</li>
           <li>Avenants : à partir de sa date d'effet, un avenant remplace les conditions précédentes (semaines,
             type d'accueil, tarif, indemnité d'entretien, emploi du temps). Les échéances, les courriers et les jours
             de garde des impôts utilisent les conditions en vigueur à la date concernée.</li>

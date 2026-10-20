@@ -44,7 +44,7 @@ def main():
     periodes = [{"debut": "2026-10-17", "fin": "2026-11-01"}, {"debut": "2026-12-19", "fin": "2027-01-03"}]
     r = courriers.proposer_derogation({"contrat_id": enfant["id"], "type_accueil": "periscolaire",
                                        "date_fin": "2028-05-10", "date_courrier": "2026-08-07",
-                                       "motif": "sa maman souhaiterait que je continue à l'accueillir",
+                                       "motif": "ses parents commencent un nouvel emploi",
                                        "periodes": periodes})
     assert r["manquants"] == [], r["manquants"]
     t = r["proposition"]
@@ -53,7 +53,7 @@ def main():
     assert t["lieu_date"] == "Paris, le 7 août 2026", t["lieu_date"]
     assert "agréée pour l'accueil de 4 enfants de 0 à 18 ans en journée depuis mars 2014" in t["corps"], t["corps"]
     assert "un cinquième enfant en périscolaire jusqu'en mai 2028" in t["corps"], t["corps"]
-    assert "Paul Martin vient à mon domicile depuis octobre 2022, sa maman souhaiterait" in t["corps"], t["corps"]
+    assert "Paul Martin vient à mon domicile depuis octobre 2022, ses parents commencent un nouvel emploi" in t["corps"], t["corps"]
     assert t["periodes"] == ["du 17 octobre au 1er novembre 2026", "du 19 décembre 2026 au 3 janvier 2027"], t["periodes"]
     assert "Paul viendrait 5 jours, d'où la présence de 5 enfants le lundi, mardi, jeudi et vendredi." in t["suite"], t["suite"]
     assert "il viendrait seulement le mercredi, où seuls 2 enfants sont accueillis" in t["suite"], t["suite"]

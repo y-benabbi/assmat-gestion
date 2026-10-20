@@ -177,6 +177,19 @@ def encaisse(m: dict) -> float:
                  - m.get("impot", 0.0), 2)
 
 
+TAUX_NET_DEFAUT = 0.78      # net ≈ 78 % du brut (cotisations salariales d'une assistante maternelle, environ)
+
+
+def taux_net(lignes: list, nombre: int = 6) -> dict:
+    """Part du brut qui reste en net, d'après les derniers bulletins lus (à défaut : estimation)."""
+    lus = sorted((l for l in lignes if (l.get("montants") or {}).get("brut") and l["montants"].get("net")),
+                 key=lambda l: l["periode"])[-nombre:]
+    brut = sum(l["montants"]["brut"] for l in lus)
+    if not brut:
+        return {"taux": TAUX_NET_DEFAUT, "source": "estimation"}
+    return {"taux": round(sum(l["montants"]["net"] for l in lus) / brut, 4), "source": "bulletins", "bulletins": len(lus)}
+
+
 def _charger_cache() -> dict:
     try:
         cache = json.loads(FICHIER_CACHE.read_text(encoding="utf-8"))

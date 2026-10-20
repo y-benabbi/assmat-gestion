@@ -482,3 +482,22 @@ fieldset { scroll-margin-top: 16px; }
 .famille .carte-contrat { background: var(--eucalyptus-clair); }
 .grille-champs.parent { grid-template-columns: minmax(90px, 0.6fr) 1fr 1fr; }
 @media (max-width: 600px) { .grille-champs.parent { grid-template-columns: 1fr; } }
+
+/* Mentions obligatoire / facultatif, recherche, coordonnées, aides de calcul */
+.mention { display: inline-block; margin-left: 8px; padding: 0 8px; border-radius: 999px; font-size: 0.72rem;
+  font-weight: 700; vertical-align: 2px; color: var(--encre-douce); background: var(--trait); }
+.mention.obligatoire { color: #fff; background: var(--eucalyptus-fonce); }
+.recherche { display: block; width: 100%; max-width: 420px; margin: 0 0 16px; border: 2px solid var(--trait) !important; background: #fff !important; }
+.filtre-cache { display: none !important; }
+.coordonnees { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 6px; font-size: 0.92rem; }
+.coordonnees a { color: var(--eucalyptus-fonce); }
+.aide-calcul { display: block; margin-top: 4px; font-size: 0.85rem; color: var(--eucalyptus-fonce); }
+.salaire-indicatif { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--trait); }
+.salaire-indicatif ul { margin: 4px 0; padding-left: 20px; }
+.liste-echeances li { align-items: center; }
+.liste-echeances .quand { display: grid; justify-items: center; align-content: center; width: 64px; padding: 6px 4px;
+  border-radius: 12px; background: var(--eucalyptus-clair); text-align: center; line-height: 1.1; }
+.liste-echeances .quand .jour { font-size: 1.35rem; }
+.liste-echeances .quand .mois { font-size: 0.78rem; font-weight: 700; }
+.liste-echeances .urgent .quand { background: #fbe4e4; }
+.liste-echeances li.plus { justify-content: center; }

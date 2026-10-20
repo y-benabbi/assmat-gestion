@@ -222,7 +222,8 @@ def creer_app(port, jeton):
             if p["nom"] or p["prenom"]:
                 f["parents"].setdefault((p["prenom"].lower(), p["nom"].lower()), p)
 
-        for l in revenus.releve(parametres.charger().get("dossier_bulletins", "")):
+        lignes = revenus.releve(parametres.charger().get("dossier_bulletins", ""))
+        for l in lignes:
             f = famille(l["famille"])
             if f and l.get("employeur"):
                 # « Mme Claire Dupont » : civilité, prénom, puis nom.
@@ -250,7 +251,8 @@ def creer_app(port, jeton):
         return jsonify({
             "familles": [{"nom": f["nom"], "parents": list(f["parents"].values()), "enfants": sorted(f["enfants"]),
                           "fiche": f["fiche"]} for _, f in sorted(familles.items())],
-            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "tarif_horaire", "entretien_jour")},
+            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "tarif_horaire", "entretien_jour", "repas_jour")},
+            "taux_net": revenus.taux_net(lignes),
         })
 
     @app.get("/api/echeances")

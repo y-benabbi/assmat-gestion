@@ -63,6 +63,7 @@ CHAMPS_CONTRAT = {
     "semaines": "52",              # semaines d'accueil par an : « 52 » (année complète) ou moins
     "tarif_horaire": "",
     "entretien_jour": "",
+    "repas_jour": "",              # indemnité de repas par jour
     "abattement_majore": "",       # « oui » : enfant handicapé, malade ou inadapté (impôts : 4 × SMIC)
     "accueil": "journee",          # journee ou periscolaire
     # Emploi du temps type : {"lundi": "8h00-17h30", …}, en période scolaire et en vacances
@@ -75,7 +76,8 @@ CHAMPS_CONTRAT = {
 }
 
 # Conditions du contrat qu'un avenant peut changer.
-MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_jour", "horaires_scolaire", "horaires_vacances")
+MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_jour", "repas_jour", "horaires_scolaire",
+               "horaires_vacances")
 
 _verrou = threading.Lock()
 
@@ -130,11 +132,18 @@ def nom_parents(f: dict) -> str:
 
 def enregistrer_famille(f: dict) -> dict:
     propre = {k: str(f.get(k) or "").strip() for k in CHAMPS_FAMILLE}
-    if not propre["nom"]:
-        raise ValueError("Indiquez le nom de la famille.")
     propre["id"] = f.get("id") or secrets.token_hex(4)
     with _verrou:
         liste = _lire(FICHIER_FAMILLES, [])
+        if not propre["nom"]:
+            # Nouvelle famille saisie à la main : elle porte le nom du parent qui gère le contrat
+            # (et son prénom si ce nom est déjà pris). Le nom d'une famille existante ne change pas :
+            # c'est aussi celui du dossier de ses bulletins.
+            if not propre["parent1_nom"]:
+                raise ValueError("Indiquez le nom du parent employeur.")
+            propre["nom"] = propre["parent1_nom"]
+            if any(_cle(x.get("nom")) == _cle(propre["nom"]) for x in liste) and propre["parent1_prenom"]:
+                propre["nom"] = f"{propre['parent1_nom']} {propre['parent1_prenom']}"
         if any(_cle(x.get("nom")) == _cle(propre["nom"]) and x.get("id") != propre["id"] for x in liste):
             raise ValueError(f"Une famille {propre['nom']} existe déjà.")
         ancien = next((x.get("nom") for x in liste if x.get("id") == propre["id"]), f.get("ancien_nom"))
