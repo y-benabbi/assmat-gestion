@@ -92,6 +92,7 @@ def creer_app(port, jeton):
     import bibliotheque
     import courriers
     import donnees
+    import impots
     import parametres
     import revenus
     from pajemploi import Pajemploi
@@ -191,6 +192,29 @@ def creer_app(port, jeton):
         lignes = revenus.releve(parametres.charger().get("dossier_bulletins", ""))
         annee = request.args.get("annee") or (max(l["periode"][:4] for l in lignes) if lignes else str(date.today().year))
         return jsonify(revenus.totaux(lignes, annee))
+
+    # ------------------------------------------------ impôts
+    @app.get("/api/impots")
+    def lire_impots():
+        lignes = revenus.releve(parametres.charger().get("dossier_bulletins", ""))
+        annees = sorted({l["periode"][:4] for l in lignes}, reverse=True)
+        # Par défaut : l'année dernière (celle que l'on déclare au printemps), sinon la plus récente.
+        defaut = str(date.today().year - 1)
+        annee = request.args.get("annee") or (defaut if defaut in annees else (annees[0] if annees else defaut))
+        return jsonify(impots.calculer(annee, lignes) | {"annees": annees or [annee]})
+
+    @app.post("/api/impots/jours")
+    def confirmer_jours():
+        d = request.get_json(force=True)
+        try:
+            impots.confirmer(str(d["annee"]), str(d["contrat_id"]), str(d["mois"]), d.get("valeurs"))
+        except (KeyError, ValueError) as e:
+            return jsonify({"erreur": f"Données incomplètes : {e}"}), 400
+        return jsonify({"ok": True})
+
+    @app.get("/api/bareme")
+    def lire_bareme():
+        return jsonify(impots.bareme())
 
     # ------------------------------------------------ courriers
     courriers_generes = set()

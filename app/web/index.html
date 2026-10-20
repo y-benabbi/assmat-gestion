@@ -43,6 +43,8 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Revenus</button>
   <button data-onglet="bulletins" data-module="bulletins">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg>Bulletins de salaire</button>
+  <button data-onglet="impots" data-module="impots">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2"/></svg>Impôts</button>
 
   <p class="categorie" data-categorie="familles">Mes familles</p>
   <button data-onglet="contrats" data-module="contrats">
@@ -182,7 +184,30 @@
     </details>
   </section>
 
-    <!-- ======================= CONTRATS ======================= -->
+    <!-- ======================= IMPÔTS ======================= -->
+  <section id="impots" class="onglet">
+    <div class="titre-page">
+      <h1>Impôts</h1>
+      <label class="choix-annee">Revenus de <select id="annee-impots"></select></label>
+    </div>
+    <p class="petit">Aide pour la déclaration de revenus du printemps : montant à déclarer avec l'abattement des
+      assistantes maternelles (régime spécifique), comparé au régime classique. Les salaires viennent des bulletins ;
+      les jours de garde sont proposés et se confirment mois par mois, plus bas.</p>
+    <div id="alertes-impots"></div>
+    <div class="chiffres" id="chiffres-impots"></div>
+    <div class="panneau conseil" id="conseil-impots"></div>
+    <div class="panneau">
+      <h2>Par famille</h2>
+      <div class="defilement"><table class="tableau" id="tableau-impots"></table></div>
+    </div>
+    <h2 class="titre-bloc-seul">Jours de garde, mois par mois</h2>
+    <p class="petit">Pour chaque enfant : journées de 8 heures ou plus, journées plus courtes (avec leur total
+      d'heures) et gardes de 24 heures. Les chiffres proposés viennent du bulletin (jours d'activité, quand la famille
+      n'a qu'un enfant accueilli) et de l'emploi du temps de la fiche enfant. Corrigez-les si besoin, puis confirmez.</p>
+    <div id="jours-impots"></div>
+  </section>
+
+  <!-- ======================= CONTRATS ======================= -->
   <section id="contrats" class="onglet">
     <div class="titre-page">
       <h1>Contrats</h1>
@@ -220,6 +245,10 @@
           </label>
           <label>Tarif horaire brut (€) <input name="tarif_horaire" inputmode="decimal"></label>
           <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" inputmode="decimal"></label>
+          <label>Abattement fiscal majoré
+            <select name="abattement_majore"><option value="">Non</option>
+              <option value="oui">Oui : enfant handicapé, malade ou inadapté</option></select>
+          </label>
         </div>
       </fieldset>
       <fieldset>
@@ -399,7 +428,9 @@
             <small>Agrément, assurances, congés payés, déclaration de revenus</small></span></label>
           <label class="interrupteur"><input type="checkbox" name="modules.courriers"><span><strong>Courriers</strong>
             <small>Demande de dérogation et autres lettres en PDF</small></span></label>
-          <label class="interrupteur bientot"><input type="checkbox" disabled><span><strong>Suivi du mois, congés payés, impôts</strong>
+          <label class="interrupteur"><input type="checkbox" name="modules.impots"><span><strong>Impôts</strong>
+            <small>Revenu à déclarer avec l'abattement, comparé au régime classique</small></span></label>
+          <label class="interrupteur bientot"><input type="checkbox" disabled><span><strong>Suivi du mois, congés payés</strong>
             <small>Bientôt</small></span></label>
         </div>
       </fieldset>
@@ -460,8 +491,10 @@
           <label><input type="radio" name="regime_impots" value="classique"><span>Régime classique
             <small>Salaires déclarés tels quels</small></span></label>
           <label><input type="radio" name="regime_impots" value="comparer"><span>Je ne sais pas
-            <small>Comparer les deux (bientôt)</small></span></label>
+            <small>Calculer les deux et comparer</small></span></label>
         </div>
+        <p class="petit">Les jours de garde de chaque enfant se confirment mois par mois dans la rubrique
+          <button type="button" class="lien" data-aller="impots">Impôts</button>.</p>
       </fieldset>
 
       <fieldset id="reglages-courriers">
@@ -508,6 +541,100 @@
       <div id="notes-disponibles"></div>
       <div class="boutons"><button class="principal" id="btn-maj-2">Mettre à jour maintenant</button></div>
     </div>
+    <h2 class="titre-section">Comment fonctionne l'application</h2>
+    <div class="fonctionnement">
+      <details class="note-version" open>
+        <summary><span class="numero">D'où viennent les chiffres ?</span></summary>
+        <ul>
+          <li><strong>Salaires, cotisations, indemnités, heures et jours</strong> : ils sont lus dans les bulletins de
+            salaire PDF rangés dans votre dossier des bulletins. Ce sont donc les montants que les familles ont déclarés
+            sur Pajemploi, recopiés tels quels.</li>
+          <li><strong>Quand sont-ils mis à jour ?</strong> Pas en temps réel depuis Pajemploi : à chaque ouverture du
+            tableau de bord, des revenus ou des impôts, l'application regarde le dossier et lit les bulletins nouveaux ou
+            modifiés (les autres sont déjà connus). Un bulletin compte donc dès qu'il est rangé dans le dossier, qu'il ait
+            été récupéré par l'application ou ajouté à la main.</li>
+          <li><strong>Pajemploi</strong> n'est consulté que lorsque vous cliquez sur « Vérifier sur Pajemploi » ou
+            « Récupérer les bulletins manquants ».</li>
+          <li><strong>Profil, contrats, jours de garde confirmés</strong> : ce que vous avez saisi vous-même. Tout reste
+            sur cet ordinateur (dossier de l'application), rien n'est envoyé ailleurs.</li>
+          <li><strong>Vacances scolaires</strong> (courriers) : calendrier officiel publié par l'Éducation nationale,
+            consulté au moment de préparer le courrier, selon la zone de votre profil.</li>
+          <li><strong>Barèmes</strong> (SMIC, déduction de 10 %) : inscrits dans l'application et mis à jour avec elle
+            (voir le tableau plus bas).</li>
+        </ul>
+      </details>
+      <details class="note-version">
+        <summary><span class="numero">Comment se fait la connexion à Pajemploi ?</span></summary>
+        <ul>
+          <li>L'application pilote un navigateur (Chromium) installé avec elle, avec son propre profil : il garde les
+            cookies de Pajemploi, ce qui permet à votre ordinateur d'être reconnu et d'éviter un code à chaque fois.</li>
+          <li>Pajemploi refuse les navigateurs invisibles : la fenêtre existe donc, mais reste réduite dans la barre des
+            tâches. Elle s'affiche si Pajemploi demande une vérification à faire vous-même.</li>
+          <li>L'identifiant est enregistré dans les réglages ; le mot de passe est rangé dans le Gestionnaire
+            d'identifiants de Windows, jamais dans un fichier. Si Pajemploi envoie un code par e-mail ou SMS,
+            l'application vous le demande.</li>
+          <li>Une fois connectée, l'application demande la liste des bulletins et les PDF au service de Pajemploi,
+            exactement comme le fait la page « Mes bulletins de salaire ». Les informations de connexion restent en
+            mémoire le temps de la session et ne sont jamais enregistrées.</li>
+          <li>L'application elle-même ne fonctionne que sur cet ordinateur, pour votre session Windows (adresse locale
+            protégée par une clé secrète).</li>
+        </ul>
+      </details>
+      <details class="note-version">
+        <summary><span class="numero">Quels calculs fait l'application ?</span></summary>
+        <h3 class="sous-titre">Revenus</h3>
+        <ul>
+          <li>Brut, cotisations, net, net imposable, indemnités d'entretien, de repas et kilométriques, indemnité de
+            rupture, heures et jours : repris tels quels de chaque bulletin. Si le net manque, il est calculé
+            (brut − cotisations) ; si les cotisations manquent : brut − net.</li>
+          <li>Part des cotisations = cotisations ÷ brut.</li>
+          <li>Heures = heures normales + heures complémentaires ou majorées.</li>
+          <li>Indemnités = entretien + repas + kilomètres.</li>
+          <li>Total encaissé = « Net payé en euros » du bulletin (impôt à la source déduit). S'il manque : net à payer −
+            impôt, ou à défaut net + indemnités + indemnité de rupture + exonération des heures complémentaires − impôt.</li>
+          <li>Totaux par mois, par famille et par année : sommes des bulletins correspondants. Part du brut d'une famille
+            = brut de la famille ÷ brut total.</li>
+        </ul>
+        <h3 class="sous-titre">Impôts</h3>
+        <ul>
+          <li>Revenus (régime spécifique) = net imposable + indemnités d'entretien + indemnités de repas, par famille.
+            Les indemnités kilométriques ne sont pas comptées.</li>
+          <li>Abattement, par enfant et par jour de garde : 3 × SMIC horaire pour une journée de 8 heures ou plus ;
+            3 × SMIC ÷ 8 × nombre d'heures pour une journée plus courte ; 4 × SMIC au lieu de 3 pour un enfant handicapé,
+            malade ou inadapté (« abattement majoré » de la fiche) ; 1 × SMIC de plus pour une garde de 24 heures.</li>
+          <li>SMIC retenu : celui en vigueur le mois de la garde (deux montants si le SMIC change dans l'année).</li>
+          <li>Jours proposés : les jours d'activité du bulletin quand la famille n'a qu'un enfant accueilli (sans dépasser
+            les jours prévus par l'emploi du temps, car en année complète ils comptent aussi les congés payés) ; sinon
+            les jours prévus par l'emploi du temps × semaines d'accueil ÷ 52. La part des journées de 8 heures ou plus
+            suit l'emploi du temps. Vos corrections confirmées remplacent la proposition.</li>
+          <li>Revenu à déclarer (régime spécifique) = revenus − abattement, ramené à 0 s'il est négatif, famille par
+            famille, puis additionné.</li>
+          <li>Régime classique = net imposable − déduction forfaitaire de 10 % (avec le minimum et le maximum de l'année).</li>
+          <li>Le régime le plus avantageux est celui qui donne le plus petit revenu à déclarer.</li>
+        </ul>
+        <h3 class="sous-titre">Échéances et courriers</h3>
+        <ul>
+          <li>Agrément : rappel 6 mois et 3 mois avant la fin (la demande de renouvellement doit arriver à la PMI au
+            moins 3 mois avant), puis à la date de fin. Assurances : à leur date d'échéance.</li>
+          <li>Bulletins : le 1er de chaque mois. Déclaration de revenus : mi-avril. Congés payés : 1er juin, pour les
+            contrats sur 46 semaines ou moins. Fin de contrat : à la date indiquée sur la fiche.</li>
+          <li>Demande de dérogation : âge de chaque enfant à la date du courrier (« et demi » de 6 à 11 mois) ; nombre
+            d'enfants accueillis chaque jour d'après les emplois du temps des contrats en cours ; jours où ce nombre
+            dépasse l'agrément.</li>
+        </ul>
+        <p class="petit">Ces calculs aident à préparer les démarches ; ils ne remplacent pas les notices officielles
+          (impots.gouv.fr, Pajemploi). En cas de doute, le relais petite enfance ou le centre des impôts peuvent vous
+          renseigner.</p>
+      </details>
+      <details class="note-version">
+        <summary><span class="numero">Barèmes utilisés</span></summary>
+        <div class="deux-colonnes">
+          <div><h3 class="sous-titre">SMIC horaire brut</h3><table class="tableau petit-tableau" id="bareme-smic"></table></div>
+          <div><h3 class="sous-titre">Déduction de 10 % (régime classique)</h3><table class="tableau petit-tableau" id="bareme-deduction"></table></div>
+        </div>
+      </details>
+    </div>
+
     <h2 class="titre-section">Notes de version</h2>
     <div id="notes-versions" class="notes"></div>
   </section>
