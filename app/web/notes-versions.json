@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-10-21",
+    "titre": "Contrat de travail et ajout d'un enfant pas à pas",
+    "nouveautes": [
+      "Contrat de travail : l'application remplit le modèle officiel de l'Urssaf (CDI Pajemploi). Version à remplir avec vos seules informations, ou version complète pour un enfant. Les cases du PDF restent modifiables avant l'impression. Dans Courriers, et dans chaque fiche enfant.",
+      "« Ajouter un enfant » s'ouvre en plein écran et vous guide en 9 étapes, en indiquant combien il en reste : famille et parent employeur, essai et adaptation, horaires, salaire, repos, jours fériés, congés, signature.",
+      "Mon profil : nouvelles rubriques pour le contrat (nom de naissance, n° de Sécurité sociale, renouvellement de l'agrément, compagnies et n° de police des assurances, lieu d'accueil).",
+      "Chaque champ des formulaires indique s'il est obligatoire ou facultatif.",
+      "Fiche enfant : indemnité de repas, salaire net estimé sous le tarif horaire, aperçu du salaire mensuel brut et net (période scolaire et vacances). L'objet d'un avenant devient facultatif.",
+      "Familles : la fiche d'un enfant s'ouvre juste sous sa famille, le nom de la famille est celui du parent qui gère le contrat, les coordonnées sont affichées, et une barre de recherche permet de retrouver une famille ou un enfant.",
+      "Bulletins : case « Uniquement les familles récentes ». Recherche aussi dans les échéances et les impôts.",
+      "Tableau de bord : « À faire » ne garde que ce qui peut être fait tout de suite ; les prochaines échéances ont leur bloc, avec un lien vers la liste complète. Les dates des échéances sont mieux centrées."
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-10-20",
     "titre": "Familles, contrats et avenants",
