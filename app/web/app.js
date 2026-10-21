@@ -1652,14 +1652,33 @@ function editerFamille(f) {
   const dossier = f?.nom && f.nom !== nomFamille(f) ? f.nom : "";
   $("#dossier-famille").textContent = dossier ? `Bulletins rangés dans le dossier « ${dossier} ».` : "";
   $("#dossier-famille").classList.toggle("cache", !dossier);
-  placerSous(formFamille, f?.nom);
+  // Famille existante : le formulaire prend la place de ses informations, dans son encadré ; nouvelle famille :
+  // en haut de la liste.
+  fermerFamille();
+  const bloc = $$("#liste-familles-contrats > .famille").find((b) => b.dataset.famille === f?.nom);
+  if (bloc) {
+    bloc.open = true;
+    bloc.classList.add("en-edition");
+    bloc.querySelector(".infos-famille").classList.add("cache");
+    bloc.querySelector(".infos-famille").after(formFamille);
+    $("#titre-form-famille").textContent = "Modifier les informations de la famille";
+  } else $("#liste-familles-contrats").before(formFamille);
+  formFamille.classList.toggle("dans-famille", !!bloc);
   $("#supprimer-famille").classList.toggle("cache", !f?.id);
   formFamille.classList.remove("cache");
   marquerRemplis(formFamille);
-  formFamille.scrollIntoView({ behavior: "smooth" });
+  (bloc || formFamille).scrollIntoView({ behavior: "smooth", block: "start" });
+}
+// Fermeture du formulaire : la famille retrouve ses informations.
+function fermerFamille() {
+  formFamille.classList.add("cache");
+  $$("#liste-familles-contrats > .famille.en-edition").forEach((b) => {
+    b.classList.remove("en-edition");
+    b.querySelector(".infos-famille").classList.remove("cache");
+  });
 }
 $("#nouvelle-famille").addEventListener("click", () => editerFamille(null));
-$("#annuler-famille").addEventListener("click", () => formFamille.classList.add("cache"));
+$("#annuler-famille").addEventListener("click", fermerFamille);
 $("#supprimer-famille").addEventListener("click", async () => {
   if (!familleEditee?.id || !confirm(`Supprimer la fiche de la famille ${nomFamille(familleEditee)} ?`)) return;
   try { await api("familles/supprimer", { id: familleEditee.id }); } catch (err) { alert(err.message); return; }
@@ -1672,7 +1691,9 @@ formFamille.addEventListener("submit", async (e) => {
   d.id = familleEditee?.id || "";
   // Famille existante : son nom (lien avec le dossier des bulletins) ne change pas.
   d.nom = familleEditee?.nom || "";
-  try { await api("familles", d); } catch (err) { alert(err.message); return; }
+  let enregistree;
+  try { enregistree = await api("familles", d); } catch (err) { alert(err.message); return; }
+  famillesOuvertes.add(enregistree?.nom || d.nom);     // la famille reste ouverte pour voir ses informations
   formFamille.classList.add("cache");
   afficherContrats();
 });
@@ -1683,7 +1704,7 @@ function editerContrat(c, famille, mode = "fiche", avenantId = "") {
   const assistant = mode !== "fiche";
   modeSaisie = mode;
   contratEdite = c;
-  formFamille.classList.add("cache");
+  fermerFamille();
   formContrat.reset();
   formContrat.elements.famille.innerHTML = familles.map((f) => `<option value="${echapper(f.nom)}">${
     echapper([nomFamille(f), f.parent1_prenom && `(${f.parent1_prenom})`].filter(Boolean).join(" "))}</option>`).join("")

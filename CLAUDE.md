@@ -213,7 +213,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (`#taux-complementaire`, non enregistré) ⇄ `tarif_complementaire` ; heures majorées : `taux_majoration` ⇄
   `#tarif-majore` (non enregistré) ; `afficherNetHoraire(source)` recalcule l'autre champ.
 - Fiche enfant et avenants : la liste « Familles et contrats » montre chaque famille en `<details>`, repliée par défaut
-  (`famillesOuvertes` : ouvertes pendant la session ; la recherche ouvre les familles trouvées) ; un clic sur un enfant déplie sa carte (`enfantOuvert`, `dossierEnfant`) :
+  (`famillesOuvertes` : ouvertes pendant la session ; la recherche ouvre les familles trouvées) ;
+  « Modifier la famille » place `#form-famille` (classe `dans-famille`) dans l'encadré, à la place de `.infos-famille`
+  (`fermerFamille()` les rétablit) ; un clic sur un enfant déplie sa carte (`enfantOuvert`, `dossierEnfant`) :
   contrat en vigueur aujourd'hui, historique (contrat puis avenants), documents (`donnees\documents.json`,
   `/api/documents`, ajoutés à chaque PDF créé) et actions. L'assistant a trois modes (`modeSaisie`) : « nouveau »,
   « modification », « avenant » (étapes `ETAPES_AVENANT`, seule la date d'effet est obligatoire). En mode avenant,

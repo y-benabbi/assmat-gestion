@@ -836,3 +836,13 @@ form.modifie .barre-enregistrer [role=status]:empty { display: none; }
 @media (max-width: 600px) { .famille .cartes-contrats { grid-template-columns: 1fr; } }
 .grille-champs > label > .lien { justify-self: start; text-align: left; }
 legend.avec-pic { display: flex; align-items: center; gap: 12px; }
+
+/* Modifier une famille : le formulaire s'ouvre dans l'encadré de la famille, à la place de ses informations */
+details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
+.formulaire.dans-famille { max-width: none; margin: 0; padding-top: 18px; border-top: 1px solid var(--trait); }
+.formulaire.dans-famille fieldset { padding: 0; margin: 0; background: none; border-radius: 0; }
+.formulaire.dans-famille legend { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; color: var(--eucalyptus-fonce); }
+.formulaire.dans-famille legend::before { content: ""; width: 30px; height: 30px; flex: none; border-radius: 9px;
+  background: var(--eucalyptus-clair) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235a4aa3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E") center / 17px no-repeat; }
+.formulaire.dans-famille .boutons { margin: 20px 0 0; padding: 16px 0 0; border-top: 1px dashed var(--trait); }
+.formulaire.dans-famille #supprimer-famille { margin-left: auto; }
