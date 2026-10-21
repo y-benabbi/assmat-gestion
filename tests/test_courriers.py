@@ -83,9 +83,20 @@ def main():
     assert donnees.age_texte("2024-01-01", date(2026, 8, 7)) == "2 ans et demi"
     assert donnees.age_texte("2026-01-01", date(2026, 8, 7)) == "7 mois"
     donnees.enregistrer_profil({"agrement_fin": "2027-03-14", "assurance_rc_echeance": "2026-11-30"})
-    titres = [e["titre"] for e in donnees.echeances(date(2026, 10, 20))]
+    liste = donnees.echeances(date(2026, 10, 20))
+    titres = [e["titre"] for e in liste]
     assert "Dernier délai pour demander le renouvellement de l'agrément" in titres, titres
     assert "Échéance de l'assurance responsabilité civile professionnelle" in titres, titres
+    # Chaque échéance a un type (pictogramme) et, si possible, la rubrique où agir.
+    par_titre = {e["titre"]: e for e in liste}
+    assert par_titre["Bulletins du mois à récupérer"]["aller"] == "bulletins"
+    assert par_titre["Échéance de l'assurance responsabilité civile professionnelle"]["type"] == "assurance"
+    # Rentrée à l'école l'année des 3 ans (Hugo, Jade, Noé nés en 2025), pas pour un accueil déjà périscolaire.
+    ecole = [e for e in donnees.echeances(date(2028, 1, 10)) if e["type"] == "anniversaire"]
+    assert sorted(e["titre"] for e in ecole) == ["Hugo Bernard entre à l'école en septembre 2028",
+                                         "Jade Petit entre à l'école en septembre 2028",
+                                         "Noé Durand entre à l'école en septembre 2028"], ecole
+    assert ecole[0]["date"] == "2028-06-01" and ecole[0]["aller"] == "contrats"
     print("OK : âges et échéances")
 
 

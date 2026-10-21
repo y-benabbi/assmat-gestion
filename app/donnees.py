@@ -387,14 +387,17 @@ def _moins_mois(d: date, n: int) -> date:
 
 
 def echeances(jour: date, horizon_jours: int = 400) -> list:
-    """Prochaines échéances, triées : [{"date": AAAA-MM-JJ, "titre", "detail", "urgent"}]."""
+    """Prochaines échéances, triées : [{"date": AAAA-MM-JJ, "titre", "detail", "urgent", "type", "aller"}].
+
+    « type » choisit le pictogramme (bulletins, agrement, assurance, impots, conges, contrat, anniversaire) ;
+    « aller » est la rubrique où agir (vide : aucune action)."""
     p = profil()
     liste = []
 
-    def ajouter(d: date, titre: str, detail: str = ""):
+    def ajouter(d: date, titre: str, detail: str = "", type_: str = "", aller: str = ""):
         if jour <= d <= jour.fromordinal(jour.toordinal() + horizon_jours):
             liste.append({"date": d.isoformat(), "titre": titre, "detail": detail,
-                          "urgent": (d - jour).days <= 30})
+                          "urgent": (d - jour).days <= 30, "type": type_, "aller": aller})
 
     def lire(iso):
         try:
@@ -405,30 +408,40 @@ def echeances(jour: date, horizon_jours: int = 400) -> list:
     # Bulletins du mois écoulé : les familles déclarent en début de mois.
     debut_mois = date(jour.year + (jour.month == 12), jour.month % 12 + 1, 1)
     ajouter(debut_mois, "Bulletins du mois à récupérer",
-            "Les familles déclarent le mois écoulé sur Pajemploi en début de mois.")
+            "Les familles déclarent le mois écoulé sur Pajemploi en début de mois.", "bulletins", "bulletins")
     fin_agrement = lire(p.get("agrement_fin"))
     if fin_agrement:
         ajouter(_moins_mois(fin_agrement, 6), "Préparer le renouvellement de l'agrément",
-                f"L'agrément expire le {fin_agrement.strftime('%d/%m/%Y')}.")
+                f"L'agrément expire le {fin_agrement.strftime('%d/%m/%Y')}.", "agrement")
         ajouter(_moins_mois(fin_agrement, 3), "Dernier délai pour demander le renouvellement de l'agrément",
-                "La demande (Cerfa 13394) doit parvenir à la PMI au moins 3 mois avant l'échéance.")
-        ajouter(fin_agrement, "Fin de l'agrément")
+                "La demande (Cerfa 13394) doit parvenir à la PMI au moins 3 mois avant l'échéance.", "agrement")
+        ajouter(fin_agrement, "Fin de l'agrément", "Une fois l'agrément renouvelé, notez la nouvelle date dans Mon profil.",
+                "agrement", "profil")
     for cle, nom in (("assurance_rc_echeance", "responsabilité civile professionnelle"),
                      ("assurance_auto_echeance", "automobile (usage professionnel)")):
         d = lire(p.get(cle))
         if d:
-            ajouter(d, f"Échéance de l'assurance {nom}")
+            ajouter(d, f"Échéance de l'assurance {nom}", "", "assurance", "profil")
     actifs = [c for c in contrats(jour) if actif(c, jour)]
     for annee in (jour.year, jour.year + 1):
         ajouter(date(annee, 4, 15), "Déclaration de revenus",
-                "Période habituelle d'avril à juin : la rubrique Impôts calcule le montant à déclarer.")
+                "Période habituelle d'avril à juin : la rubrique Impôts calcule le montant à déclarer.", "impots", "impots")
         incomplets = sorted({c["famille"] for c in actifs if _semaines(c) < 52})
         if incomplets:
             ajouter(date(annee, 6, 1), "Congés payés à verser en juin",
-                    "Contrats en année incomplète (moins de 52 semaines) : " + ", ".join(incomplets) + ".")
+                    "Contrats en année incomplète (moins de 52 semaines) : " + ", ".join(incomplets) + ".",
+                    "conges", "contrats")
     for c in actifs:
         fin = lire(c.get("fin"))
         if fin:
             ajouter(fin, f"Fin du contrat de {c.get('enfant_prenom') or c.get('famille')}",
-                    "Penser au solde : congés restants, régularisation, documents de fin de contrat.")
+                    "Penser au solde : congés restants, régularisation, documents de fin de contrat.", "contrat", "contrats")
+        # L'école commence en septembre de l'année des 3 ans : l'accueil devient souvent périscolaire.
+        naissance = lire(c.get("enfant_naissance"))
+        if naissance and c.get("accueil") != "periscolaire":
+            rentree = naissance.year + 3
+            nom = " ".join(x for x in (c.get("enfant_prenom"), c.get("enfant_nom")) if x) or "L'enfant"
+            ajouter(date(rentree, 6, 1), f"{nom} entre à l'école en septembre {rentree}",
+                    "Si l'accueil change (périscolaire, mercredis, vacances), préparez un avenant avec la famille.",
+                    "anniversaire", "contrats")
     return sorted(liste, key=lambda e: e["date"])

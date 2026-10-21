@@ -10,8 +10,53 @@ async function api(chemin, donnees) {
   return json;
 }
 
+// ------------------------------------------------------------- pictogrammes
+const PICTOS = {
+  chevron: '<path d="M6 9l6 6 6-6"/>',
+  fermer: '<path d="M6 6l12 12M18 6L6 18"/>',
+  avenant: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+  modifier: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  ouvrir: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  supprimer: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  enfant: '<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+  famille: '<circle cx="8" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M2 20a6 6 0 0 1 12 0M13 20a4.5 4.5 0 0 1 9 0"/>',
+  introuvable: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  dossier: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  telecharger: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  coche: '<path d="m5 12 5 5 9-10"/>',
+  actualiser: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  bulletin: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/>',
+  impots: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2"/>',
+  agrement: '<circle cx="12" cy="9" r="5"/><path d="m9 13-2 8 5-3 5 3-2-8"/>',
+  assurance: '<path d="M12 3 5 6v6c0 4 3 7.5 7 9 4-1.5 7-5 7-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  anniversaire: '<path d="M4 21h16v-8H4zM4 16c2 1.5 4 1.5 6 0s4-1.5 6 0 3 1 4 .5"/><path d="M12 13V9M12 6.5V5"/>',
+  calendrier: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  stylo: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  contrat: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 9h4M9 13h7M9 17h3"/><path d="m14 17 1.5 1.5L19 15"/>',
+  changement: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
+  attestation: '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 17h8"/>',
+  alerte: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  profil: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  maison: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
+  telephone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  courriel: '<path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/>',
+};
+const picto = (nom) => `<svg class="picto" viewBox="0 0 24 24" aria-hidden="true">${PICTOS[nom]}</svg>`;
+// Pastille colorée selon la catégorie du menu : argent (menthe), familles (lavande), demarches (beurre), moi (rose).
+const pastille = (nom, categorie) => `<span class="pic ${categorie}">${picto(nom)}</span>`;
+// Boutons écrits dans la page : <button data-picto="dossier"> reçoit son pictogramme devant le texte.
+document.querySelectorAll("[data-picto]").forEach((el) => el.insertAdjacentHTML("afterbegin", picto(el.dataset.picto)));
+
 // ------------------------------------------------------------- onglets
 function ouvrirOnglet(nom) {
+  // Formulaire modifié mais pas enregistré dans la rubrique qu'on quitte : on prévient.
+  const quitte = $(".onglet.actif");
+  if (quitte && quitte.id !== nom && quitte.querySelector("form.suivi-modifs.modifie")) {
+    if (!confirm("Vos modifications ne sont pas enregistrées. Quitter cette page sans les enregistrer ?")) return;
+    quitte.querySelectorAll("form.suivi-modifs.modifie").forEach((f) => f.classList.remove("modifie"));
+  }
   $$("[data-onglet]").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
   $$(".onglet").forEach((s) => s.classList.toggle("actif", s.id === nom));
   $("#menu").classList.remove("ouvert");
@@ -54,7 +99,7 @@ async function rafraichir() {
     const changementListe = JSON.stringify(nouvel.bulletins) !== JSON.stringify(etat.bulletins);
     etat = nouvel;
     afficherEtat();
-    if (changementListe) afficherListe();
+    if (changementListe) { afficherListe(); tuileBulletins(); }
   } catch (e) { /* serveur arrêté */ }
 }
 
@@ -75,7 +120,16 @@ function afficherEtat() {
   const manquants = etat.bulletins.filter((b) => !b.present).length;
   const btn = $("#btn-telecharger");
   btn.classList.toggle("cache", manquants === 0);
-  btn.textContent = `Récupérer les ${manquants} bulletin${manquants > 1 ? "s" : ""} de salaire manquant${manquants > 1 ? "s" : ""}`;
+  btn.innerHTML = `${picto("telecharger")}Récupérer ${manquants > 1 ? `les ${manquants} bulletins` : "le bulletin"}`;
+  // Résumé en tête : combien manquent, lesquels ; « Vérifier » passe en second quand il y a à récupérer.
+  $("#resume-titre").textContent = manquants ? `${manquants} bulletin${manquants > 1 ? "s" : ""} à récupérer`
+    : etat.bulletins.length ? "Tous les bulletins sont rangés" : "Bulletins pas encore vérifiés sur Pajemploi";
+  $("#resume-detail").textContent = manquants ? detailManquants()
+    : etat.bulletins.length ? "Le dossier contient tous les bulletins déclarés sur Pajemploi."
+    : "Vérifiez sur Pajemploi pour savoir quels bulletins manquent dans le dossier.";
+  const analyser = $("#btn-analyser");
+  analyser.className = manquants ? "secondaire" : "principal";
+  analyser.innerHTML = `${picto("actualiser")}${etat.bulletins.length ? "Vérifier à nouveau" : "Vérifier sur Pajemploi"}`;
   $$("#btn-analyser, #btn-telecharger, #btn-visible, #btn-page").forEach((b) => (b.disabled = occupe));
   $("#btn-diag-erreur").classList.toggle("cache", etat.phase !== "erreur");
 
@@ -90,7 +144,6 @@ function afficherEtat() {
     $("#tuile-bulletins").textContent = manquants
       ? `${manquants} bulletin${manquants > 1 ? "s" : ""} à récupérer, pour ${familles} famille${familles > 1 ? "s" : ""}.`
       : "Tous les bulletins sont rangés.";
-    $("#tuile-bulletins").classList.toggle("a-faire", manquants > 0);
   }
   $("#journal").textContent = etat.journal.join("\n");
 }
@@ -129,7 +182,7 @@ function intercalaire(famille, entrees, resume, aCompleter, seulementManquants) 
       caseMois.type = "button";
       const manquant = liste.some((e) => e.manquant);
       caseMois.className = "case-mois " + (!liste.length ? "vide" : manquant ? "manquant" : liste[0].local ? "local" : "present");
-      if (liste.length > 1) caseMois.innerHTML = `<span class="nombre">${liste.length}</span>`;
+      caseMois.innerHTML = (manquant ? picto("telecharger") : "") + (liste.length > 1 ? `<span class="nombre">${liste.length}</span>` : "");
       const titre = `${INITIALES_MOIS[m - 1]} ${annee}`;
       caseMois.title = liste.length ? `${titre}\n${liste.map((e) => e.details).join("\n\n")}` : `${titre} : aucun bulletin`;
       caseMois.setAttribute("aria-label", liste.length
@@ -192,7 +245,7 @@ async function afficherListe() {
   dossierLocal = await api("dossier").catch(() => null);
   if (!dossierLocal || !dossierLocal.configure) {
     zone.innerHTML = `<div class="vide-classeur"><p>Pour commencer, indiquez où ranger les bulletins de salaire.</p>
-      <button class="principal" id="lien-param">Choisir le dossier dans « Mes fonctionnalités »</button></div>`;
+      <button class="principal" id="lien-param">Choisir le dossier dans « Paramètres »</button></div>`;
     $("#lien-param").addEventListener("click", () => ouvrirOnglet("fonctionnalites"));
     return;
   }
@@ -202,7 +255,7 @@ async function afficherListe() {
       Cliquez sur « Vérifier sur Pajemploi » pour trouver ceux à récupérer.</p></div>`;
     return;
   }
-  zone.innerHTML = `<p class="petit">Contenu actuel du dossier. Cliquez sur « Vérifier sur Pajemploi » pour repérer les bulletins manquants.</p>`;
+  zone.innerHTML = "";
   familles.filter(([, periodes]) => !recentes || periodes.some((p) => p >= limite)).forEach(([famille, periodes]) => {
     const entrees = periodes.map((p) => ({ periode: p, local: true, manquant: false, fichier: null, details: "Présent dans le dossier" }));
     zone.appendChild(intercalaire(famille, entrees, `${periodes.length} mois dans le dossier`, false, false));
@@ -288,6 +341,17 @@ $("#form-code").addEventListener("submit", async (e) => {
   rafraichir();
 });
 
+// ------------------------------------------------------------- modifications non enregistrées
+// Mon profil et Paramètres sont de longues pages : dès qu'un champ change, la barre « Enregistrer » reste
+// visible en bas de l'écran (classe « modifie ») jusqu'à l'enregistrement ou l'annulation.
+$$("form.suivi-modifs").forEach((f) => {
+  const marquer = (e) => { if (!e.target.matches?.("[data-filtre]")) f.classList.add("modifie"); };
+  f.addEventListener("input", marquer);
+  f.addEventListener("change", marquer);
+});
+const sansModifs = (f) => f.classList.remove("modifie");
+window.addEventListener("beforeunload", (e) => { if ($("form.suivi-modifs.modifie")) e.preventDefault(); });
+
 // ------------------------------------------------------------- paramètres
 const form = $("#form-parametres");
 
@@ -309,6 +373,7 @@ async function chargerParametres() {
     ? "Mot de passe enregistré de façon sécurisée dans Windows. Laissez vide pour le conserver."
     : "Le mot de passe sera rangé dans le Gestionnaire d'identifiants de Windows (jamais dans un fichier).";
   apercu();
+  sansModifs(form);
   parametresActuels = p;
   if (p.modules?.bulletins !== false && (!p.identifiant || !p.dossier_bulletins)) ouvrirOnglet("fonctionnalites");
 }
@@ -343,8 +408,9 @@ $$("input[name=organisation]").forEach((r) => r.addEventListener("change", aperc
 
 $("#choisir-dossier").addEventListener("click", async () => {
   const r = await api("choisir-dossier", {});
-  if (r.chemin) { form.elements.dossier_bulletins.value = r.chemin; apercu(); }
+  if (r.chemin) { form.elements.dossier_bulletins.value = r.chemin; form.classList.add("modifie"); apercu(); }
 });
+form.querySelector(".annuler-modifs").addEventListener("click", () => chargerParametres());
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -429,15 +495,51 @@ function graphiqueHtml(r) {
 
 function aucunRevenu(zone) {
   zone.innerHTML = `<p class="petit">Aucun bulletin lu pour l'instant. Les montants apparaîtront dès que des bulletins
-    seront rangés dans le dossier choisi dans « Mes fonctionnalités ».</p>`;
+    seront rangés dans le dossier choisi dans « Paramètres ».</p>`;
+}
+
+// Tuile du tableau de bord : les six derniers mois de chaque famille récente (rangé, à récupérer, rien).
+async function tuileBulletins() {
+  const zone = $("#mini-classeur");
+  if (!zone) return;
+  if (!etat.bulletins.length && !dossierLocal) dossierLocal = await api("dossier").catch(() => null);
+  const mois = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1 - i, 1);
+    mois.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const etats = {};      // famille -> {periode: "present" | "manquant"}
+  Object.entries(dossierLocal?.clients || {}).forEach(([f, periodes]) => periodes.forEach((p) => ((etats[f] ??= {})[p] = "present")));
+  etat.bulletins.forEach((b) => ((etats[b.client] ??= {})[b.periode] = b.present ? "present" : "manquant"));
+  const familles = Object.keys(etats).filter((f) => mois.some((m) => etats[f][m])).sort((a, b) => a.localeCompare(b, "fr")).slice(0, 8);
+  zone.innerHTML = familles.length ? `<span></span>${mois.map((m) => `<span class="nom-mois">${INITIALES_MOIS[+m.slice(5) - 1]}</span>`).join("")}
+    ${familles.map((f) => `<span class="nom-famille">${echapper(f)}</span>${mois.map((m) => `<i class="${etats[f][m] || "vide"}" title="${
+      echapper(f)} : ${INITIALES_MOIS[+m.slice(5) - 1]} ${m.slice(0, 4)} ${etats[f][m] === "manquant" ? "à récupérer" : etats[f][m] ? "rangé" : "aucun bulletin"}"></i>`).join("")}`).join("")}` : "";
+  const manquants = etat.bulletins.filter((b) => !b.present).length;
+  const bouton = $("#tuile-recuperer");
+  bouton.classList.toggle("cache", !manquants || etat.phase === "telechargement");
+  bouton.innerHTML = `${picto("telecharger")}Récupérer ${manquants > 1 ? `les ${manquants} bulletins` : "le bulletin"}`;
+}
+$("#tuile-recuperer").addEventListener("click", () => { ouvrirOnglet("bulletins"); action("telecharger_manquants"); });
+
+// « 2 bulletins : Durand (août), Bernard (septembre) » : familles et mois des bulletins à récupérer.
+function detailManquants() {
+  const parFamille = {};
+  etat.bulletins.filter((b) => !b.present).forEach((b) => (parFamille[b.client] ??= new Set()).add(b.periode));
+  return Object.entries(parFamille).map(([famille, periodes]) => `${famille} (${[...periodes].sort().map((p) =>
+    new Date(p + "-15").toLocaleDateString("fr-FR", { month: "long" })
+    + (p.slice(0, 4) !== String(new Date().getFullYear()) ? ` ${p.slice(0, 4)}` : "")).join(", ")})`).join(", ");
 }
 
 async function afficherTableauDeBord() {
   const modules = parametresActuels.modules || {};
+  // Chaque ligne : pictogramme et couleur de la rubrique, texte, détail, bouton qui dit l'action.
   const aFaire = [];
   const manquants = etat.bulletins.filter((b) => !b.present).length;
   if (modules.bulletins !== false && manquants)
-    aFaire.push({ couleur: "attente", texte: `${manquants} bulletin${manquants > 1 ? "s" : ""} de salaire à récupérer.`, aller: "bulletins", bouton: "Récupérer" });
+    aFaire.push({ picto: "telecharger", categorie: "argent", principal: true, aller: "bulletins", bouton: "Récupérer",
+      lancer: "telecharger_manquants",
+      texte: `${manquants} bulletin${manquants > 1 ? "s" : ""} de salaire à récupérer`, detail: detailManquants() });
 
   const [r, ech, contrats, profil] = await Promise.all([
     modules.revenus !== false ? chargerRevenus() : null,
@@ -445,24 +547,39 @@ async function afficherTableauDeBord() {
     api("contrats").catch(() => []), api("profil").catch(() => ({})),
   ]);
   if (r && r.illisibles.length && !r.module_absent)
-    aFaire.push({ couleur: "erreur", texte: `${r.illisibles.length} bulletin${r.illisibles.length > 1 ? "s" : ""} dont les montants n'ont pas pu être lus.`, aller: "revenus", bouton: "Voir" });
+    aFaire.push({ picto: "alerte", categorie: "alerte", aller: "revenus", bouton: "Voir les bulletins concernés",
+      texte: `${r.illisibles.length} bulletin${r.illisibles.length > 1 ? "s" : ""} dont les montants n'ont pas pu être lus` });
   if (modules.contrats !== false && !contrats.length)
-    aFaire.push({ couleur: "", texte: "Créez la fiche de chaque famille employeur, puis une fiche par enfant accueilli (dates, emploi du temps).", aller: "contrats", bouton: "Familles" });
+    aFaire.push({ picto: "famille", categorie: "familles", aller: "contrats", bouton: "Ajouter mes familles",
+      texte: "Créez la fiche de chaque famille employeur, puis une fiche par enfant accueilli",
+      detail: "Dates, emploi du temps et tarif servent aux échéances, aux impôts et aux courriers." });
   // Saison de la déclaration de revenus (janvier à juin) : rappeler les jours de garde à confirmer.
   if (modules.impots !== false && new Date().getMonth() < 6) {
     const imp = await chargerImpots();
     if (imp && imp.familles.length)
-      aFaire.push({ couleur: imp.a_confirmer ? "attente" : "", aller: "impots", bouton: "Impôts",
-        texte: imp.a_confirmer ? `Déclaration des revenus ${imp.annee} : ${imp.a_confirmer} mois de garde à confirmer.`
-          : `Déclaration des revenus ${imp.annee} : montant à déclarer prêt (${euros(imp.total[imp.total.meilleur])}).` });
+      aFaire.push({ picto: "impots", categorie: "argent", aller: "impots", bouton: imp.a_confirmer ? "Confirmer les jours" : "Voir le montant",
+        texte: imp.a_confirmer ? `Déclaration des revenus ${imp.annee} : ${imp.a_confirmer} mois de garde à confirmer`
+          : `Déclaration des revenus ${imp.annee} : montant à déclarer prêt (${euros(imp.total[imp.total.meilleur])})` });
   }
   if (!profil.nom || !profil.agrement_numero)
-    aFaire.push({ couleur: "", texte: "Complétez votre profil (identité, agrément) pour les courriers et les échéances.", aller: "profil", bouton: "Mon profil" });
+    aFaire.push({ picto: "profil", categorie: "moi", aller: "profil", bouton: "Compléter mon profil",
+      texte: "Complétez votre profil (identité, agrément)", detail: "Il sert aux courriers, aux contrats de travail et aux échéances." });
+  // Sans vérification sur Pajemploi, on ne sait pas s'il manque des bulletins : on le dit plutôt que « tout est à jour ».
+  const nonVerifie = modules.bulletins !== false && !etat.bulletins.length;
   $("#liste-a-faire").innerHTML = aFaire.length
-    ? aFaire.map((a) => `<li><span class="pastille ${a.couleur}" aria-hidden="true"></span><span class="texte">${echapper(a.texte)}</span>
-        <button class="secondaire" data-aller-vers="${a.aller}">${a.bouton}</button></li>`).join("")
-    : `<li><span class="pastille ok" aria-hidden="true"></span><span class="texte">Rien d'urgent : tout est à jour.</span></li>`;
-  $$("[data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
+    ? aFaire.map((a) => `<li>${pastille(a.picto, a.categorie)}<span class="texte">${echapper(a.texte)}${
+        a.detail ? `<small>${echapper(a.detail)}</small>` : ""}</span>
+        <button class="${a.principal ? "principal" : "secondaire"}" data-aller-vers="${a.aller}"${a.lancer ? ` data-lancer="${a.lancer}"` : ""}>${a.principal ? picto(a.picto) : ""}${a.bouton}</button></li>`).join("")
+    : nonVerifie
+      ? `<li>${pastille("coche", "argent")}<span class="texte">Rien d'autre à faire pour l'instant.<small>Les bulletins n'ont pas encore été
+        vérifiés sur Pajemploi depuis l'ouverture de l'application.</small></span>
+        <button class="secondaire" data-aller-vers="bulletins" data-lancer="connecter_et_analyser">${picto("actualiser")}Vérifier sur Pajemploi</button></li>`
+      : `<li>${pastille("coche", "argent")}<span class="texte">Rien d'urgent : tout est à jour.</span></li>`;
+  $$("#liste-a-faire [data-aller-vers]").forEach((b) => b.addEventListener("click", () => {
+    ouvrirOnglet(b.dataset.allerVers);
+    if (b.dataset.lancer) action(b.dataset.lancer);
+  }));
+  tuileBulletins();
 
   if (r) {
     $("#annee-accueil").textContent = r.general.bulletins ? `en ${r.annee}` : "";
@@ -476,7 +593,7 @@ async function afficherTableauDeBord() {
   }
   // Principales échéances : les plus proches ; le reste est dans la rubrique Échéances.
   const MAX_ACCUEIL = 5;
-  $("#echeances-accueil").innerHTML = ech.length ? ech.slice(0, MAX_ACCUEIL).map(ligneEcheance).join("")
+  $("#echeances-accueil").innerHTML = ech.length ? ech.slice(0, MAX_ACCUEIL).map((e) => ligneEcheance(e, true)).join("")
       + (ech.length > MAX_ACCUEIL ? `<li class="plus"><button class="lien" data-aller-vers="echeances">${ech.length - MAX_ACCUEIL > 1
         ? `Voir les ${ech.length - MAX_ACCUEIL} autres échéances` : "Voir l'autre échéance"}</button></li>` : "")
     : `<li class="petit">Aucune échéance connue : complétez Mon profil et les contrats.</li>`;
@@ -538,7 +655,7 @@ function conseilImpots(t) {
     ${euros(t.ecart)} de moins à déclarer qu'avec l'autre régime.</p>`;
   if (choix !== "comparer" && choix !== t.meilleur)
     texte += `<p class="petit">Vous avez choisi le régime ${choix === "specifique" ? "spécifique" : "classique"} dans
-      « Mes fonctionnalités » : il vous ferait déclarer ${euros(t.ecart)} de plus.</p>`;
+      « Paramètres » : il vous ferait déclarer ${euros(t.ecart)} de plus.</p>`;
   texte += t.meilleur === "specifique"
     ? `<p class="petit">Comment déclarer : sur la déclaration en ligne, remplacez le montant des salaires déjà rempli
         (case 1AJ, ou 1BJ pour le second déclarant) par <strong>${euros(t.specifique)}</strong>. Ne cochez pas les frais
@@ -611,7 +728,7 @@ async function afficherImpots(annee) {
   if (!r.familles.length) {
     $("#chiffres-impots").innerHTML = $("#tableau-impots").innerHTML = $("#jours-impots").innerHTML = "";
     $("#conseil-impots").innerHTML = `<p class="petit">Aucun bulletin pour ${r.annee}. Les montants apparaîtront dès que
-      des bulletins seront rangés dans le dossier choisi dans « Mes fonctionnalités ».</p>`;
+      des bulletins seront rangés dans le dossier choisi dans « Paramètres ».</p>`;
     return;
   }
   $("#chiffres-impots").innerHTML = `
@@ -655,19 +772,42 @@ async function afficherBaremes() {
 }
 
 // ------------------------------------------------------------- échéances
-function ligneEcheance(e) {
-  const d = new Date(e.date + "T12:00:00");
-  const mois = d.toLocaleDateString("fr-FR", { month: "short" })
+// Pictogramme (et couleur de catégorie) de chaque type d'échéance, et libellé du lien vers la rubrique où agir.
+const PICTO_ECHEANCE = { bulletins: ["bulletin", "argent"], impots: ["impots", "argent"], agrement: ["agrement", "demarches"],
+  assurance: ["assurance", "demarches"], conges: ["calendrier", "familles"], contrat: ["contrat", "familles"],
+  anniversaire: ["anniversaire", "familles"] };
+const ACTION_ECHEANCE = { bulletins: "Bulletins", profil: "Mon profil", impots: "Impôts", contrats: "Familles", courriers: "Courriers" };
+
+function dateCourte(iso) {
+  const d = new Date(iso + "T12:00:00");
+  return `${d.getDate() === 1 ? "1er" : d.getDate()} ${d.toLocaleDateString("fr-FR", { month: "short" })}`
     + (d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : "");
-  return `<li class="${e.urgent ? "urgent" : ""}"><span class="quand"><span class="jour">${d.getDate()}</span>
-    <span class="mois">${mois}</span></span>
-    <span>${echapper(e.titre)}${e.detail ? `<span class="detail">${echapper(e.detail)}</span>` : ""}</span></li>`;
+}
+
+// compact : pour le tableau de bord (date et lien sous le titre, sans le détail).
+function ligneEcheance(e, compact = false) {
+  const [nom, categorie] = PICTO_ECHEANCE[e.type] || ["calendrier", "demarches"];
+  const lien = e.aller && ACTION_ECHEANCE[e.aller]
+    ? `<button class="lien lien-echeance" data-aller-vers="${e.aller}">${ACTION_ECHEANCE[e.aller]}</button>` : "";
+  const quand = `<span class="quand">${dateCourte(e.date)}</span>`;
+  if (compact) return `<li class="${e.urgent ? "urgent" : ""}">${pastille(nom, categorie)}<span class="corps">${echapper(e.titre)}
+    <span class="detail">${quand}${lien ? ` · ${lien}` : ""}</span></span></li>`;
+  return `<li class="${e.urgent ? "urgent" : ""}">${pastille(nom, categorie)}
+    <span class="corps">${echapper(e.titre)}${e.detail ? `<span class="detail">${echapper(e.detail)}</span>` : ""}</span>
+    ${quand}<span class="zone-lien">${lien}</span></li>`;
 }
 
 async function afficherEcheances() {
   const ech = await api("echeances").catch(() => []);
-  $("#liste-echeances").innerHTML = ech.length ? ech.map(ligneEcheance).join("")
-    : `<li class="petit">Aucune échéance connue pour l'instant.</li>`;
+  const limite = new Date();
+  limite.setMonth(limite.getMonth() + 2);
+  const bientot = ech.filter((e) => e.date <= limite.toISOString().slice(0, 10));
+  const plusTard = ech.slice(bientot.length);
+  const groupe = (titre, liste) => liste.length ? `<h2 class="groupe-echeances">${titre}</h2>
+    <ul class="liste-echeances">${liste.map((e) => ligneEcheance(e)).join("")}</ul>` : "";
+  $("#liste-echeances").innerHTML = ech.length ? groupe("Dans les deux prochains mois", bientot) + groupe("Plus tard", plusTard)
+    : `<p class="petit">Aucune échéance connue pour l'instant.</p>`;
+  $$("#liste-echeances [data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
   appliquerFiltres();
 }
 
@@ -1211,19 +1351,6 @@ formFamille.elements.parent1_nom.addEventListener("change", () => completerFamil
 
 // --- familles et leurs enfants
 // Icônes de la liste des familles et de la fiche d'un enfant (même tracé que les outils des horaires).
-const PICTOS = {
-  chevron: '<path d="M6 9l6 6 6-6"/>',
-  fermer: '<path d="M6 6l12 12M18 6L6 18"/>',
-  avenant: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
-  modifier: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
-  pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
-  ouvrir: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
-  supprimer: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
-  enfant: '<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
-  famille: '<circle cx="8" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M2 20a6 6 0 0 1 12 0M13 20a4.5 4.5 0 0 1 9 0"/>',
-  introuvable: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>',
-};
-const picto = (nom) => `<svg class="picto" viewBox="0 0 24 24" aria-hidden="true">${PICTOS[nom]}</svg>`;
 
 // Conditions de chaque version du contrat : contrat initial, puis un objet par avenant. Un avenant ancien
 // reprend les conditions précédentes pour les rubriques qu'il ne contient pas.
@@ -1268,6 +1395,17 @@ function resumeEnVigueur(c, v) {
   return lignes.length ? `<dl class="resume-contrat">${lignes.join("")}</dl>` : `<p class="petit">Conditions à compléter : « Modifier le contrat ».</p>`;
 }
 
+// Âge court pour les cartes : « 8 mois », « 1 an », « 3 ans ».
+function ageCourt(naissance) {
+  if (!naissance) return "";
+  const n = new Date(naissance + "T12:00:00"), j = new Date();
+  const mois = (j.getFullYear() - n.getFullYear()) * 12 + j.getMonth() - n.getMonth() - (j.getDate() < n.getDate() ? 1 : 0);
+  if (mois < 0 || isNaN(mois)) return "";
+  return mois < 12 ? `${mois} mois` : `${Math.floor(mois / 12)} an${mois >= 24 ? "s" : ""}`;
+}
+// Couleur de l'initiale : toujours la même pour un prénom donné.
+const couleurEnfant = (prenom) => ["argent", "familles", "demarches", "moi"][[...(prenom || "")].reduce((s, c) => s + c.charCodeAt(0), 0) % 4];
+
 function carteEnfant(c, aujourdhui, famille) {
   const carte = document.createElement("article");
   const termine = c.fin && c.fin < aujourdhui;
@@ -1279,12 +1417,16 @@ function carteEnfant(c, aujourdhui, famille) {
   carte.className = "carte-contrat enfant" + (termine ? " termine" : "") + (ouverte ? " ouverte" : "");
   carte.dataset.contrat = c.id;
   Object.assign(carte, { _contrat: c, _famille: famille });
+  const age = ageCourt(c.enfant_naissance);
+  const jours = semaine ? (semaine.jours.length === 5 && semaine.jours[0] === "lundi" && semaine.jours[4] === "vendredi"
+    ? "du lundi au vendredi" : semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")) : "";
   carte.innerHTML = `<button type="button" class="entete-carte" aria-expanded="${ouverte}">
-      <span class="nom">${nom}</span>
+      <span class="initiale ${couleurEnfant(c.enfant_prenom)}" aria-hidden="true">${echapper((c.enfant_prenom || "?").trim().charAt(0).toUpperCase())}</span>
+      <span class="nom">${nom}${age ? ` <span class="age">· ${age}</span>` : ""}</span>
+      <span class="petit">${v.accueil === "periscolaire" ? "Périscolaire" : `${v.semaines || 52} semaines par an`}${
+        semaine ? ` · ${heuresFr(semaine.total)} par semaine, ${jours}` : ""}</span>
       <span class="petit">${c.debut ? `Depuis le ${dateFr(c.debut)}` : "Date de début à compléter"}${termine ? " · terminé" : ""}${
         nb ? ` · ${nb} avenant${nb > 1 ? "s" : ""}` : ""}</span>
-      <span class="petit">${v.semaines || 52} semaines par an${semaine ? ` · ${heuresFr(semaine.total)} par semaine (${
-        semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")})` : ""}</span>
       <span class="chevron" aria-hidden="true">${picto("chevron")}</span>
       <span class="sr-only">${ouverte ? "Refermer" : "Ouvrir"} la fiche de ${nom}</span>
     </button>`;
@@ -1431,14 +1573,15 @@ async function afficherContrats() {
         <div class="infos-famille">
           <div><p class="petit">${echapper(parents.join(" et ") || "Parents à compléter")}${f.id ? "" : " · fiche famille à compléter"}</p>
           ${coordonnees(f)}</div>
-          <div class="boutons-famille"><button class="secondaire" data-modifier>${picto("modifier")}${f.id ? "Modifier la famille" : "Compléter la fiche famille"}</button>
-          <button class="principal" data-enfant>${picto("enfant")}Ajouter un enfant</button></div>
+          <button class="action" data-modifier>${picto("modifier")}${f.id ? "Modifier la famille" : "Compléter la fiche famille"}</button>
         </div>
         <div class="cartes-contrats"></div>
       </div>`;
     enfants.forEach((c) => bloc.querySelector(".cartes-contrats").appendChild(carteEnfant(c, aujourdhui, f)));
     siens.forEach((b) => bloc.querySelector(".cartes-contrats").appendChild(carteBrouillon(b)));
-    if (!enfants.length && !siens.length) bloc.querySelector(".cartes-contrats").innerHTML = `<p class="petit">Aucun enfant pour l'instant.</p>`;
+    // Ajouter un enfant : à l'endroit où sa carte apparaîtra, après les enfants de la famille.
+    bloc.querySelector(".cartes-contrats").insertAdjacentHTML("beforeend",
+      `<button type="button" class="carte-ajout" data-enfant>${picto("plus")}Ajouter un enfant${enfants.length ? "" : " à cette famille"}</button>`);
     bloc.querySelector("[data-modifier]").addEventListener("click", () => editerFamille(f));
     bloc.querySelector("[data-enfant]").addEventListener("click", () => demarrerAssistant(f.nom));
     bloc.addEventListener("toggle", () => {
@@ -1924,12 +2067,15 @@ async function chargerProfil() {
   const p = await api("profil").catch(() => ({}));
   for (const [cle, val] of Object.entries(p)) if (formProfil.elements[cle]) formProfil.elements[cle].value = val ?? "";
   marquerRemplis(formProfil);
+  sansModifs(formProfil);
   return p;
 }
+formProfil.querySelector(".annuler-modifs").addEventListener("click", () => chargerProfil());
 formProfil.addEventListener("submit", async (e) => {
   e.preventDefault();
   const d = Object.fromEntries([...formProfil.elements].filter((c) => c.name).map((c) => [c.name, c.value]));
-  await api("profil", d).catch((err) => alert(err.message));
+  try { await api("profil", d); } catch (err) { alert(err.message); return; }
+  sansModifs(formProfil);
   $("#profil-enregistre").textContent = "Profil enregistré.";
   setTimeout(() => ($("#profil-enregistre").textContent = ""), 3000);
 });

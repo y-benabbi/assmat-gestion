@@ -17,12 +17,12 @@
   </button>
   <div class="entete-droite">
     <button class="bouton-parametres" data-onglet="profil">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+    <span class="pic moi"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
       Mon profil
     </button>
     <button class="bouton-parametres" data-onglet="fonctionnalites">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
-      Mes fonctionnalités
+    <span class="pic moi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span>
+      Paramètres
     </button>
   </div>
 </header>
@@ -36,28 +36,25 @@
 <div class="cadre">
 <nav class="menu" id="menu" aria-label="Rubriques">
   <button data-onglet="accueil" class="actif">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Tableau de bord</button>
+    <span class="pic moi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Tableau de bord</button>
 
   <p class="categorie" data-categorie="argent">Mon argent</p>
   <button data-onglet="revenus" data-module="revenus">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Revenus</button>
+    <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Revenus</button>
   <button data-onglet="bulletins" data-module="bulletins">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg>Bulletins de salaire</button>
+    <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></span>Bulletins de salaire</button>
   <button data-onglet="impots" data-module="impots">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2"/></svg>Impôts</button>
+    <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2"/></svg></span>Impôts</button>
 
   <p class="categorie" data-categorie="familles">Mes familles</p>
   <button data-onglet="contrats" data-module="contrats">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="10" r="2.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M15 15.2c2.8-.4 5 1.3 6 4.8"/></svg>Familles et contrats</button>
+    <span class="pic familles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="10" r="2.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M15 15.2c2.8-.4 5 1.3 6 4.8"/></svg></span>Familles et contrats</button>
 
   <p class="categorie" data-categorie="demarches">Mes démarches</p>
   <button data-onglet="echeances" data-module="echeances">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Échéances</button>
+    <span class="pic demarches"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>Échéances</button>
   <button data-onglet="courriers" data-module="courriers">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>Courriers</button>
-
-  <p class="menu-note">Les rubriques inutiles peuvent être masquées.
-    <button class="lien" data-aller="fonctionnalites">Choisir mes fonctionnalités</button></p>
+    <span class="pic demarches"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg></span>Courriers</button>
 </nav>
 
 <main>
@@ -92,11 +89,18 @@
         <div class="titre-bloc"><h2>Prochaines échéances</h2><button class="lien" data-aller="echeances">Tout voir</button></div>
         <ul class="liste-echeances" id="echeances-accueil"></ul>
       </div>
-      <button class="demarche" data-aller="bulletins" data-module="bulletins">
-        <span class="demarche-titre">Bulletins de salaire</span>
-        <span class="demarche-etat" id="tuile-bulletins">Récupérer et ranger les bulletins Pajemploi.</span>
-        <span class="demarche-action">Ouvrir le classeur</span>
-      </button>
+      <div class="panneau tuile-bulletins" data-module="bulletins">
+        <div class="entete-tuile">
+          <span class="pic argent grand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></span>
+          <div><h2>Bulletins de salaire</h2>
+            <span class="petit" id="tuile-bulletins">Récupérer et ranger les bulletins Pajemploi.</span></div>
+        </div>
+        <div class="mini-classeur" id="mini-classeur" aria-label="Six derniers mois, par famille"></div>
+        <div class="boutons">
+          <button class="principal cache" id="tuile-recuperer"></button>
+          <button class="lien" data-aller="bulletins">Ouvrir le classeur</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -128,10 +132,15 @@
   <section id="bulletins" class="onglet">
     <div class="titre-page">
       <h1>Bulletins de salaire</h1>
-      <button data-ouvrir="bulletins" class="secondaire">Ouvrir le dossier</button>
+      <button data-ouvrir="bulletins" class="secondaire" data-picto="dossier">Ouvrir le dossier</button>
     </div>
 
     <div class="panneau-etat" id="carte-etat">
+      <div class="resume-bulletins">
+        <span class="pic argent grand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></span>
+        <div><h2 id="resume-titre">Bulletins pas encore vérifiés sur Pajemploi</h2>
+          <p class="petit" id="resume-detail">Vérifiez sur Pajemploi pour savoir quels bulletins manquent dans le dossier.</p></div>
+      </div>
       <div class="etat-ligne">
         <span id="pastille" class="pastille" aria-hidden="true"></span>
         <span id="message">Non connecté.</span>
@@ -147,8 +156,8 @@
       </form>
 
       <div class="boutons">
+        <button id="btn-telecharger" class="principal cache"></button>
         <button id="btn-analyser" class="principal">Vérifier sur Pajemploi</button>
-        <button id="btn-telecharger" class="surligne cache"></button>
         <button id="btn-interrompre" class="secondaire cache">Interrompre le téléchargement</button>
         <button id="btn-diag-erreur" data-ouvrir="diagnostics" class="secondaire cache">Ouvrir le dossier des diagnostics</button>
       </div>
@@ -169,17 +178,17 @@
     </div>
 
     <div class="barre-classeur">
-      <div class="legende" aria-label="Légende">
-        <span><i class="case-mois present"></i>Rangé</span>
-        <span><i class="case-mois manquant"></i>À récupérer</span>
-        <span><i class="case-mois vide"></i>Aucun bulletin</span>
-      </div>
-      <label class="case-a-cocher"><input type="checkbox" id="seulement-manquants"> Seulement les familles à compléter</label>
-      <label class="case-a-cocher" title="Familles qui ont un bulletin dans les 6 derniers mois"><input type="checkbox" id="familles-recentes" checked>
-        Uniquement les familles récentes</label>
+      <label class="filtre" title="Familles qui ont un bulletin dans les 6 derniers mois"><input type="checkbox" id="familles-recentes" checked>
+        Familles récentes seulement</label>
+      <label class="filtre"><input type="checkbox" id="seulement-manquants"> Familles à compléter seulement</label>
+      <input type="search" class="recherche" data-filtre="#liste > .intercalaire" placeholder="Rechercher une famille…"
+        aria-label="Rechercher dans les bulletins">
     </div>
-    <input type="search" class="recherche" data-filtre="#liste > .intercalaire" placeholder="Rechercher une famille…"
-      aria-label="Rechercher dans les bulletins">
+    <div class="legende" aria-label="Légende">
+      <span><i class="case-mois present"></i>Rangé dans le dossier</span>
+      <span><i class="case-mois manquant"></i>À récupérer</span>
+      <span><i class="case-mois vide"></i>Aucun bulletin</span>
+    </div>
     <div id="liste" class="classeur"></div>
 
     <details class="journal">
@@ -218,8 +227,8 @@
     <div class="titre-page">
       <h1>Familles et contrats</h1>
       <div class="boutons-famille">
-        <button class="secondaire" id="nouvelle-famille">Ajouter une famille</button>
-        <button class="principal" id="nouvel-enfant">Ajouter un enfant</button>
+        <button class="secondaire" id="nouvelle-famille" data-picto="plus">Ajouter une famille</button>
+        <button class="principal" id="nouvel-enfant" data-picto="enfant">Ajouter un enfant</button>
       </div>
     </div>
     <p class="petit">Chaque famille employeur a sa fiche (parents, coordonnées, n° Pajemploi) : celles des bulletins
@@ -588,28 +597,32 @@
     <div class="titre-page"><h1>Échéances</h1></div>
     <p class="petit">Calculées à partir de votre profil (agrément, assurances) et des contrats. Complétez-les dans
       <button class="lien" data-aller="profil">Mon profil</button>.</p>
-    <input type="search" class="recherche" data-filtre="#liste-echeances > li" placeholder="Rechercher une échéance…"
+    <input type="search" class="recherche" data-filtre="#liste-echeances li" placeholder="Rechercher une échéance…"
       aria-label="Rechercher dans les échéances">
-    <ul class="liste-echeances panneau" id="liste-echeances"></ul>
+    <div class="panneau" id="liste-echeances"></div>
   </section>
 
   <!-- ======================= COURRIERS ======================= -->
   <section id="courriers" class="onglet">
     <div class="titre-page">
       <h1>Courriers</h1>
-      <button data-ouvrir="courriers" class="secondaire">Ouvrir le dossier des courriers</button>
+      <button data-ouvrir="courriers" class="secondaire" data-picto="dossier">Ouvrir le dossier des courriers</button>
     </div>
     <div class="modeles">
       <button class="modele actif" type="button" data-modele="derogation">
+        <span class="pic demarches grand" data-picto="stylo"></span>
         <span class="demarche-titre">Demande de dérogation</span>
         <span>À la PMI, pour accueillir un enfant de plus que l'agrément.</span>
       </button>
       <button class="modele" type="button" data-modele="contrat-travail">
+        <span class="pic demarches grand" data-picto="contrat"></span>
         <span class="demarche-titre">Contrat de travail</span>
         <span>Le modèle officiel de l'Urssaf (CDI Pajemploi), prérempli.</span>
       </button>
-      <div class="modele bientot"><span class="demarche-titre">Changement de situation</span><span>Bientôt</span></div>
-      <div class="modele bientot"><span class="demarche-titre">Attestation de garde</span><span>Bientôt</span></div>
+      <div class="modele bientot"><span class="pic grand" data-picto="changement"></span>
+        <span class="demarche-titre">Changement de situation</span><span class="etiquette-bientot">Bientôt</span></div>
+      <div class="modele bientot"><span class="pic grand" data-picto="attestation"></span>
+        <span class="demarche-titre">Attestation de garde</span><span class="etiquette-bientot">Bientôt</span></div>
     </div>
 
     <form id="form-contrat-travail" class="formulaire cache" data-courrier="contrat-travail">
@@ -620,7 +633,7 @@
         <label>Pour quel enfant ?
           <select name="contrat_id"></select></label>
         <p class="petit" id="explication-contrat-travail"></p>
-        <div class="boutons"><button class="principal">Créer le PDF</button></div>
+        <div class="boutons"><button class="principal" data-picto="pdf">Créer le PDF</button></div>
         <div id="resultat-contrat-travail" role="status"></div>
       </fieldset>
     </form>
@@ -638,10 +651,10 @@
           </label>
           <label>Date du courrier <input name="date_courrier" type="date"></label>
         </div>
-        <label>Motif, en quelques mots (facultatif)
+        <label>Motif, en quelques mots
           <input name="motif" placeholder="ses parents commencent un nouvel emploi et ont besoin d'une garde le mercredi">
         </label>
-        <div class="boutons"><button class="principal">Préparer le courrier</button></div>
+        <div class="boutons"><button class="principal" data-picto="stylo">Préparer le courrier</button></div>
       </fieldset>
     </form>
 
@@ -670,7 +683,7 @@
         <h2>3. Aperçu</h2>
         <iframe id="apercu-courrier" class="apercu-courrier" title="Aperçu du courrier"></iframe>
         <div class="boutons">
-          <button class="principal">Créer le PDF</button>
+          <button class="principal" data-picto="pdf">Créer le PDF</button>
           <span id="pdf-cree" class="petit" role="status"></span>
         </div>
       </div>
@@ -682,9 +695,9 @@
     <div class="titre-page"><h1>Mon profil</h1></div>
     <p class="petit">Ces informations sont saisies une seule fois et réutilisées par les courriers, les contrats
       de travail et les échéances. Elles restent sur cet ordinateur.</p>
-    <form id="form-profil" class="formulaire">
+    <form id="form-profil" class="formulaire suivi-modifs">
       <fieldset>
-        <legend>Identité</legend>
+        <legend class="avec-pic"><span class="pic moi" data-picto="profil"></span>Identité</legend>
         <div class="grille-champs">
           <label>Civilité <select name="civilite"><option>Madame</option><option>Monsieur</option></select></label>
           <span></span>
@@ -702,7 +715,7 @@
         </div>
       </fieldset>
       <fieldset>
-        <legend>Agrément</legend>
+        <legend class="avec-pic"><span class="pic demarches" data-picto="agrement"></span>Agrément</legend>
         <div class="grille-champs">
           <label>Numéro d'agrément <input name="agrement_numero"></label>
           <label>Nombre d'enfants <input name="agrement_capacite" inputmode="numeric"></label>
@@ -714,7 +727,7 @@
         </div>
       </fieldset>
       <fieldset>
-        <legend>PMI et vacances scolaires</legend>
+        <legend class="avec-pic"><span class="pic demarches" data-picto="maison"></span>PMI et vacances scolaires</legend>
         <label>Destinataire des courriers (après « À l'attention ») <input name="pmi_destinataire"></label>
         <label>Adresse de la PMI <textarea name="pmi_adresse" rows="2"></textarea></label>
         <label>Zone de vacances scolaires
@@ -723,7 +736,7 @@
         </label>
       </fieldset>
       <fieldset>
-        <legend>Assurances</legend>
+        <legend class="avec-pic"><span class="pic demarches" data-picto="assurance"></span>Assurances</legend>
         <div class="grille-champs">
           <label>Responsabilité civile pro : compagnie et coordonnées <input name="assurance_rc_compagnie" autocomplete="off"></label>
           <label>Responsabilité civile pro : n° de police <input name="assurance_rc_police" autocomplete="off"></label>
@@ -735,7 +748,7 @@
         </div>
       </fieldset>
       <fieldset>
-        <legend>Lieu d'accueil des enfants</legend>
+        <legend class="avec-pic"><span class="pic familles" data-picto="maison"></span>Lieu d'accueil des enfants</legend>
         <div class="grille-champs">
           <label>J'accueille les enfants
             <select name="lieu_accueil"><option value="domicile">à mon domicile</option>
@@ -744,8 +757,10 @@
           <label>Adresse de la MAM <input name="mam_adresse" autocomplete="off"></label>
         </div>
       </fieldset>
-      <div class="boutons">
-        <button class="principal">Enregistrer</button>
+      <div class="boutons barre-enregistrer">
+        <span class="modifs-en-attente">Modifications non enregistrées</span>
+        <button type="button" class="secondaire annuler-modifs">Annuler</button>
+        <button class="principal" data-picto="coche">Enregistrer</button>
         <span id="profil-enregistre" class="petit" role="status"></span>
       </div>
     </form>
@@ -753,7 +768,7 @@
 
   <!-- ======================= MES FONCTIONNALITÉS ======================= -->
   <section id="fonctionnalites" class="onglet">
-    <div class="titre-page"><h1>Mes fonctionnalités</h1></div>
+    <div class="titre-page"><h1>Paramètres</h1></div>
     <nav class="sommaire" aria-label="Sections des réglages">
       <a href="#reglages-rubriques">Rubriques</a>
       <a href="#reglages-bulletins">Bulletins de salaire</a>
@@ -761,7 +776,7 @@
       <a href="#reglages-courriers">Courriers</a>
       <a href="#reglages-avance">Avancé</a>
     </nav>
-    <form id="form-parametres" class="formulaire">
+    <form id="form-parametres" class="formulaire suivi-modifs">
       <fieldset id="reglages-rubriques">
         <legend>Rubriques affichées</legend>
         <p class="petit">Une rubrique masquée disparaît du menu et du tableau de bord ; ses données sont gardées.</p>
@@ -863,7 +878,9 @@
       </fieldset>
 
       <div class="boutons barre-enregistrer">
-        <button class="principal">Enregistrer</button>
+        <span class="modifs-en-attente">Modifications non enregistrées</span>
+        <button type="button" class="secondaire annuler-modifs">Annuler</button>
+        <button class="principal" data-picto="coche">Enregistrer</button>
         <span id="enregistre" class="petit" role="status"></span>
       </div>
     </form>
@@ -987,7 +1004,12 @@
           <li>Agrément : rappel 6 mois et 3 mois avant la fin (la demande de renouvellement doit arriver à la PMI au
             moins 3 mois avant), puis à la date de fin. Assurances : à leur date d'échéance.</li>
           <li>Bulletins : le 1er de chaque mois. Déclaration de revenus : mi-avril. Congés payés : 1er juin, pour les
-            contrats en année incomplète (moins de 52 semaines par an). Fin de contrat : à la date indiquée sur la fiche.</li>
+            contrats en année incomplète (moins de 52 semaines par an). Fin de contrat : à la date indiquée sur la fiche.
+            Entrée à l'école : le 1er juin de l'année des 3 ans de l'enfant (l'école commence en septembre), pour les
+            accueils à la journée.</li>
+          <li>« À faire » sur le tableau de bord : seulement ce qui peut se faire tout de suite (bulletins à récupérer,
+            profil à compléter, jours de garde à confirmer au printemps…). Tant que Pajemploi n'a pas été vérifié depuis
+            l'ouverture de l'application, on ne sait pas s'il manque des bulletins : il le rappelle.</li>
           <li>Demande de dérogation : âge de chaque enfant à la date du courrier (« et demi » de 6 à 11 mois) ; nombre
             d'enfants accueillis chaque jour d'après les emplois du temps des contrats en cours ; jours où ce nombre
             dépasse l'agrément.</li>

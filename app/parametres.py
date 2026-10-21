@@ -22,7 +22,7 @@ DEFAUTS = {
     "navigateur_visible": False,
     # Lignes « NOM AFFICHÉ PAR PAJEMPLOI = Nom du dossier »
     "correspondances": "",
-    # Rubriques affichées (« Mes fonctionnalités ») : une rubrique masquée garde ses données.
+    # Rubriques affichées (« Paramètres ») : une rubrique masquée garde ses données.
     "modules": {"bulletins": True, "revenus": True, "contrats": True, "echeances": True, "courriers": True,
                 "impots": True},
     "regime_impots": "specifique",          # specifique, classique ou comparer

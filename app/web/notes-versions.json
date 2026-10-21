@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.8.0",
+    "date": "2026-10-21",
+    "titre": "Des repères visuels partout",
+    "nouveautes": [
+      "Chaque rubrique a sa couleur et son pictogramme : vert pour l'argent, lavande pour les familles, jaune pour les démarches. On les retrouve dans le menu, le tableau de bord, les échéances et les courriers.",
+      "« Mes fonctionnalités » s'appelle maintenant « Paramètres ».",
+      "Tableau de bord : chaque chose à faire a un bouton qui dit exactement quoi faire (« Récupérer », « Vérifier sur Pajemploi »…). La case des bulletins montre les six derniers mois de chaque famille.",
+      "Échéances : rangées entre « dans les deux prochains mois » et « plus tard », avec un lien vers l'endroit où agir. Nouveau rappel quand un enfant entre à l'école (l'année de ses 3 ans).",
+      "Familles : « Ajouter un enfant » se trouve maintenant à côté des enfants de chaque famille. Chaque enfant a son initiale et son âge.",
+      "Bulletins de salaire : un résumé en haut dit combien de bulletins manquent et lesquels ; les filtres sont des boutons plus simples.",
+      "Formulaires : « obligatoire » (rose) et « facultatif » (vert) se distinguent mieux. Dans Mon profil et Paramètres, le bouton « Enregistrer » reste en bas de l'écran dès qu'une information change, et l'application prévient si on quitte la page sans enregistrer."
+    ]
+  },
+  {
     "version": "1.7.0",
     "date": "2026-10-21",
     "titre": "Fiche enfant, avenants et assistant amélioré",

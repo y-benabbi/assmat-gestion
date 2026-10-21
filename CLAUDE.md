@@ -131,7 +131,22 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (`bibliotheque.appliquer_format`). Plusieurs bulletins d'un même client le même mois : suffixe
   ` - Prénom` de l'enfant ; les fichiers existants qui citent le prénom sont attribués en priorité.
 - Interface : menu latéral par catégories (`data-onglet`), chaque rubrique optionnelle porte `data-module`
-  (masquée si `parametres.modules[nom]` est faux). Les anciens Paramètres sont dans « Mes fonctionnalités ».
+  (masquée si `parametres.modules[nom]` est faux). « Mon profil » et « Paramètres » (onglet `fonctionnalites`, ex
+  « Mes fonctionnalités ») restent en haut à droite : choix de Yannis, ne pas les déplacer dans le menu.
+- Pictogrammes : `PICTOS` / `picto(nom)` en tête de app.js (trait arrondi, `stroke`, jamais de bibliothèque externe) ;
+  dans le HTML, `data-picto="nom"` ajoute le pictogramme au début de l'élément. Pastilles de couleur par catégorie du
+  menu (`pastille(nom, categorie)`, classes `.pic argent|familles|demarches|moi`) : menthe = Mon argent, lavande =
+  Mes familles, beurre = Mes démarches, rose = Mon profil / Paramètres / tableau de bord. Garder ces couleurs partout
+  où la rubrique apparaît (tableau de bord, échéances, courriers).
+- Étiquettes des champs : « obligatoire » (rose, avec un point) et « facultatif » (menthe), deux couleurs bien
+  distinctes ; les deux restent affichées (choix de Yannis).
+- Longs formulaires (`form.suivi-modifs` : Mon profil, Paramètres) : dès qu'un champ change, la classe `modifie`
+  rend la `.barre-enregistrer` collante en bas de l'écran (Annuler / Enregistrer) ; quitter la rubrique demande
+  confirmation. Retirer `modifie` (`sansModifs`) après chargement ou enregistrement.
+- Échéances (`donnees.echeances`) : chaque entrée a un `type` (pictogramme, `PICTO_ECHEANCE`) et `aller` (rubrique où
+  agir, lien affiché ; vide = aucun lien). Tableau de bord : version compacte (`ligneEcheance(e, true)`).
+- « À faire » : chaque ligne = pastille + texte + détail + bouton qui dit l'action ; `data-lancer` lance en plus une
+  action Pajemploi (vérifier, récupérer). Tuile bulletins : mini-classeur des 6 derniers mois (`tuileBulletins`).
 - Revenus : le « Total encaissé » est le « Net payé en euros » de chaque bulletin (acompte compris, impôt déduit),
   reconstitué (net + indemnités + rupture + exonération heures complémentaires - impôt) s'il manque.
   Les heures affichées = heures normales + heures complémentaires.
