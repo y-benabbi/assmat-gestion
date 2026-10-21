@@ -1365,9 +1365,8 @@ function versionsDe(c) {
 const changementsEntre = (avant, apres) => MODIFIABLES.filter((k) => !memeValeur(avant[k], apres[k])).map((k) => LIBELLES[k]);
 
 let enfantOuvert = "";          // fiche enfant dépliée (id), gardée quand la liste est redessinée
-let famillesRepliees = new Set();
-try { famillesRepliees = new Set(JSON.parse(localStorage.getItem("familles-repliees") || "[]")); } catch { /* rien */ }
-const noterRepliees = () => { try { localStorage.setItem("familles-repliees", JSON.stringify([...famillesRepliees])); } catch { /* rien */ } };
+// Familles repliées par défaut ; celles que l'on ouvre restent ouvertes tant que l'application est affichée.
+const famillesOuvertes = new Set();
 
 const TYPES_ACCUEIL = { journee: "accueil à la journée", periscolaire: "accueil périscolaire" };
 const PAIEMENT_CONGES = { juin: "payés en juin", principale: "payés lors des congés principaux", prorata: "payés au fur et à mesure" };
@@ -1553,12 +1552,11 @@ async function afficherContrats() {
   familles.forEach((f) => {
     const enfants = liste.filter((c) => (c.famille || "").trim().toLowerCase() === f.nom.toLowerCase());
     const siens = brouillons.filter((b) => (b.contrat?.famille || "").toLowerCase() === f.nom.toLowerCase());
-    // Bloc repliable : on ne voit que le nom de la famille, le nombre d'enfants et la flèche ; ouvert par défaut,
-    // l'état choisi est gardé d'une visite à l'autre.
+    // Bloc replié par défaut : on ne voit que le nom de la famille, le nombre d'enfants et la flèche.
     const bloc = document.createElement("details");
     bloc.className = "panneau famille";
     bloc.dataset.famille = f.nom;
-    bloc.open = !famillesRepliees.has(f.nom) || enfants.some((c) => c.id === enfantOuvert);
+    bloc.open = famillesOuvertes.has(f.nom) || enfants.some((c) => c.id === enfantOuvert);
     const parents = [1, 2].map((n) => [f[`parent${n}_civilite`], f[`parent${n}_prenom`], f[`parent${n}_nom`]].filter(Boolean).join(" ")).filter(Boolean);
     const actifs = enfants.filter((c) => !(c.fin && c.fin < aujourdhui)).length;
     const compte = [enfants.length ? `${enfants.length} enfant${enfants.length > 1 ? "s" : ""}` : "aucun enfant",
@@ -1585,8 +1583,8 @@ async function afficherContrats() {
     bloc.querySelector("[data-modifier]").addEventListener("click", () => editerFamille(f));
     bloc.querySelector("[data-enfant]").addEventListener("click", () => demarrerAssistant(f.nom));
     bloc.addEventListener("toggle", () => {
-      if (bloc.open) famillesRepliees.delete(f.nom); else famillesRepliees.add(f.nom);
-      noterRepliees();
+      if (bloc.dataset.recherche) { delete bloc.dataset.recherche; return; }     // ouverte par la recherche
+      if (bloc.open) famillesOuvertes.add(f.nom); else famillesOuvertes.delete(f.nom);
     });
     zone.appendChild(bloc);
   });
@@ -1613,6 +1611,16 @@ async function afficherContrats() {
   appliquerFiltres();
   return liste;
 }
+
+// Recherche : les familles trouvées s'ouvrent pour montrer l'enfant cherché ; sans recherche, chacune reprend son état.
+$("#recherche-familles").addEventListener("input", (e) => {
+  const cherche = e.target.value.trim();
+  appliquerFiltre(e.target);
+  $$("#liste-familles-contrats > details.famille").forEach((b) => {
+    const ouvrir = cherche ? !b.classList.contains("filtre-cache") : famillesOuvertes.has(b.dataset.famille);
+    if (b.open !== ouvrir) { b.dataset.recherche = "1"; b.open = ouvrir; }
+  });
+});
 
 // Les formulaires s'ouvrent juste sous la famille concernée (en haut de la liste pour une nouvelle famille).
 function placerSous(formulaire, cleFamille) {
