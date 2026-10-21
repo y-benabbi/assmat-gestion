@@ -16,6 +16,7 @@ FICHIER_CONTRATS = DOSSIER_DONNEES / "contrats.json"
 FICHIER_FAMILLES = DOSSIER_DONNEES / "familles.json"
 FICHIER_BROUILLONS = DOSSIER_DONNEES / "brouillons.json"
 FICHIER_DOCUMENTS = DOSSIER_DONNEES / "documents.json"
+FICHIER_SITES = DOSSIER_DONNEES / "sites.json"
 
 CHAMPS_PROFIL = {
     "civilite": "Madame",
@@ -351,6 +352,46 @@ def ajouter_document(contrat_id: str, type_: str, titre: str, chemin: str) -> di
         liste = [d for d in _lire(FICHIER_DOCUMENTS, []) if isinstance(d, dict) and d.get("chemin") != chemin]
         _ecrire(FICHIER_DOCUMENTS, liste + [doc])
     return doc
+
+
+# Sites utiles pour préparer les activités des enfants (tableau de bord, rubrique « Sites d'activités »).
+# Proposés tant que l'utilisatrice n'a pas enregistré sa propre liste.
+SITES_DEFAUT = [
+    {"nom": "Pinterest", "url": "https://www.pinterest.fr/", "description": "Idées de bricolages et d'activités"},
+    {"nom": "Marmiton", "url": "https://www.marmiton.org/", "description": "Recettes à faire avec les enfants"},
+    {"nom": "Tête à modeler", "url": "https://www.teteamodeler.com/", "description": "Activités manuelles et créatives"},
+    {"nom": "Hugo l'escargot", "url": "https://www.hugolescargot.com/", "description": "Coloriages et bricolages"},
+]
+
+
+def sites() -> list:
+    with _verrou:
+        liste = _lire(FICHIER_SITES, None)
+    return [s for s in liste if isinstance(s, dict)] if isinstance(liste, list) else [dict(s) for s in SITES_DEFAUT]
+
+
+def enregistrer_sites(liste) -> list:
+    """Remplace toute la liste (ordre compris). Adresse complétée par « https:// » si besoin.
+    `None` remet les sites proposés."""
+    if liste is None:
+        with _verrou:
+            FICHIER_SITES.unlink(missing_ok=True)
+        return sites()
+    if not isinstance(liste, list):
+        raise ValueError("Liste de sites invalide.")
+    propres = []
+    for s in liste:
+        if not isinstance(s, dict):
+            continue
+        nom, url = str(s.get("nom", "")).strip(), str(s.get("url", "")).strip()
+        if not nom or not url:
+            raise ValueError("Chaque site doit avoir un nom et une adresse.")
+        if not url.lower().startswith(("http://", "https://")):
+            url = "https://" + url
+        propres.append({"nom": nom[:40], "url": url, "description": str(s.get("description", "")).strip()[:80]})
+    with _verrou:
+        _ecrire(FICHIER_SITES, propres)
+    return propres
 
 
 def _semaines(c: dict) -> int:

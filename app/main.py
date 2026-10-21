@@ -11,6 +11,7 @@ import json
 import os
 import secrets
 import socket
+import subprocess
 import sys
 import threading
 import urllib.request
@@ -398,7 +399,11 @@ def creer_app(port, jeton):
             return jsonify({"erreur": "action inconnue"}), 400
         if paje.occupe() and nom not in ("fermer", "diagnostic"):
             return jsonify({"erreur": "Une opération est déjà en cours."}), 409
-        paje.demander(nom)
+        cibles = request.get_json(force=True).get("cibles")
+        if nom == "telecharger_manquants" and isinstance(cibles, list):
+            paje.demander(nom, cibles=[str(c) for c in cibles])      # un seul bulletin (menu d'une case)
+        else:
+            paje.demander(nom)
         return jsonify({"ok": True})
 
     @app.post("/api/interrompre")
@@ -431,23 +436,44 @@ def creer_app(port, jeton):
         racine.destroy()
         return jsonify({"chemin": os.path.normpath(chemin) if chemin else ""})
 
+    def fichier_connu(quoi):
+        """Un fichier précis n'est ouvert que s'il fait partie de la dernière analyse, des bulletins lus pour
+        le tableau de bord, des courriers ou des documents créés."""
+        connus = {b.get("fichier_existant") for b in paje.lire_etat()["bulletins"]} | courriers_generes
+        connus |= {d["chemin"] for d in donnees.documents()}
+        connus |= {l["fichier"] for l in revenus.releve(parametres.charger().get("dossier_bulletins", ""))}
+        return quoi if quoi in connus else None
+
     @app.post("/api/ouvrir")
     def ouvrir():
         quoi = request.get_json(force=True).get("quoi")
         cible = {"bulletins": parametres.charger().get("dossier_bulletins", ""),
                  "courriers": str(dossier_courriers()) if dossier_courriers().is_dir() else "",
-                 "diagnostics": str(DIAGNOSTICS), "journaux": str(JOURNAUX)}.get(quoi)
-        if not cible:
-            # Un fichier précis : uniquement s'il fait partie de la dernière analyse, des bulletins
-            # lus pour le tableau de bord ou des courriers créés.
-            connus = {b.get("fichier_existant") for b in paje.lire_etat()["bulletins"]} | courriers_generes
-            connus |= {d["chemin"] for d in donnees.documents()}
-            connus |= {l["fichier"] for l in revenus.releve(parametres.charger().get("dossier_bulletins", ""))}
-            cible = quoi if quoi in connus else None
+                 "diagnostics": str(DIAGNOSTICS), "journaux": str(JOURNAUX)}.get(quoi) or fichier_connu(quoi)
         if cible and os.path.exists(cible):
             os.startfile(cible)
             return jsonify({"ok": True})
         return jsonify({"erreur": "Introuvable"}), 404
+
+    @app.post("/api/montrer")
+    def montrer():
+        """Ouvre le dossier d'un fichier dans l'Explorateur, le fichier sélectionné."""
+        cible = fichier_connu(request.get_json(force=True).get("quoi"))
+        if cible and os.path.isfile(cible):
+            subprocess.Popen(["explorer", "/select,", os.path.normpath(cible)])
+            return jsonify({"ok": True})
+        return jsonify({"erreur": "Introuvable"}), 404
+
+    @app.get("/api/sites")
+    def lire_sites():
+        return jsonify(donnees.sites())
+
+    @app.post("/api/sites")
+    def enregistrer_sites():
+        try:
+            return jsonify(donnees.enregistrer_sites(request.get_json(force=True)))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
 
     @app.get("/api/version")
     def version():
@@ -482,8 +508,6 @@ def creer_app(port, jeton):
 
     @app.post("/api/mettre-a-jour")
     def mettre_a_jour():
-        import subprocess
-
         if not AMORCE.exists():
             return jsonify({"erreur": "Programme de mise à jour introuvable."}), 404
         if paje.occupe():

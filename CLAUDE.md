@@ -182,7 +182,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
@@ -221,3 +221,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   « modification », « avenant » (étapes `ETAPES_AVENANT`, seule la date d'effet est obligatoire). En mode avenant,
   `actualiserRetablir()` affiche ↺ (`data-retablir`) à côté de chaque condition différente de la version précédente.
   PDF de l'avenant : `contrat_travail.html_avenant` (HTML imprimé par Chromium), ne cite que `changements()`.
+- Classeur des bulletins : un clic sur une case ouvre `menuContextuel(source, {titre, items})` (Échap, clic ailleurs ou
+  défilement le ferment) : case rangée = « Ouvrir » (`/api/ouvrir`) et « Afficher dans le dossier » (`/api/montrer`,
+  `explorer /select,`) ; case à récupérer = ce bulletin (`/api/action` avec `cibles` = emplacements prévus, filtre de
+  `_cmd_telecharger_manquants`) ou tous. Les deux routes n'ouvrent que des fichiers connus (`fichier_connu`).
+- Sites d'activités (module `activites`) : `donnees.sites()` (`donnees\sites.json`, `SITES_DEFAUT` tant qu'il n'existe
+  pas ; `enregistrer_sites(None)` les remet), routes `/api/sites`. Tuiles carrées (`tuileSite`) : initiale sur un pastel,
+  remplacée par l'`apple-touch-icon.png` du site s'il en a une (≥ 48 px), sur le tableau de bord et dans la rubrique.

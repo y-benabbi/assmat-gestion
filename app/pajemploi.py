@@ -702,9 +702,10 @@ class Pajemploi:
         return ""
 
     # -------------------------------------------------- téléchargements
-    def _cmd_telecharger_manquants(self):
+    def _cmd_telecharger_manquants(self, cibles=None):
+        """Tous les bulletins manquants, ou seulement ceux dont l'emplacement prévu est dans `cibles`."""
         etat = self.lire_etat()
-        a_faire = [b for b in etat["bulletins"] if not b["present"]]
+        a_faire = [b for b in etat["bulletins"] if not b["present"] and (cibles is None or b["cible"] in cibles)]
         if not a_faire:
             self._maj(message="Aucun bulletin manquant.")
             return

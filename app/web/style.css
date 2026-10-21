@@ -182,7 +182,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .legende span { display: inline-flex; align-items: center; gap: 8px; }
 .legende .case-mois { width: 18px; height: 18px; display: inline-block; }
 
-.classeur { display: grid; gap: 34px; }
+.classeur { display: grid; grid-template-columns: minmax(0, 1fr); gap: 34px; }   /* le classeur défile dans sa feuille, pas la page */
 .intercalaire { position: relative; }
 .intercalaire-onglet {
   display: inline-flex;
@@ -231,7 +231,9 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 .case-mois.local { background: #d6efe4; }
 button.case-mois { cursor: default; }
-button.case-mois.present { cursor: pointer; }
+button.case-mois.present, button.case-mois.manquant { cursor: pointer; }
+.case-mois.manquant:hover { background: #ffcd55; }
+.case-mois[aria-expanded="true"] { outline: 3px solid var(--eucalyptus); outline-offset: 2px; }
 .case-mois .nombre { position: absolute; top: 3px; right: 5px; font-size: 0.7rem; }
 
 .vide-classeur { background: var(--papier); border-radius: 16px; padding: 28px; max-width: 640px; }
@@ -844,3 +846,64 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
   background: var(--eucalyptus-clair) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235a4aa3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E") center / 17px no-repeat; }
 .formulaire.dans-famille .boutons { margin: 20px 0 0; padding: 16px 0 0; border-top: 1px dashed var(--trait); }
 .formulaire.dans-famille #supprimer-famille { margin-left: auto; }
+
+/* Menu contextuel (cases du classeur des bulletins) */
+.menu-contextuel { position: absolute; z-index: 60; min-width: 230px; max-width: calc(100vw - 24px); padding: 6px;
+  background: var(--papier); border-radius: 14px; border: 1px solid var(--trait);
+  box-shadow: 0 14px 34px -12px rgba(58, 53, 82, 0.35), 0 2px 6px rgba(58, 53, 82, 0.08);
+  transform-origin: top left; animation: menu-apparait 0.14s ease-out; }
+@keyframes menu-apparait { from { opacity: 0; transform: translateY(-4px) scale(0.97); } }
+@media (prefers-reduced-motion: reduce) { .menu-contextuel { animation: none; } }
+.menu-contextuel .titre-menu { margin: 4px 10px 6px; font: 600 0.85rem/1.2 var(--titre); color: var(--encre-douce); }
+.menu-contextuel hr { border: 0; border-top: 1px solid var(--trait); margin: 6px 4px; }
+.menu-contextuel [role=menuitem] { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: 10px; background: none; color: var(--encre); font: 600 0.97rem/1.2 var(--texte); text-align: left; }
+.menu-contextuel [role=menuitem]:hover, .menu-contextuel [role=menuitem]:focus-visible { background: var(--brume); outline: none; }
+.menu-contextuel [role=menuitem] .picto { width: 30px; height: 30px; padding: 6px; margin: 0; border-radius: 9px;
+  background: var(--menthe); color: var(--menthe-encre); }
+.menu-contextuel [role=menuitem]:hover .picto { background: var(--menthe-fonce); }
+.menu-contextuel .a-recuperer .picto { background: var(--tournesol); color: var(--encre); }
+.menu-contextuel .a-recuperer:hover .picto { background: #ffcd55; }
+
+/* Sites d'activités : raccourcis carrés façon application de téléphone */
+.grille-sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 18px 12px; margin-top: 6px; }
+.grille-sites.grande { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 24px 16px; margin: 18px 0 28px; }
+.tuile-site { display: grid; justify-items: center; gap: 8px; padding: 0; border: 0; background: none; color: var(--encre);
+  text-decoration: none; font: inherit; cursor: pointer; }
+.icone-site { position: relative; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px;
+  background: var(--fond, var(--eucalyptus-clair)); overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(58, 53, 82, 0.06), 0 6px 14px -8px rgba(58, 53, 82, 0.45); }
+.grande .icone-site { width: 78px; height: 78px; border-radius: 22px; }
+.initiale-site { font: 600 1.9rem/1 var(--titre); color: var(--encre); }
+.grande .initiale-site { font-size: 2.3rem; }
+.icone-site img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #fff; opacity: 0; }
+.icone-site img.chargee { opacity: 1; }
+.nom-site { max-width: 100%; font-size: 0.86rem; font-weight: 700; line-height: 1.2; text-align: center;
+  overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tuile-site:hover .nom-site { color: var(--eucalyptus-fonce); }
+.tuile-site:focus-visible { outline: none; }
+.tuile-site:focus-visible .icone-site { outline: 3px solid var(--tournesol); outline-offset: 3px; }
+.ajout-site .icone-site { background: none; box-shadow: none; border: 2px dashed var(--trait); color: var(--eucalyptus-fonce); }
+.ajout-site .picto { width: 26px; height: 26px; margin: 0; }
+.ajout-site:hover .icone-site { border-color: var(--eucalyptus); background: var(--brume); }
+.ajout-site .nom-site { color: var(--eucalyptus-fonce); }
+.sites-accueil { margin-top: 18px; }
+
+/* Ma liste : ordre, modification, suppression */
+.liste-sites { list-style: none; margin: 8px 0 0; padding: 0; }
+.liste-sites li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 10px 0;
+  border-bottom: 1px dashed var(--trait); }
+.tuile-site.mini { pointer-events: none; }
+.tuile-site.mini .icone-site { width: 42px; height: 42px; border-radius: 12px; }
+.tuile-site.mini .initiale-site { font-size: 1.3rem; }
+.tuile-site.mini .nom-site { display: none; }
+.infos-site { display: grid; min-width: 0; }
+.infos-site .petit { overflow-wrap: anywhere; }
+.actions-site { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; }
+.actions-site .icone:disabled { opacity: 0.3; }
+.form-site { max-width: none; margin-top: 18px; }
+.form-site .principal .picto { margin-right: 7px; vertical-align: -3px; }
+@media (max-width: 600px) {
+  .liste-sites li { grid-template-columns: auto 1fr; }
+  .actions-site { grid-column: 1 / -1; }
+}

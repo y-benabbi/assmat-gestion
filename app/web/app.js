@@ -38,6 +38,8 @@ const PICTOS = {
   changement: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
   attestation: '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 17h8"/>',
   alerte: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  monter: '<path d="m6 15 6-6 6 6"/>',
+  descendre: '<path d="m6 9 6 6 6-6"/>',
   lieu: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
   telephone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
   courriel: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
@@ -74,6 +76,7 @@ function ouvrirOnglet(nom) {
   if (nom === "echeances") afficherEcheances();
   if (nom === "courriers") preparerCourriers();
   if (nom === "profil") chargerProfil();
+  if (nom === "activites") afficherSites();
 }
 $("#bouton-menu").addEventListener("click", () => {
   const ouvert = $("#menu").classList.toggle("ouvert");
@@ -191,18 +194,84 @@ function intercalaire(famille, entrees, resume, aCompleter, seulementManquants) 
       caseMois.title = liste.length ? `${titre}\n${liste.map((e) => e.details).join("\n\n")}` : `${titre} : aucun bulletin`;
       caseMois.setAttribute("aria-label", liste.length
         ? `${titre} : ${manquant ? "à récupérer" : "rangé"}` : `${titre} : aucun bulletin`);
-      const fichier = liste.find((e) => e.fichier);
-      if (fichier && !manquant) {
-        caseMois.addEventListener("click", () => api("ouvrir", { quoi: fichier.fichier }).catch(() => {}));
-      } else {
-        caseMois.tabIndex = -1;
-      }
+      // Case rangée : ouvrir le bulletin ou le montrer dans son dossier ; case à récupérer : celui-ci ou tous.
+      if (liste.some((e) => e.manquant || e.fichier)) {
+        caseMois.setAttribute("aria-haspopup", "menu");
+        caseMois.addEventListener("click", () => menuContextuel(caseMois, choixCase(liste, titre)));
+      } else caseMois.tabIndex = -1;
       ligne.appendChild(caseMois);
     }
     feuille.appendChild(ligne);
   });
   return bloc;
 }
+
+function choixCase(liste, titre) {
+  const plusieurs = liste.length > 1;
+  const groupes = liste.map((e) => {
+    const qui = plusieurs && e.enfant ? ` (${e.enfant})` : "";
+    if (e.manquant) return [{ picto: "telecharger", texte: `Récupérer ce bulletin${qui}`,
+      action: () => api("action", { action: "telecharger_manquants", cibles: [e.cible] }).then(rafraichir).catch((err) => alert(err.message)) }];
+    if (!e.fichier) return [];
+    return [{ picto: "ouvrir", texte: `Ouvrir${qui}`, action: () => api("ouvrir", { quoi: e.fichier }).catch((err) => alert(err.message)) },
+      { picto: "dossier", texte: `Afficher dans le dossier${qui}`, action: () => api("montrer", { quoi: e.fichier }).catch((err) => alert(err.message)) }];
+  });
+  const items = groupes.flat();
+  const manquants = etat.bulletins.filter((b) => !b.present).length;
+  if (liste.some((e) => e.manquant) && manquants > 1)
+    items.push({ separateur: true }, { picto: "telecharger", texte: `Tout récupérer (${manquants} bulletins)`, action: () => action("telecharger_manquants") });
+  return { titre, items };
+}
+
+// Menu contextuel (ouvert par un clic) : liste d'actions avec pictogramme, sous l'élément cliqué ;
+// fermé par Échap, un clic ailleurs, le défilement ou le choix d'une action.
+let menuOuvert = null;
+function fermerMenu(rendreFocus = false) {
+  if (!menuOuvert) return;
+  const { menu, source } = menuOuvert;
+  menuOuvert = null;
+  menu.remove();
+  source.setAttribute("aria-expanded", "false");
+  if (rendreFocus) source.focus();
+}
+function menuContextuel(source, { titre, items }) {
+  const dejaOuvert = menuOuvert?.source === source;
+  fermerMenu();
+  if (dejaOuvert || !items.length) return;
+  const menu = document.createElement("div");
+  menu.className = "menu-contextuel";
+  menu.setAttribute("role", "menu");
+  menu.innerHTML = (titre ? `<p class="titre-menu">${echapper(titre)}</p>` : "") + items.map((it, i) => it.separateur
+    ? `<hr>` : `<button type="button" role="menuitem" data-i="${i}" class="${it.picto === "telecharger" ? "a-recuperer" : ""}">${picto(it.picto)}<span>${echapper(it.texte)}</span></button>`).join("");
+  document.body.appendChild(menu);
+  const r = source.getBoundingClientRect();
+  const largeur = menu.offsetWidth, hauteur = menu.offsetHeight;
+  let gauche = Math.min(r.left, innerWidth - largeur - 12), haut = r.bottom + 6;
+  if (haut + hauteur > innerHeight - 12) haut = Math.max(12, r.top - hauteur - 6);
+  menu.style.left = `${Math.max(12, gauche) + scrollX}px`;
+  menu.style.top = `${haut + scrollY}px`;
+  source.setAttribute("aria-expanded", "true");
+  menuOuvert = { menu, source, depuis: Date.now() };
+  const boutons = [...menu.querySelectorAll("[role=menuitem]")];
+  boutons[0]?.focus({ preventScroll: true });
+  menu.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-i]");
+    if (!b) return;
+    fermerMenu(true);
+    items[+b.dataset.i].action();
+  });
+  menu.addEventListener("keydown", (e) => {
+    const i = boutons.indexOf(document.activeElement);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      boutons[(i + (e.key === "ArrowDown" ? 1 : -1) + boutons.length) % boutons.length].focus();
+    } else if (e.key === "Escape" || e.key === "Tab") { e.preventDefault(); fermerMenu(true); }
+  });
+}
+document.addEventListener("pointerdown", (e) => { if (menuOuvert && !menuOuvert.menu.contains(e.target) && !menuOuvert.source.contains(e.target)) fermerMenu(); });
+addEventListener("resize", () => fermerMenu());
+// Défilement : seulement s'il vient de l'utilisatrice (pas du défilement qui amène la case à l'écran à l'ouverture).
+document.addEventListener("scroll", () => { if (menuOuvert && Date.now() - menuOuvert.depuis > 400) fermerMenu(); }, true);
 
 // Familles « récentes » : un bulletin (rangé ou à récupérer) dans les 6 derniers mois.
 function limiteRecente() {
@@ -231,6 +300,7 @@ async function afficherListe() {
         periode: b.periode,
         manquant: !b.present,
         fichier: b.present ? b.fichier_existant : null,
+        cible: b.cible, enfant: b.enfant || "",
         details: (b.enfant ? `Enfant : ${b.enfant}\n` : "")
           + (b.present ? `Rangé : ${b.fichier_existant}` : `À récupérer, sera rangé ici :\n${b.cible}`),
       }));
@@ -537,6 +607,7 @@ function detailManquants() {
 
 async function afficherTableauDeBord() {
   const modules = parametresActuels.modules || {};
+  if (modules.activites !== false) afficherSites();
   // Chaque ligne : pictogramme et couleur de la rubrique, texte, détail, bouton qui dit l'action.
   const aFaire = [];
   const manquants = etat.bulletins.filter((b) => !b.present).length;
@@ -2099,6 +2170,107 @@ formContrat.addEventListener("submit", async (e) => {
     await creerContratTravail(enregistre.id, zone);
     zone.scrollIntoView({ behavior: "smooth" });
   }
+});
+
+// ------------------------------------------------------------- sites d'activités
+// Raccourcis carrés façon application de téléphone : l'icône du site s'il en propose une (apple-touch-icon),
+// sinon l'initiale sur une couleur pastel (une couleur différente pour chaque site voisin).
+let sites = [];
+let siteEdite = -1;
+const COULEURS_SITES = ["#f6c9d4", "#a6dcc5", "#ffd978", "#d9cff3", "#bfe0f2", "#f8d2b4"];
+const domaine = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
+function tuileSite(site, i) {
+  const couleur = COULEURS_SITES[i % COULEURS_SITES.length];
+  let icone = "";
+  try { icone = `<img alt="" loading="lazy" src="${echapper(new URL("/apple-touch-icon.png", site.url).href)}">`; } catch { /* adresse invalide */ }
+  return `<a class="tuile-site" href="${echapper(site.url)}" target="_blank" rel="noopener noreferrer" data-site="${i}"
+      title="${echapper(site.description || domaine(site.url))}">
+    <span class="icone-site" style="--fond:${couleur}"><span class="initiale-site" aria-hidden="true">${echapper([...site.nom][0] || "?")}</span>${icone}</span>
+    <span class="nom-site">${echapper(site.nom)}</span></a>`;
+}
+// Icône trop petite ou absente : on garde l'initiale.
+function surveillerIcones(zone) {
+  zone.querySelectorAll(".icone-site img").forEach((img) => {
+    const verifier = () => img.classList.toggle("chargee", img.naturalWidth >= 48);
+    img.addEventListener("load", verifier);
+    img.addEventListener("error", () => img.remove());
+    if (img.complete) verifier();
+  });
+}
+
+async function afficherSites() {
+  sites = await api("sites").catch(() => sites);
+  const ajout = `<button type="button" class="tuile-site ajout-site" data-ajouter-site><span class="icone-site">${picto("plus")}</span>
+    <span class="nom-site">Ajouter</span></button>`;
+  ["#sites-accueil", "#sites-grille"].forEach((sel) => {
+    $(sel).innerHTML = sites.map(tuileSite).join("") + ajout;
+    surveillerIcones($(sel));
+    $(sel).querySelector("[data-ajouter-site]").addEventListener("click", () => {
+      ouvrirOnglet("activites");
+      editerSite(-1);
+      $("#form-site").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+  $("#liste-sites").innerHTML = sites.length ? sites.map((site, i) => `<li>
+      ${tuileSite(site, i).replace('class="tuile-site"', 'class="tuile-site mini" tabindex="-1"')}
+      <span class="infos-site"><strong>${echapper(site.nom)}</strong><span class="petit">${echapper(domaine(site.url))}${
+        site.description ? ` · ${echapper(site.description)}` : ""}</span></span>
+      <span class="actions-site">
+        <button type="button" class="icone" data-monter="${i}" title="Monter" aria-label="Monter ${echapper(site.nom)}" ${i ? "" : "disabled"}>${picto("monter")}</button>
+        <button type="button" class="icone" data-descendre="${i}" title="Descendre" aria-label="Descendre ${echapper(site.nom)}" ${i < sites.length - 1 ? "" : "disabled"}>${picto("descendre")}</button>
+        <button type="button" class="action" data-modifier-site="${i}">${picto("modifier")}Modifier</button>
+        <button type="button" class="action danger" data-supprimer-site="${i}">${picto("supprimer")}Supprimer</button>
+      </span></li>`).join("")
+    : `<li class="petit">Aucun site pour l'instant : ajoutez-en un ci-dessous.</li>`;
+  surveillerIcones($("#liste-sites"));
+  editerSite(siteEdite >= sites.length ? -1 : siteEdite);
+}
+
+async function enregistrerSites(liste) {
+  try { sites = await api("sites", liste); } catch (err) { alert(err.message); return false; }
+  siteEdite = -1;
+  await afficherSites();
+  return true;
+}
+
+function editerSite(i) {
+  siteEdite = i;
+  const form = $("#form-site");
+  if (i >= 0) for (const k of ["nom", "url", "description"]) form.elements[k].value = sites[i][k] || "";
+  else if (form.dataset.edition) form.reset();
+  form.dataset.edition = i >= 0 ? "1" : "";
+  $("#titre-form-site").textContent = i >= 0 ? `Modifier « ${sites[i].nom} »` : "Ajouter un site";
+  $("#bouton-site").innerHTML = i >= 0 ? `${picto("coche")}Enregistrer` : `${picto("plus")}Ajouter le site`;
+  $("#annuler-site").classList.toggle("cache", i < 0);
+  marquerRemplis(form);
+}
+
+$("#liste-sites").addEventListener("click", async (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const liste = sites.map((x) => ({ ...x }));
+  if (b.dataset.monter) { const i = +b.dataset.monter; [liste[i - 1], liste[i]] = [liste[i], liste[i - 1]]; enregistrerSites(liste); }
+  else if (b.dataset.descendre) { const i = +b.dataset.descendre; [liste[i + 1], liste[i]] = [liste[i], liste[i + 1]]; enregistrerSites(liste); }
+  else if (b.dataset.modifierSite) { editerSite(+b.dataset.modifierSite); $("#form-site").scrollIntoView({ behavior: "smooth", block: "center" }); }
+  else if (b.dataset.supprimerSite) {
+    const i = +b.dataset.supprimerSite;
+    if (!confirm(`Retirer « ${sites[i].nom} » de vos sites ?`)) return;
+    liste.splice(i, 1);
+    enregistrerSites(liste);
+  }
+});
+$("#form-site").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const site = { nom: form.elements.nom.value.trim(), url: form.elements.url.value.trim(), description: form.elements.description.value.trim() };
+  const liste = sites.map((x) => ({ ...x }));
+  if (siteEdite >= 0) liste[siteEdite] = site; else liste.push(site);
+  if (await enregistrerSites(liste)) { form.reset(); form.dataset.edition = ""; editerSite(-1); }
+});
+$("#annuler-site").addEventListener("click", () => { $("#form-site").reset(); editerSite(-1); });
+$("#sites-defaut").addEventListener("click", async () => {
+  if (!confirm("Remplacer votre liste par les sites proposés (Pinterest, Marmiton, Tête à modeler, Hugo l'escargot) ?")) return;
+  enregistrerSites(null);
 });
 
 // ------------------------------------------------------------- mon profil

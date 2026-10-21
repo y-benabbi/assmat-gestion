@@ -24,7 +24,7 @@ DEFAUTS = {
     "correspondances": "",
     # Rubriques affichées (« Paramètres ») : une rubrique masquée garde ses données.
     "modules": {"bulletins": True, "revenus": True, "contrats": True, "echeances": True, "courriers": True,
-                "impots": True},
+                "impots": True, "activites": True},
     "regime_impots": "specifique",          # specifique, classique ou comparer
     "dossier_courriers": "",                # vide : dossier « Courriers » à côté des bulletins
 }

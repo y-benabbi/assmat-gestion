@@ -96,6 +96,19 @@ def main():
     except ValueError:
         pass
     print("OK : familles employeurs")
+
+    # Sites d'activités : proposés par défaut, liste enregistrée telle quelle (ordre), « https:// » ajouté.
+    assert [x["nom"] for x in donnees.sites()][:2] == ["Pinterest", "Marmiton"]
+    liste = donnees.enregistrer_sites([{"nom": "Momes", "url": "www.momes.net"}, {"nom": "Pinterest", "url": "https://www.pinterest.fr/"}])
+    assert liste[0]["url"] == "https://www.momes.net" and [x["nom"] for x in donnees.sites()] == ["Momes", "Pinterest"]
+    assert donnees.enregistrer_sites([]) == [] and donnees.sites() == []
+    try:
+        donnees.enregistrer_sites([{"nom": "", "url": "x"}])
+        raise AssertionError("site sans nom accepté")
+    except ValueError:
+        pass
+    assert len(donnees.enregistrer_sites(None)) == len(donnees.SITES_DEFAUT)
+    print("OK : sites d'activités")
     print("OK : avenants (conditions en vigueur, échéances, jours de garde)")
 
 

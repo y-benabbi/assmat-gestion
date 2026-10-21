@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.9.0",
+    "date": "2026-10-21",
+    "titre": "Menu des bulletins et sites d'activités",
+    "nouveautes": [
+      "Bulletins : un clic sur une case verte propose « Ouvrir » le bulletin ou « Afficher dans le dossier » ; un clic sur une case orange propose « Récupérer ce bulletin » ou « Tout récupérer ».",
+      "Nouvelle rubrique « Sites d'activités » (dans Mes familles) : vos sites préférés pour préparer les activités des enfants, en icônes carrées comme sur un téléphone. Pinterest, Marmiton, Tête à modeler et Hugo l'escargot sont proposés ; vous pouvez en ajouter, les modifier, les ranger dans l'ordre voulu ou les retirer.",
+      "Tableau de bord : un bloc « Idées d'activités » donne accès à ces sites en un clic.",
+      "Sur téléphone, le classeur des bulletins défile dans son cadre sans décaler toute la page."
+    ]
+  },
+  {
     "version": "1.8.1",
     "date": "2026-10-21",
     "titre": "Familles plus lisibles",
