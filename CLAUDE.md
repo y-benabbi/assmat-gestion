@@ -231,4 +231,6 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `/api/icone-site?url=` (seulement pour une adresse de la liste) : `icones.py` la cherche sur le site (plus grande
   `<link rel=…icon>` de la page, puis `/apple-touch-icon.png`, `/favicon.ico`, SVG en dernier), la garde dans
   `donnees\icones\` (une par nom de domaine ; absence notée, réessayée après 7 jours). ≥ 96 px : remplit la tuile ;
-  plus petite : centrée sur fond blanc ; aucune : initiale sur un pastel. Sur le tableau de bord et dans la rubrique.
+  plus petite : centrée ; dès qu'une icône s'affiche, l'initiale est masquée (`.avec-image`) et le fond (transparence
+  comprise) est un blanc teinté de la couleur principale du logo (`couleurPrincipale` sur un canvas, `fondTeinte`) ;
+  aucune : initiale sur un pastel. Sur le tableau de bord et dans la rubrique.

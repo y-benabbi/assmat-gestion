@@ -880,6 +880,7 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
 .icone-site img.chargee { opacity: 1; }
 .icone-site img.petite { inset: 20%; width: 60%; height: 60%; object-fit: contain; }
 .icone-site.avec-image { background: #fff; }
+.icone-site.avec-image .initiale-site { visibility: hidden; }     /* rien ne doit transparaître derrière l'icône */
 .nom-site { max-width: 100%; font-size: 0.86rem; font-weight: 700; line-height: 1.2; text-align: center;
   overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tuile-site:hover .nom-site { color: var(--eucalyptus-fonce); }

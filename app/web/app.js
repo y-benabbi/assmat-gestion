@@ -2187,13 +2187,40 @@ function tuileSite(site, i) {
     <span class="icone-site" style="--fond:${couleur}"><span class="initiale-site" aria-hidden="true">${echapper([...site.nom][0] || "?")}</span>${icone}</span>
     <span class="nom-site">${echapper(site.nom)}</span></a>`;
 }
-// Grande icône : elle remplit la tuile ; petite (favicon) : centrée sur fond blanc ; aucune : l'initiale reste.
+// Couleur principale d'une icône : la teinte la plus présente parmi ses pixels colorés (ni transparents, ni
+// presque blancs, ni gris), pour un fond blanc légèrement teinté derrière les parties transparentes.
+function couleurPrincipale(img) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const ctx = c.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0, 32, 32);
+  let pixels;
+  try { pixels = ctx.getImageData(0, 0, 32, 32).data; } catch { return null; }
+  const teintes = {};
+  for (let i = 0; i < pixels.length; i += 4) {
+    const [r, g, b, a] = [pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]];
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    if (a < 160 || max - min < 40 || min > 225) continue;
+    const t = max === r ? ((g - b) / (max - min) + 6) % 6 : max === g ? (b - r) / (max - min) + 2 : (r - g) / (max - min) + 4;
+    const cle = Math.round(t * 2) % 12;           // 12 familles de teintes
+    const p = teintes[cle] ??= { n: 0, r: 0, g: 0, b: 0 };
+    p.n++; p.r += r; p.g += g; p.b += b;
+  }
+  const choix = Object.values(teintes).sort((x, y) => y.n - x.n)[0];
+  return choix && choix.n >= 6 ? [choix.r / choix.n, choix.g / choix.n, choix.b / choix.n] : null;
+}
+const fondTeinte = (rgb) => (rgb ? `rgb(${rgb.map((v) => Math.round(255 - (255 - v) * 0.12)).join(", ")})` : "#f6f5f9");
+
+// Grande icône : elle remplit la tuile ; petite (favicon) : centrée. Fond blanc teinté de la couleur du logo
+// (visible dans les parties transparentes), l'initiale est masquée ; aucune icône : l'initiale reste.
 function surveillerIcones(zone) {
   zone.querySelectorAll(".icone-site img").forEach((img) => {
     const verifier = () => {
       if (!img.naturalWidth) return;
       img.classList.add("chargee", img.naturalWidth >= 96 ? "pleine" : "petite");
-      img.closest(".icone-site").classList.add("avec-image");
+      const tuile = img.closest(".icone-site");
+      tuile.classList.add("avec-image");
+      tuile.style.background = fondTeinte(couleurPrincipale(img));
     };
     img.addEventListener("load", verifier);
     img.addEventListener("error", () => img.remove());

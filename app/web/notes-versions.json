@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.9.2",
+    "date": "2026-10-21",
+    "titre": "Icônes des sites plus nettes",
+    "nouveautes": [
+      "Idées d'activités : l'icône de chaque site s'affiche sur un fond blanc légèrement teinté de la couleur de son logo, sans la lettre qui apparaissait derrière."
+    ]
+  },
+  {
     "version": "1.9.1",
     "date": "2026-10-21",
     "titre": "Icônes des sites d'activités",
