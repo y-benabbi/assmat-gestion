@@ -1,5 +1,20 @@
 [
   {
+    "version": "1.7.0",
+    "date": "2026-10-21",
+    "titre": "Fiche enfant, avenants et assistant amélioré",
+    "nouveautes": [
+      "Familles et contrats : chaque famille se replie d'un clic. Repliée, on ne voit que son nom, le nombre d'enfants et une flèche ; l'application s'en souvient.",
+      "Un clic sur un enfant ouvre sa fiche : le contrat tel qu'il s'applique aujourd'hui (avenants compris, salaire brut et net), l'historique du contrat, les documents créés avec un bouton pour les ouvrir, et les boutons « Créer un avenant », « Modifier le contrat de travail » et « Contrat de travail (PDF) ». La flèche ou la croix referme la fiche.",
+      "Avenant : il se remplit pas à pas, à partir des conditions actuelles. Une petite flèche à côté d'un champ modifié remet l'ancienne valeur. Avant d'enregistrer, un tableau montre ce qui change ; le PDF de l'avenant ne cite que ces changements.",
+      "Ajouter un enfant : « Enregistrer le brouillon » pour reprendre plus tard (le brouillon apparaît dans la liste et peut être supprimé), clic sur le titre d'une étape pour y aller directement, champs regroupés par thème.",
+      "Fille, garçon ou autre en boutons à cocher. Période d'essai : case à décocher s'il n'y en a pas, durée en jours, semaines ou mois (2 mois proposés), dernier jour calculé. Période d'adaptation : nombre de jours calculé d'après les dates.",
+      "Horaires : boutons copier, coller et vider sur chaque plage horaire.",
+      "Salaire : le net indicatif s'affiche à côté de chaque montant brut. Heures complémentaires et heures majorées sont séparées : le pourcentage et le salaire horaire se calculent l'un d'après l'autre.",
+      "Les champs remplis sont mis en valeur, les valeurs calculées sont bien visibles, et les champs d'une même ligne sont alignés."
+    ]
+  },
+  {
     "version": "1.6.0",
     "date": "2026-10-21",
     "titre": "Contrat de travail et ajout d'un enfant pas à pas",
