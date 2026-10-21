@@ -475,7 +475,7 @@ fieldset { scroll-margin-top: 16px; }
 
 /* Familles employeurs */
 .boutons-famille { display: flex; flex-wrap: wrap; gap: 8px; }
-.famille .cartes-contrats { margin: 14px 0 0; }
+.famille .cartes-contrats { margin: 22px 0 0; }
 .famille .carte-contrat { background: var(--eucalyptus-clair); }
 .grille-champs.parent { grid-template-columns: minmax(90px, 0.6fr) 1fr 1fr; }
 @media (max-width: 600px) { .grille-champs.parent { grid-template-columns: 1fr; } }
@@ -635,9 +635,18 @@ details.famille { padding: 0; }
 details.famille[open] > .entete-famille .chevron { transform: rotate(180deg); }
 details.famille[open] > .entete-famille { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .contenu-famille { padding: 0 22px 22px; }
-.infos-famille { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px 20px;
-  padding-top: 14px; border-top: 1px solid var(--trait); }
-.infos-famille .petit { margin: 0 0 4px; }
+.infos-famille { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 14px 24px;
+  padding-top: 18px; border-top: 1px solid var(--trait); }
+/* Informations de la famille : pictogramme dans une pastille, puis la valeur, sur une grille aérée */
+.infos-liste { flex: 1 1 520px; list-style: none; margin: 0; padding: 0; display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px 28px; }
+.infos-liste li { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.picto-info { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px;
+  background: var(--eucalyptus-clair); color: var(--eucalyptus-fonce); }
+.picto-info .picto { width: 18px; height: 18px; margin: 0; }
+.texte-info { padding-top: 6px; line-height: 1.45; overflow-wrap: anywhere; }
+.texte-info .petit { font-size: 0.85rem; }
+.texte-info a { color: var(--eucalyptus-fonce); }
 
 /* Fiche d'un enfant : carte qui se déplie sur toute la largeur et se referme */
 .carte-contrat.enfant { padding: 0; display: block; }

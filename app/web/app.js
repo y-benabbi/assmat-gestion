@@ -38,6 +38,10 @@ const PICTOS = {
   changement: '<path d="M4 8h13l-3-3M20 16H7l3 3"/>',
   attestation: '<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M8 17h8"/>',
   alerte: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  lieu: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  telephone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>',
+  courriel: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  numero: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h4M7 14h7M16 9.5v5"/>',
   profil: '<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
   maison: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
   telephone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
@@ -1528,14 +1532,25 @@ async function rafraichirDocuments(contratId, zone) {
     api("ouvrir", { quoi: docs[+b.dataset.doc].chemin }).catch((err) => alert(err.message))));
 }
 
-function coordonnees(f) {
-  const lignes = [];
+// Informations de la famille : une ligne par information, chacune avec son pictogramme.
+const QUALITES = { mere: "mère", pere: "père", tuteur: "tuteur" };
+function infosFamille(f) {
+  const ligne = (icone, titre, valeur) => `<li><span class="picto-info" title="${titre}">${picto(icone)}</span>
+    <span class="texte-info"><span class="sr-only">${titre} : </span>${valeur}</span></li>`;
+  const parent = (n) => {
+    const nom = [f[`parent${n}_civilite`], f[`parent${n}_prenom`], f[`parent${n}_nom`]].filter(Boolean).join(" ");
+    const qualite = n === 1 ? (f.parent1_qualite === "autre" ? f.parent1_qualite_autre : QUALITES[f.parent1_qualite]) : "";
+    return nom && `${echapper(nom)}${qualite ? ` <span class="petit">(${echapper(qualite)})</span>` : ""}`;
+  };
+  const parents = [parent(1), parent(2)].filter(Boolean);
   const adresse = [f.adresse, [f.code_postal, f.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ");
-  if (adresse) lignes.push(`<span>${echapper(adresse)}</span>`);
-  if (f.telephone) lignes.push(`<a href="tel:${echapper(f.telephone.replace(/\s/g, ""))}">${echapper(f.telephone)}</a>`);
-  if (f.email) lignes.push(`<a href="mailto:${echapper(f.email)}">${echapper(f.email)}</a>`);
-  if (f.numero_pajemploi) lignes.push(`<span>N° Pajemploi ${echapper(f.numero_pajemploi)}</span>`);
-  return lignes.length ? `<p class="coordonnees">${lignes.join("")}</p>` : "";
+  const lignes = [ligne("famille", "Parents", parents.length ? parents.join("<br>") : `<span class="petit">Parents à compléter</span>`)];
+  if (adresse) lignes.push(ligne("lieu", "Adresse", echapper(adresse)));
+  if (f.telephone) lignes.push(ligne("telephone", "Téléphone", `<a href="tel:${echapper(f.telephone.replace(/\s/g, ""))}">${echapper(f.telephone)}</a>`));
+  if (f.email) lignes.push(ligne("courriel", "E-mail", `<a href="mailto:${echapper(f.email)}">${echapper(f.email)}</a>`));
+  if (f.numero_pajemploi) lignes.push(ligne("numero", "N° Pajemploi", `N° Pajemploi ${echapper(f.numero_pajemploi)}`));
+  if (!f.id) lignes.push(ligne("alerte", "À faire", `<span class="petit">Fiche famille à compléter</span>`));
+  return `<ul class="infos-liste">${lignes.join("")}</ul>`;
 }
 
 async function afficherContrats() {
@@ -1557,7 +1572,6 @@ async function afficherContrats() {
     bloc.className = "panneau famille";
     bloc.dataset.famille = f.nom;
     bloc.open = famillesOuvertes.has(f.nom) || enfants.some((c) => c.id === enfantOuvert);
-    const parents = [1, 2].map((n) => [f[`parent${n}_civilite`], f[`parent${n}_prenom`], f[`parent${n}_nom`]].filter(Boolean).join(" ")).filter(Boolean);
     const actifs = enfants.filter((c) => !(c.fin && c.fin < aujourdhui)).length;
     const compte = [enfants.length ? `${enfants.length} enfant${enfants.length > 1 ? "s" : ""}` : "aucun enfant",
       enfants.length && actifs < enfants.length ? `${enfants.length - actifs} terminé${enfants.length - actifs > 1 ? "s" : ""}` : "",
@@ -1569,8 +1583,7 @@ async function afficherContrats() {
       </summary>
       <div class="contenu-famille">
         <div class="infos-famille">
-          <div><p class="petit">${echapper(parents.join(" et ") || "Parents à compléter")}${f.id ? "" : " · fiche famille à compléter"}</p>
-          ${coordonnees(f)}</div>
+          ${infosFamille(f)}
           <button class="action" data-modifier>${picto("modifier")}${f.id ? "Modifier la famille" : "Compléter la fiche famille"}</button>
         </div>
         <div class="cartes-contrats"></div>
