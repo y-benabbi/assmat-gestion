@@ -1479,7 +1479,6 @@ function dossierEnfant(c, aujourdhui) {
       <button type="button" class="principal" data-avenant>${picto("avenant")}Créer un avenant</button>
       <button type="button" class="secondaire" data-modifier-contrat>${picto("modifier")}Modifier le contrat de travail</button>
       <button type="button" class="secondaire" data-pdf-contrat>${picto("pdf")}Contrat de travail (PDF)</button>
-      <button type="button" class="icone fermer-dossier" data-fermer title="Refermer la fiche" aria-label="Refermer la fiche">${picto("fermer")}</button>
     </div>
     <div class="resultat-dossier" role="status"></div>
     <div class="colonnes-dossier">
@@ -1494,7 +1493,6 @@ function dossierEnfant(c, aujourdhui) {
     <p class="pied-dossier"><button type="button" class="lien" data-une-page>Modifier la fiche sur une seule page</button>
       <button type="button" class="lien danger" data-supprimer-fiche>${picto("supprimer")}Supprimer la fiche</button></p>`;
   const resultat = div.querySelector(".resultat-dossier");
-  div.querySelector("[data-fermer]").addEventListener("click", () => div.closest(".carte-contrat").querySelector(".entete-carte").click());
   div.querySelector("[data-avenant]").addEventListener("click", () => ouvrirAssistant(c, "avenant"));
   div.querySelector("[data-modifier-contrat]").addEventListener("click", () => ouvrirAssistant(c, "modification"));
   div.querySelector("[data-pdf-contrat]").addEventListener("click", () => creerContratTravail(c.id, resultat));
