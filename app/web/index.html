@@ -226,7 +226,7 @@
       sont créées automatiquement d'après le bulletin le plus récent, les autres s'ajoutent à la main. Ajoutez ensuite
       une fiche par enfant accueilli, avec son contrat et ses avenants. Ces informations servent au tableau de bord, aux échéances,
       aux impôts et aux courriers.</p>
-    <input type="search" class="recherche" id="recherche-familles" data-filtre="#liste-familles-contrats > section.famille"
+    <input type="search" class="recherche" id="recherche-familles" data-filtre="#liste-familles-contrats > .famille"
       placeholder="Rechercher une famille, un parent, un enfant…" aria-label="Rechercher dans les familles">
     <div id="message-contrats" class="panneau cache" role="status"></div>
     <div id="brouillons-nouvelles" class="panneau cache"></div>
@@ -291,6 +291,20 @@
         <div class="progression" aria-hidden="true"><span id="assistant-barre"></span></div>
         <ol class="assistant-plan" id="assistant-plan"></ol>
       </div>
+
+      <fieldset class="assistant-seul">
+        <legend>Avenant</legend>
+        <div data-etape="avenant" data-titre="Date et objet de l'avenant">
+          <p class="petit">L'avenant reprend le contrat tel qu'il s'applique aujourd'hui. Aux étapes suivantes, modifiez
+            seulement ce qui change : l'icône <span aria-hidden="true">↺</span> à côté d'un champ modifié rétablit l'ancienne
+            valeur. Le PDF de l'avenant ne citera que les changements.</p>
+          <div class="grille-champs">
+            <label>Date d'effet de l'avenant <input type="date" id="av-date" data-requis></label>
+            <label>Objet de l'avenant <input id="av-motif" list="liste-motifs" autocomplete="off" placeholder="Changement d'horaires"></label>
+          </div>
+          <div id="resume-avant"></div>
+        </div>
+      </fieldset>
 
       <fieldset>
         <legend id="titre-form-contrat">Nouvel enfant</legend>
@@ -538,11 +552,11 @@
           <h3 class="sous-titre">Conditions particulières</h3>
           <label>Conditions particulières (activités, cahier de liaison, animaux…)
             <textarea name="conditions_particulieres" rows="3"></textarea></label>
-          <h3 class="sous-titre">Notes</h3>
-          <label>Notes personnelles (pas dans le contrat) <textarea name="notes" rows="2"></textarea></label>
+          <h3 class="sous-titre hors-avenant">Notes</h3>
+          <label class="hors-avenant">Notes personnelles (pas dans le contrat) <textarea name="notes" rows="2"></textarea></label>
         </div>
         <div data-etape="signature" data-titre="Signature">
-          <h3 class="sous-titre">Signature du contrat</h3>
+          <h3 class="sous-titre" id="titre-signature">Signature du contrat</h3>
           <div class="grille-champs">
             <label>Fait à <input name="signature_lieu" autocomplete="off"></label>
             <label>Le <input name="signature_date" type="date"></label>
@@ -948,7 +962,8 @@
           <li>Indemnités par mois ≈ jours d'accueil par mois (même calcul que les heures) × (entretien + repas par jour).</li>
           <li>Avenants : à partir de sa date d'effet, un avenant remplace les conditions précédentes (semaines,
             type d'accueil, tarif, indemnités, emploi du temps, délais de prévenance…). Les échéances, les courriers et les jours
-            de garde des impôts utilisent les conditions en vigueur à la date concernée.</li>
+            de garde des impôts utilisent les conditions en vigueur à la date concernée. La fiche d'un enfant (clic sur son
+            nom) résume le contrat tel qu'il s'applique aujourd'hui, avenants compris.</li>
         </ul>
         <h3 class="sous-titre">Impôts</h3>
         <ul>
@@ -988,6 +1003,10 @@
           <li>Cas n° 1 du modèle pour un accueil sur 52 semaines, cas n° 2 sinon. Le tableau des jours reprend l'emploi du
             temps en période scolaire ; s'il est différent pendant les vacances, il est écrit dans les conditions
             particulières.</li>
+          <li>Avenant : il n'est pas rempli sur un modèle de l'Urssaf (il n'en existe pas de remplissable) ; l'application
+            l'écrit elle-même : les deux parties, le contrat concerné, la date d'effet, un tableau « avant / à partir du »
+            limité aux conditions qui changent (avec le salaire mensuel qui en découle), puis « les autres clauses restent
+            inchangées » et les signatures.</li>
           <li>Salaire mensuel de base = salaire horaire brut × heures mensualisées (même calcul que dans la fiche). Les
             montants nets sont indicatifs (part du brut restée en net sur vos derniers bulletins). Heures
             complémentaires et heures majorées (au-delà de 45 h) : salaire horaire majoré = salaire horaire × (1 + majoration) ;

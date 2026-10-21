@@ -358,7 +358,38 @@ def creer_app(port, jeton):
         except Exception as e:
             return jsonify({"erreur": "Le PDF n'a pas pu être créé : " + str(e).splitlines()[0]}), 500
         courriers_generes.add(str(cible))
+        if fiche:
+            donnees.ajouter_document(fiche["id"], "contrat", "Contrat de travail", str(cible))
         return jsonify({"chemin": str(cible), "manquants": manquants})
+
+    @app.post("/api/avenant-pdf")
+    def creer_avenant_pdf():
+        demande = request.get_json(force=True)
+        fiche = next((c for c in donnees.contrats() if c.get("id") == demande.get("contrat_id")), None)
+        if not fiche:
+            return jsonify({"erreur": "Fiche enfant introuvable."}), 404
+        famille = next((f for f in donnees.familles() if f["nom"].lower() == fiche["famille"].lower()), {})
+        taux = revenus.taux_net(revenus.releve(parametres.charger().get("dossier_bulletins", "")))["taux"]
+        numero = contrat_travail.numero_avenant(fiche, demande.get("avenant_id"))
+        try:
+            page = contrat_travail.html_avenant(donnees.profil(), famille, fiche, demande.get("avenant_id"), taux)
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 404
+        enfant = " ".join(x for x in (fiche.get("enfant_prenom"), fiche.get("enfant_nom")) if x)
+        cible = dossier_courriers() / f"{courriers.nom_fichier(f'Avenant n° {numero} - {enfant}')}.pdf"
+        try:
+            courriers.generer_pdf(page, cible)
+        except PermissionError:
+            return jsonify({"erreur": "Le fichier est ouvert dans un autre programme : fermez-le puis recommencez."}), 409
+        except Exception as e:
+            return jsonify({"erreur": "Le PDF n'a pas pu être créé : " + str(e).splitlines()[0]}), 500
+        courriers_generes.add(str(cible))
+        donnees.ajouter_document(fiche["id"], "avenant", f"Avenant n° {numero}", str(cible))
+        return jsonify({"chemin": str(cible), "manquants": []})
+
+    @app.get("/api/documents")
+    def lire_documents():
+        return jsonify(donnees.documents(request.args.get("contrat_id", "")))
 
     @app.post("/api/action")
     def action():
@@ -410,6 +441,7 @@ def creer_app(port, jeton):
             # Un fichier précis : uniquement s'il fait partie de la dernière analyse, des bulletins
             # lus pour le tableau de bord ou des courriers créés.
             connus = {b.get("fichier_existant") for b in paje.lire_etat()["bulletins"]} | courriers_generes
+            connus |= {d["chemin"] for d in donnees.documents()}
             connus |= {l["fichier"] for l in revenus.releve(parametres.charger().get("dossier_bulletins", ""))}
             cible = quoi if quoi in connus else None
         if cible and os.path.exists(cible):

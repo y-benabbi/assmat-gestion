@@ -313,3 +313,157 @@ def nom_fichier(fiche: dict = None) -> str:
     enfant = " ".join(x for x in (fiche.get("enfant_prenom"), fiche.get("enfant_nom")) if x)
     return f"Contrat de travail CDI - {enfant}" if enfant else "Contrat de travail CDI"
 
+
+
+# ------------------------------------------------------------------ avenants
+# L'Urssaf ne fournit pas (à notre connaissance) de modèle d'avenant remplissable : l'avenant est une page
+# imprimée en PDF par Chromium (comme les courriers). Il ne cite que ce qui change.
+LIBELLES = {
+    "semaines": "Semaines d'accueil par an", "accueil": "Type d'accueil", "horaires_scolaire": "Jours et horaires de travail",
+    "horaires_vacances": "Horaires pendant les vacances scolaires", "planning": "Fixation des jours et horaires",
+    "delai_prevenance": "Délai de prévenance pour modifier les horaires", "delai_planning": "Délai de remise du planning",
+    "tarif_horaire": "Salaire horaire de base", "tarif_complementaire": "Heures complémentaires",
+    "taux_majoration": "Heures au-delà de 45 h par semaine", "entretien_jour": "Indemnité d'entretien",
+    "repas_fournis": "Repas fournis par", "repas_jour": "Frais de repas", "frais_km": "Frais de déplacement",
+    "jour_paiement": "Date de paiement du salaire", "repos_jour": "Repos hebdomadaire",
+    "repos_travaille": "Travail exceptionnel le jour de repos", "premier_mai": "1er mai",
+    "feries_travailles": "Jours fériés travaillés", "ferie_majoration": "Majoration d'un jour férié travaillé",
+    "conges_paiement": "Paiement de l'indemnité de congés payés", "conditions_particulieres": "Conditions particulières",
+}
+TEXTES = {
+    "accueil": {"journee": "en journée", "periscolaire": "périscolaire"},
+    "planning": {"": "par l'emploi du temps du contrat", "oui": "par un planning remis par écrit"},
+    "repas_fournis": {"employeur": "le particulier employeur", "assmat": "l'assistant maternel"},
+    "repos_travaille": {"majore": "rémunéré, majoré de 25 %", "recupere": "récupéré, majoré de 25 %"},
+    "premier_mai": {"chome": "chômé", "travaille": "travaillé (rémunération doublée)"},
+    "conges_paiement": {"juin": "en une seule fois en juin", "principale": "en une seule fois lors des congés principaux",
+                        "prorata": "au fur et à mesure des congés pris"},
+}
+
+
+def versions(fiche: dict) -> list:
+    """[conditions initiales, puis celles de chaque avenant] : un avenant enregistré avant l'ajout d'une rubrique
+    garde la valeur précédente de cette rubrique."""
+    liste = [{k: fiche.get(k, donnees.CHAMPS_CONTRAT[k]) for k in donnees.MODIFIABLES} | {"id": "", "date": fiche.get("debut", "")}]
+    for a in sorted(fiche.get("avenants") or [], key=lambda a: a.get("date", "")):
+        liste.append(liste[-1] | {k: a[k] for k in donnees.MODIFIABLES if k in a}
+                     | {k: a.get(k, "") for k in ("id", "date", "motif", *donnees.CHAMPS_AVENANT)})
+    return liste
+
+
+def _texte(cle: str, v, taux_net: float) -> str:
+    if cle.startswith("horaires"):
+        jours = semaine_type(v or {})
+        if not jours:
+            return "mêmes horaires qu'en période scolaire" if cle == "horaires_vacances" else "—"
+        return "\n".join(f"{j.capitalize()} : {h}" for j, h, _ in jours) + f"\nsoit {_heures_texte(sum(d for _, _, d in jours))} h par semaine"
+    v = str(v or "").strip()
+    if cle in TEXTES:
+        return TEXTES[cle].get(v, v or "—")
+    if not v:
+        return "au tarif normal" if cle == "tarif_complementaire" else "—"
+    if cle == "semaines":
+        return f"{v} semaines" + (" (année complète)" if v == "52" else "")
+    if cle in ("tarif_horaire", "tarif_complementaire"):
+        return f"{_euros(_nombre(v))} € brut de l'heure (≈ {_euros(_nombre(v) * taux_net)} € net)"
+    if cle in ("taux_majoration", "ferie_majoration"):
+        return f"majoration de {v} %"
+    if cle == "entretien_jour":
+        return f"{_euros(_nombre(v))} € par jour"
+    if cle == "repas_jour":
+        return f"{_euros(_nombre(v))} € par repas"
+    if cle == "frais_km":
+        return f"{_euros(_nombre(v))} € par km"
+    if cle == "jour_paiement":
+        return f"le {v} de chaque mois"
+    if cle == "feries_travailles":
+        return ", ".join(FERIES[k][0] for k in v.split(",") if k in FERIES) or "aucun"
+    return v
+
+
+def changements(avant: dict, apres: dict, taux_net: float) -> list:
+    """[(rubrique, avant, après)] : seulement ce qui change, plus le salaire mensuel qui en découle."""
+    def egal(k):
+        a, b = avant.get(k), apres.get(k)
+        if k.startswith("horaires"):
+            return {j: x for j, x in (a or {}).items() if x} == {j: x for j, x in (b or {}).items() if x}
+        if k == "feries_travailles":
+            return set(filter(None, str(a or "").split(","))) == set(filter(None, str(b or "").split(",")))
+        return str(a or "").strip() == str(b or "").strip()
+    liste = [(LIBELLES[k], _texte(k, avant.get(k), taux_net), _texte(k, apres.get(k), taux_net))
+             for k in donnees.MODIFIABLES if not egal(k)]
+    if any(not egal(k) for k in ("semaines", "tarif_horaire", "horaires_scolaire", "horaires_vacances")):
+        mois = lambda c: round(_nombre(c.get("tarif_horaire")) * mensualisation(c), 2)  # noqa: E731
+        texte = lambda m: f"{_euros(m)} € brut (≈ {_euros(m * taux_net)} € net)" if m else "—"  # noqa: E731
+        liste.append(("Salaire mensuel de base", texte(mois(avant)), texte(mois(apres))))
+    return liste
+
+
+STYLE_AVENANT = """
+@page { size: A4; margin: 18mm 18mm 20mm; }
+body { font: 10.5pt/1.45 "Segoe UI", Arial, sans-serif; color: #222; }
+h1 { font-size: 17pt; color: #c8102e; margin: 0; }
+.sous-titre { font-size: 12pt; color: #c8102e; margin: 0 0 14px; }
+h2 { font-size: 11.5pt; color: #1d3f8f; margin: 18px 0 6px; }
+.parties { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.partie { border: 1px solid #1d3f8f; border-radius: 4px; padding: 8px 12px; }
+.partie strong { color: #1d3f8f; }
+table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+th { background: #c8102e; color: #fff; text-align: left; padding: 6px 8px; font-size: 10pt; }
+td { border-bottom: 1px solid #ddd; padding: 6px 8px; vertical-align: top; white-space: pre-line; }
+td.rubrique { font-weight: 600; width: 30%; }
+.signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+.signatures div { border-top: 1px solid #999; padding-top: 6px; min-height: 70px; font-size: 9.5pt; }
+.petit { font-size: 9pt; color: #555; }
+"""
+
+
+def numero_avenant(fiche: dict, avenant_id: str) -> int:
+    ids = [a.get("id") for a in sorted(fiche.get("avenants") or [], key=lambda a: a.get("date", ""))]
+    return ids.index(avenant_id) + 1 if avenant_id in ids else 0
+
+
+def html_avenant(p: dict, f: dict, fiche: dict, avenant_id: str, taux_net: float) -> str:
+    import html as h
+    e = lambda s: h.escape(str(s or ""))  # noqa: E731
+    liste = versions(fiche)
+    i = next((n for n, v in enumerate(liste) if n and v.get("id") == avenant_id), None)
+    if i is None:
+        raise ValueError("Avenant introuvable.")
+    avant, apres = liste[i - 1], liste[i]
+    enfant = " ".join(x for x in (fiche.get("enfant_prenom"), fiche.get("enfant_nom")) if x)
+    ne = "née" if fiche.get("enfant_genre") == "fille" else "né" if fiche.get("enfant_genre") == "garcon" else "né(e)"
+    employeur = " ".join(x for x in (f.get("parent1_civilite"), f.get("parent1_prenom"), f.get("parent1_nom")) if x)
+    salarie = " ".join(x for x in (p.get("civilite"), p.get("prenom"), p.get("nom")) if x)
+    adresse = lambda x: ", ".join(y for y in (x.get("adresse"), " ".join(z for z in (x.get("code_postal"), x.get("ville")) if z)) if y)  # noqa: E731
+    lignes = changements(avant, apres, taux_net)
+    corps = "".join(f"<tr><td class='rubrique'>{e(r)}</td><td>{e(a)}</td><td>{e(b)}</td></tr>" for r, a, b in lignes) \
+        or "<tr><td colspan='3'>Aucune modification des conditions.</td></tr>"
+    effet = _date(apres.get("date"))
+    lieu, le = apres.get("signature_lieu") or "", _date(apres.get("signature_date"))
+    return f"""<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Avenant n° {i}</title>
+<style>{STYLE_AVENANT}</style></head><body>
+<h1>Avenant n° {i} au contrat de travail à durée indéterminée</h1>
+<p class="sous-titre">Assistant maternel agréé · Convention collective IDCC 3239</p>
+<div class="parties">
+  <div class="partie"><strong>Le particulier employeur</strong><br>{e(employeur)}<br>{e(adresse(f))}
+    {f"<br>N° Pajemploi : {e(f.get('numero_pajemploi'))}" if f.get('numero_pajemploi') else ""}</div>
+  <div class="partie"><strong>L'assistant maternel</strong><br>{e(salarie)}<br>{e(adresse(p))}
+    {f"<br>Agrément : {e(p.get('agrement_numero'))}" if p.get('agrement_numero') else ""}</div>
+</div>
+<h2>Objet de l'avenant</h2>
+<p>Le contrat de travail à durée indéterminée conclu entre les parties pour l'accueil de l'enfant
+<strong>{e(enfant)}</strong>{f", {ne} le {e(_date(fiche.get('enfant_naissance')))}" if fiche.get('enfant_naissance') else ""},
+qui a pris effet le {e(_date(fiche.get('debut')))}, est modifié d'un commun accord
+{f"({e(apres.get('motif'))[0].lower() + e(apres.get('motif'))[1:]}) " if apres.get('motif') else ""}à compter du <strong>{e(effet)}</strong>.</p>
+<h2>Modifications</h2>
+<table><thead><tr><th>Rubrique</th><th>Jusqu'à présent</th><th>À compter du {e(effet)}</th></tr></thead>
+<tbody>{corps}</tbody></table>
+<p class="petit">Montants nets indicatifs. Les montants bruts font foi.</p>
+<p>Toutes les autres clauses du contrat de travail{f" et des avenants précédents" if i > 1 else ""} restent inchangées.</p>
+<p>Fait en deux exemplaires, à {e(lieu) or "……………………"}, le {e(le) or "……………………"}. Un exemplaire est remis à chaque partie.</p>
+<div class="signatures">
+  <div>Signature du particulier employeur<br><span class="petit">(précédée de « Lu et approuvé »)</span></div>
+  <div>Signature de l'assistant maternel<br><span class="petit">(précédée de « Lu et approuvé »)</span></div>
+</div>
+</body></html>"""

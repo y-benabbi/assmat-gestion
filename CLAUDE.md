@@ -167,7 +167,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
@@ -197,3 +197,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   libellé dans `.intitule`. `essai` = « 2 mois », « 6 semaines »… ou « aucune ». Heures complémentaires : %
   (`#taux-complementaire`, non enregistré) ⇄ `tarif_complementaire` ; heures majorées : `taux_majoration` ⇄
   `#tarif-majore` (non enregistré) ; `afficherNetHoraire(source)` recalcule l'autre champ.
+- Fiche enfant et avenants : la liste « Familles et contrats » montre chaque famille en `<details>` (repli mémorisé dans
+  `localStorage["familles-repliees"]`) ; un clic sur un enfant déplie sa carte (`enfantOuvert`, `dossierEnfant`) :
+  contrat en vigueur aujourd'hui, historique (contrat puis avenants), documents (`donnees\documents.json`,
+  `/api/documents`, ajoutés à chaque PDF créé) et actions. L'assistant a trois modes (`modeSaisie`) : « nouveau »,
+  « modification », « avenant » (étapes `ETAPES_AVENANT`, seule la date d'effet est obligatoire). En mode avenant,
+  `actualiserRetablir()` affiche ↺ (`data-retablir`) à côté de chaque condition différente de la version précédente.
+  PDF de l'avenant : `contrat_travail.html_avenant` (HTML imprimé par Chromium), ne cite que `changements()`.

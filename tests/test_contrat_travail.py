@@ -92,6 +92,31 @@ def main():
     donnees.supprimer_brouillon(b["id"])
     assert donnees.brouillons() == []
 
+    # Avenant : une rubrique absente d'un ancien avenant reprend la valeur précédente ; le PDF ne cite que les changements.
+    av = {**FICHE, "id": "x", "avenants": [{"id": "a1", "date": "2027-01-04", "motif": "Nouveau tarif", "tarif_horaire": "5,00",
+                                              "horaires_scolaire": FICHE["horaires_scolaire"]}]}
+    liste = ct.versions(av)
+    assert len(liste) == 2 and liste[1]["semaines"] == "45" and liste[1]["repas_jour"] == "3,50", liste[1]
+    rubriques = [r[0] for r in ct.changements(liste[0], liste[1], 0.78)]
+    assert rubriques[0] == "Salaire horaire de base" and not any("repas" in r.lower() for r in rubriques), rubriques
+    assert any("mensuel" in r.lower() for r in rubriques), rubriques
+    assert ct.numero_avenant(av, "a1") == 1 and ct.numero_avenant(av, "inconnu") == 0
+    page = ct.html_avenant(PROFIL, FAMILLE, av, "a1", 0.78)
+    assert "Avenant n° 1" in page and "04/01/2027" in page and "5,00" in page and "Léa" in page, page[:400]
+    try:
+        ct.html_avenant(PROFIL, FAMILLE, av, "inconnu", 0.78)
+        raise AssertionError("avenant inconnu accepté")
+    except ValueError:
+        pass
+
+    # Documents créés pour un enfant : un même fichier recréé remplace l'entrée ; un fichier disparu est signalé.
+    pdf = sortie / "complet.pdf"
+    donnees.ajouter_document("x", "contrat", "Contrat de travail", str(pdf))
+    donnees.ajouter_document("x", "contrat", "Contrat de travail", str(pdf))
+    donnees.ajouter_document("x", "avenant", "Avenant n° 1", str(sortie / "absent.pdf"))
+    docs = donnees.documents("x")
+    assert len(docs) == 2 and {d["existe"] for d in docs} == {True, False} and donnees.documents("autre") == [], docs
+
     # Fiche incomplète : rubriques signalées.
     manque = ct.manquants(PROFIL, {}, {"enfant_prenom": "Léa"})
     assert "Nom du parent employeur" in manque and "Emploi du temps" in manque and "Date d'embauche" in manque, manque

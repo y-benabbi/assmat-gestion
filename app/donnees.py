@@ -15,6 +15,7 @@ FICHIER_PROFIL = DOSSIER_DONNEES / "profil.json"
 FICHIER_CONTRATS = DOSSIER_DONNEES / "contrats.json"
 FICHIER_FAMILLES = DOSSIER_DONNEES / "familles.json"
 FICHIER_BROUILLONS = DOSSIER_DONNEES / "brouillons.json"
+FICHIER_DOCUMENTS = DOSSIER_DONNEES / "documents.json"
 
 CHAMPS_PROFIL = {
     "civilite": "Madame",
@@ -109,7 +110,10 @@ CHAMPS_CONTRAT = {
 # Conditions du contrat qu'un avenant peut changer.
 MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_jour", "repas_jour", "horaires_scolaire",
                "horaires_vacances", "delai_prevenance", "planning", "delai_planning", "tarif_complementaire",
-               "taux_majoration", "repas_fournis", "frais_km")
+               "taux_majoration", "repas_fournis", "frais_km", "jour_paiement", "repos_jour", "repos_travaille",
+               "premier_mai", "feries_travailles", "ferie_majoration", "conges_paiement", "conditions_particulieres")
+# Rubriques propres à un avenant (en plus de ses conditions).
+CHAMPS_AVENANT = ("signature_lieu", "signature_date")
 
 _verrou = threading.Lock()
 
@@ -275,6 +279,8 @@ def _nettoyer_avenants(liste) -> list:
                   "motif": str(a.get("motif") or "").strip()}
         for k in MODIFIABLES:
             propre[k] = _nettoyer_horaires(a.get(k)) if k.startswith("horaires") else str(a.get(k) or CHAMPS_CONTRAT[k]).strip()
+        for k in CHAMPS_AVENANT:
+            propre[k] = str(a.get(k) or "").strip()
         propres.append(propre)
     return sorted(propres, key=lambda a: a["date"])
 
@@ -324,6 +330,27 @@ def enregistrer_brouillon(b: dict) -> dict:
 def supprimer_brouillon(ident: str) -> None:
     with _verrou:
         _ecrire(FICHIER_BROUILLONS, [x for x in _lire(FICHIER_BROUILLONS, []) if isinstance(x, dict) and x.get("id") != ident])
+
+
+# Documents créés pour une fiche enfant (contrat de travail, avenants) : retrouvés depuis la fiche.
+def documents(contrat_id: str = None) -> list:
+    from pathlib import Path
+    with _verrou:
+        liste = [d for d in _lire(FICHIER_DOCUMENTS, []) if isinstance(d, dict)]
+    if contrat_id is not None:
+        liste = [d for d in liste if d.get("contrat_id") == contrat_id]
+    return [d | {"existe": Path(d.get("chemin", "")).is_file()} for d in sorted(liste, key=lambda d: d.get("date", ""), reverse=True)]
+
+
+def ajouter_document(contrat_id: str, type_: str, titre: str, chemin: str) -> dict:
+    """Un même fichier recréé remplace l'entrée précédente."""
+    from datetime import datetime
+    doc = {"contrat_id": contrat_id, "type": type_, "titre": titre, "chemin": chemin,
+           "date": datetime.now().isoformat(timespec="seconds")}
+    with _verrou:
+        liste = [d for d in _lire(FICHIER_DOCUMENTS, []) if isinstance(d, dict) and d.get("chemin") != chemin]
+        _ecrire(FICHIER_DOCUMENTS, liste + [doc])
+    return doc
 
 
 def _semaines(c: dict) -> int:

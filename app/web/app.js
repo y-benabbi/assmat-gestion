@@ -676,8 +676,10 @@ const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dim
 const PERIODES = { scolaire: "Période scolaire", vacances: "Vacances scolaires" };
 // Conditions qu'un avenant peut changer (même liste que donnees.MODIFIABLES).
 const MODIFIABLES = ["semaines", "accueil", "tarif_horaire", "entretien_jour", "repas_jour", "horaires_scolaire", "horaires_vacances",
-  "delai_prevenance", "planning", "delai_planning", "tarif_complementaire", "taux_majoration", "repas_fournis", "frais_km"];
-const CHAMPS_SIMPLES = MODIFIABLES.filter((k) => !k.startsWith("horaires"));
+  "delai_prevenance", "planning", "delai_planning", "tarif_complementaire", "taux_majoration", "repas_fournis", "frais_km",
+  "jour_paiement", "repos_jour", "repos_travaille", "premier_mai", "feries_travailles", "ferie_majoration", "conges_paiement",
+  "conditions_particulieres"];
+const CHAMPS_SIMPLES = MODIFIABLES.filter((k) => !k.startsWith("horaires") && k !== "feries_travailles");
 // Valeurs proposées pour une nouvelle fiche (les autres champs commencent vides).
 const DEFAUTS_CONTRAT = { semaines: "52", taux_majoration: "10", ferie_majoration: "10", repos_jour: "dimanche",
   premier_mai: "chome" };
@@ -694,6 +696,10 @@ const formContrat = $("#form-contrat");
 let contratEdite = null;
 let versions = [];          // [conditions du contrat initial, puis un objet par avenant (id, date, motif…)]
 let versionActive = 0;
+// Saisie en cours : « fiche » (formulaire sur une page), ou assistant plein écran : « nouveau » (ajout d'un enfant),
+// « modification » (contrat existant), « avenant ».
+let modeSaisie = "fiche";
+const ETAPES_AVENANT = ["avenant", "horaires", "remuneration", "repos", "feries", "conges", "signature"];
 let suggestions = { familles: [], champs: {} };
 
 // --- emploi du temps : heures d'arrivée et de départ, une deuxième plage possible (coupure)
@@ -829,6 +835,14 @@ formContrat.elements.tarif_horaire.addEventListener("input", () => { afficherNet
 // Semaines d'école dans l'année (calendrier scolaire), pour estimer la mensualisation quand les
 // horaires des vacances sont différents.
 const SEMAINES_ECOLE = 36;
+// Heures et jours d'accueil par mois en moyenne : semaines programmées réparties entre école et vacances.
+function mensuel(semaines, scolaire, vacances, differentes) {
+  const sEcole = differentes ? Math.min(SEMAINES_ECOLE, semaines) : semaines;
+  const sVacances = differentes ? semaines - sEcole : 0;
+  const hVac = vacances?.total || 0, jVac = vacances?.jours.length || 0;
+  return { sEcole, sVacances, hVac, heuresMois: (scolaire.total * sEcole + hVac * sVacances) / 12,
+    joursMois: (scolaire.jours.length * sEcole + jVac * sVacances) / 12 };
+}
 
 function afficherResume() {
   const differentes = $("#vacances-differentes").checked;
@@ -846,11 +860,7 @@ function afficherResume() {
   const indemnite = nombreFr(formContrat.elements.entretien_jour.value) + nombreFr(formContrat.elements.repas_jour.value);
   if (scolaire && semaines) {
     // Semaines programmées réparties entre école et vacances (toutes à l'horaire scolaire s'il n'y a pas de distinction).
-    const sEcole = differentes ? Math.min(SEMAINES_ECOLE, semaines) : semaines;
-    const sVacances = differentes ? semaines - sEcole : 0;
-    const hVac = vacances?.total || 0, jVac = vacances?.jours.length || 0;
-    const heuresMois = (scolaire.total * sEcole + hVac * sVacances) / 12;
-    const joursMois = (scolaire.jours.length * sEcole + jVac * sVacances) / 12;
+    const { sEcole, sVacances, hVac, heuresMois, joursMois } = mensuel(semaines, scolaire, vacances, differentes);
     const salaire = (h) => (tarif ? ` · ${euros(h * tarif)} brut, ≈ ${euros(h * tarif * tauxNet())} net` : "");
     html += `<div class="salaire-indicatif"><p><strong>Mensualisation (indicatif)</strong> : ${heuresFr(heuresMois)} par mois${salaire(heuresMois)}</p>`;
     if (differentes) {
@@ -984,9 +994,12 @@ const LIBELLES = { semaines: "semaines d'accueil", accueil: "type d'accueil", ta
   entretien_jour: "indemnité d'entretien", repas_jour: "indemnité de repas", horaires_scolaire: "horaires (période scolaire)", horaires_vacances: "horaires (vacances)",
   delai_prevenance: "délai de prévenance", planning: "planning", delai_planning: "délai du planning",
   tarif_complementaire: "tarif des heures complémentaires", taux_majoration: "majoration au-delà de 45 h",
-  repas_fournis: "repas fournis par", frais_km: "frais de déplacement" };
+  repas_fournis: "repas fournis par", frais_km: "frais de déplacement", jour_paiement: "date de paiement du salaire",
+  repos_jour: "jour de repos", repos_travaille: "travail le jour de repos", premier_mai: "1er mai",
+  feries_travailles: "jours fériés travaillés", ferie_majoration: "majoration des jours fériés",
+  conges_paiement: "paiement des congés payés", conditions_particulieres: "conditions particulières" };
 // Les horaires sont comparés jour par jour (l'ordre des clés reçues du serveur peut varier).
-const enTexte = (v) => (v && typeof v === "object" ? JOURS.map((j) => v[j] || "").join("|") : String(v ?? ""));
+const enTexte = (v) => (v && typeof v === "object" ? JOURS.map((j) => v[j] || "").join("|") : String(v ?? "").trim());
 const memeValeur = (a, b) => enTexte(a) === enTexte(b);
 const conditions = (c) => Object.fromEntries(MODIFIABLES.map((k) => [k, structuredClone(c?.[k] ?? (k.startsWith("horaires") ? {} : ""))]));
 
@@ -999,10 +1012,18 @@ function sauverVersion() {
   const v = versions[versionActive];
   if (!v) return;
   CHAMPS_SIMPLES.forEach((k) => (v[k] = formContrat.elements[k].value.trim()));
+  v.feries_travailles = lireFeries();
   v.horaires_scolaire = lireHoraires("scolaire");
   v.horaires_vacances = $("#vacances-differentes").checked ? lireHoraires("vacances") : {};
-  if (versionActive) { v.date = $("#avenant-date").value; v.motif = $("#avenant-motif").value.trim(); }
+  if (versionActive) {
+    const [date, motif] = champsDateAvenant();
+    v.date = date.value; v.motif = motif.value.trim();
+    // Avenant saisi avec l'assistant : la signature est celle de l'avenant, pas celle du contrat.
+    if (modeSaisie === "avenant") { v.signature_lieu = formContrat.elements.signature_lieu.value; v.signature_date = formContrat.elements.signature_date.value; }
+  }
 }
+// Date d'effet et objet de l'avenant : dans l'en-tête des onglets, ou à la première étape de l'assistant.
+const champsDateAvenant = () => (modeSaisie === "avenant" ? [$("#av-date"), $("#av-motif")] : [$("#avenant-date"), $("#avenant-motif")]);
 
 function chargerVersion(i) {
   versionActive = i;
@@ -1011,14 +1032,20 @@ function chargerVersion(i) {
     const champ = formContrat.elements[k];
     champ.value = v[k] || DEFAUTS_CONTRAT[k] || (champ.tagName === "SELECT" ? champ.options[0].value : "");
   });
+  ecrireFeries(v.feries_travailles);
   ecrireHoraires("scolaire", v.horaires_scolaire);
   ecrireHoraires("vacances", v.horaires_vacances);
   $("#vacances-differentes").checked = Object.values(v.horaires_vacances || {}).some((x) => x);
   $("#entete-avenant").classList.toggle("cache", !i);
   $("#boutons-avenant").classList.toggle("cache", !i);
   if (i) {
-    $("#avenant-date").value = v.date || "";
-    $("#avenant-motif").value = v.motif || "";
+    const [date, motif] = champsDateAvenant();
+    date.value = v.date || "";
+    motif.value = v.motif || "";
+    if (modeSaisie === "avenant") {
+      formContrat.elements.signature_lieu.value = v.signature_lieu || "";
+      formContrat.elements.signature_date.value = v.signature_date || "";
+    }
     const avant = versions[i - 1];
     const changes = MODIFIABLES.filter((k) => !memeValeur(v[k], avant[k])).map((k) => LIBELLES[k]);
     $("#changements-avenant").textContent = changes.length
@@ -1028,6 +1055,7 @@ function chargerVersion(i) {
   afficherOngletsVersions();
   afficherColonneVacances();
   afficherNetHoraire();
+  actualiserRetablir();
 }
 
 function afficherOngletsVersions() {
@@ -1055,6 +1083,78 @@ $("#supprimer-avenant").addEventListener("click", () => {
   versions.splice(versionActive, 1);
   chargerVersion(Math.min(versionActive, versions.length - 1));
 });
+
+// --- avenant : à côté de chaque condition modifiée, une icône rétablit la valeur d'avant l'avenant.
+const ICONE_RETABLIR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>';
+const boutonRetablir = (cle, quoi) => `<button type="button" class="icone retablir" data-retablir="${cle}"
+  title="Rétablir l'ancienne valeur" aria-label="Rétablir l'ancienne valeur : ${echapper(quoi)}">${ICONE_RETABLIR}</button>`;
+const valeurAffichee = (k, v) => { const champ = formContrat.elements[k];
+  return String(v[k] || DEFAUTS_CONTRAT[k] || (champ.tagName === "SELECT" ? champ.options[0]?.value ?? "" : "")).trim(); };
+const avantAvenant = () => (modeSaisie === "avenant" && versionActive ? versions[versionActive - 1] : null);
+
+function actualiserRetablir() {
+  const avant = avantAvenant();
+  if (!avant) {
+    $$("#form-contrat .retablir").forEach((b) => b.classList.add("cache"));
+    $$("#form-contrat .modifie").forEach((x) => x.classList.remove("modifie"));
+    return;
+  }
+  CHAMPS_SIMPLES.forEach((k) => {
+    const champ = formContrat.elements[k];
+    const intitule = champ.closest("label")?.querySelector(".intitule");
+    if (!intitule) return;
+    let b = intitule.querySelector(".retablir");
+    if (!b) { intitule.querySelector(".mention")?.insertAdjacentHTML("beforebegin", boutonRetablir(k, LIBELLES[k]));
+      if (!(b = intitule.querySelector(".retablir"))) { intitule.insertAdjacentHTML("beforeend", boutonRetablir(k, LIBELLES[k])); b = intitule.querySelector(".retablir"); } }
+    const ancienne = valeurAffichee(k, avant);
+    const change = champ.value.trim() !== ancienne;
+    b.classList.toggle("cache", !change);
+    const texte = champ.tagName === "SELECT" ? [...champ.options].find((o) => o.value === ancienne)?.textContent.trim() : ancienne;
+    b.title = `Rétablir l'ancienne valeur : ${texte && texte !== "—" ? texte : "vide"}`;
+    champ.classList.toggle("modifie", change);
+  });
+  const scolaire = lireHoraires("scolaire"), vacances = $("#vacances-differentes").checked ? lireHoraires("vacances") : {};
+  JOURS.forEach((j) => {
+    const th = $(`#horaires-contrat tbody tr:nth-child(${JOURS.indexOf(j) + 1}) th`);
+    if (!th.querySelector(".retablir")) th.insertAdjacentHTML("beforeend", boutonRetablir("jour:" + j, `horaires du ${j}`));
+    const change = (scolaire[j] || "") !== (avant.horaires_scolaire?.[j] || "") || (vacances[j] || "") !== (avant.horaires_vacances?.[j] || "");
+    th.querySelector(".retablir").classList.toggle("cache", !change);
+    th.closest("tr").classList.toggle("modifie", change);
+  });
+  const titreFeries = $("#cases-feries").previousElementSibling.previousElementSibling;
+  if (!titreFeries.querySelector(".retablir")) titreFeries.insertAdjacentHTML("beforeend", boutonRetablir("feries", "jours fériés travaillés"));
+  titreFeries.querySelector(".retablir").classList.toggle("cache", lireFeries() === (avant.feries_travailles || ""));
+}
+
+formContrat.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-retablir]");
+  const avant = avantAvenant();
+  if (!b || !avant) return;
+  e.preventDefault();          // le bouton est dans un libellé : pas de clic transmis au champ
+  const cle = b.dataset.retablir;
+  if (cle === "feries") ecrireFeries(avant.feries_travailles);
+  else if (cle.startsWith("jour:")) {
+    const j = cle.slice(5);
+    ["scolaire", "vacances"].forEach((p) => {
+      const plages = lirePlages(avant[`horaires_${p}`]?.[j]);
+      [0, 1].forEach((n) => { champH(p, j, n, "debut").value = plages[n]?.[0] || ""; champH(p, j, n, "fin").value = plages[n]?.[1] || ""; });
+      afficherCoupure(p, j, plages.length > 1);
+    });
+    if (avant.horaires_vacances?.[j] && !$("#vacances-differentes").checked) {
+      $("#vacances-differentes").checked = true;
+      afficherColonneVacances();
+    }
+    afficherResume();
+  } else {
+    const champ = formContrat.elements[cle];
+    champ.value = valeurAffichee(cle, avant);
+    champ.dispatchEvent(new Event("input", { bubbles: true }));
+    champ.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  marquerRemplis(formContrat);
+  actualiserRetablir();
+});
+["input", "change"].forEach((t) => formContrat.addEventListener(t, () => { if (avantAvenant()) actualiserRetablir(); }));
 
 // --- valeurs déjà connues proposées pendant la saisie
 const options = (valeurs) => [...new Set(valeurs.filter(Boolean))].map((v) => `<option value="${echapper(v)}">`).join("");
@@ -1110,20 +1210,181 @@ function completerFamille(cleDossier) {
 formFamille.elements.parent1_nom.addEventListener("change", () => completerFamille());
 
 // --- familles et leurs enfants
-function carteEnfant(c, aujourdhui) {
-  const b = document.createElement("button");
+// Icônes de la liste des familles et de la fiche d'un enfant (même tracé que les outils des horaires).
+const PICTOS = {
+  chevron: '<path d="M6 9l6 6 6-6"/>',
+  fermer: '<path d="M6 6l12 12M18 6L6 18"/>',
+  avenant: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+  modifier: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  ouvrir: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  supprimer: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  enfant: '<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+  famille: '<circle cx="8" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M2 20a6 6 0 0 1 12 0M13 20a4.5 4.5 0 0 1 9 0"/>',
+  introuvable: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>',
+};
+const picto = (nom) => `<svg class="picto" viewBox="0 0 24 24" aria-hidden="true">${PICTOS[nom]}</svg>`;
+
+// Conditions de chaque version du contrat : contrat initial, puis un objet par avenant. Un avenant ancien
+// reprend les conditions précédentes pour les rubriques qu'il ne contient pas.
+function versionsDe(c) {
+  const liste = [conditions(c)];
+  for (const a of c?.avenants || [])
+    liste.push({ ...structuredClone(liste[liste.length - 1]),
+      ...Object.fromEntries(MODIFIABLES.filter((k) => k in a).map((k) => [k, structuredClone(a[k])])),
+      id: a.id, date: a.date, motif: a.motif, signature_lieu: a.signature_lieu || "", signature_date: a.signature_date || "" });
+  return liste;
+}
+const changementsEntre = (avant, apres) => MODIFIABLES.filter((k) => !memeValeur(avant[k], apres[k])).map((k) => LIBELLES[k]);
+
+let enfantOuvert = "";          // fiche enfant dépliée (id), gardée quand la liste est redessinée
+let famillesRepliees = new Set();
+try { famillesRepliees = new Set(JSON.parse(localStorage.getItem("familles-repliees") || "[]")); } catch { /* rien */ }
+const noterRepliees = () => { try { localStorage.setItem("familles-repliees", JSON.stringify([...famillesRepliees])); } catch { /* rien */ } };
+
+const TYPES_ACCUEIL = { journee: "accueil à la journée", periscolaire: "accueil périscolaire" };
+const PAIEMENT_CONGES = { juin: "payés en juin", principale: "payés lors des congés principaux", prorata: "payés au fur et à mesure" };
+
+// Résumé du contrat tel qu'il s'applique aujourd'hui, avenants compris.
+function resumeEnVigueur(c, v) {
+  const lignes = [];
+  const ligne = (titre, valeur, detail = "") => valeur && lignes.push(`<div><dt>${titre}</dt><dd>${valeur}${detail ? `<span class="petit">${detail}</span>` : ""}</dd></div>`);
+  const scolaire = resumeSemaine(v.horaires_scolaire || {});
+  const differentes = Object.values(v.horaires_vacances || {}).some(Boolean);
+  const vacances = differentes ? resumeSemaine(v.horaires_vacances) : null;
+  const semaines = Math.min(52, Math.max(0, parseInt(v.semaines, 10) || 52));
+  ligne("Accueil", `${semaines} semaines par an`, `${semaines < 52 ? "année incomplète" : "année complète"} · ${TYPES_ACCUEIL[v.accueil] || "accueil à la journée"}`);
+  if (scolaire) ligne(differentes ? "Période scolaire" : "Horaires", `${heuresFr(scolaire.total)} par semaine`, scolaire.detail);
+  if (vacances) ligne("Vacances scolaires", `${heuresFr(vacances.total)} par semaine`, vacances.detail);
+  else if (differentes) ligne("Vacances scolaires", "pas d'accueil");
+  const tarif = nombreFr(v.tarif_horaire);
+  if (tarif) ligne("Salaire horaire", `${euros(tarif, 2)} brut`, `≈ ${euros(tarif * tauxNet(), 2)} net`);
+  const m = scolaire && mensuel(semaines, scolaire, vacances, differentes);
+  if (m) ligne("Mensualisation", `${heuresFr(m.heuresMois)} par mois`, tarif ? `${euros(m.heuresMois * tarif)} brut, ≈ ${euros(m.heuresMois * tarif * tauxNet())} net` : "");
+  const indemnites = [nombreFr(v.entretien_jour) && `entretien ${euros(nombreFr(v.entretien_jour), 2)}`,
+    nombreFr(v.repas_jour) && `repas ${euros(nombreFr(v.repas_jour), 2)}`].filter(Boolean);
+  if (indemnites.length) ligne("Indemnités par jour", indemnites.join(", "));
+  if (v.jour_paiement) ligne("Paiement du salaire", `le ${echapper(v.jour_paiement)} du mois`, PAIEMENT_CONGES[v.conges_paiement] ? `congés ${PAIEMENT_CONGES[v.conges_paiement]}` : "");
+  return lignes.length ? `<dl class="resume-contrat">${lignes.join("")}</dl>` : `<p class="petit">Conditions à compléter : « Modifier le contrat ».</p>`;
+}
+
+function carteEnfant(c, aujourdhui, famille) {
+  const carte = document.createElement("article");
   const termine = c.fin && c.fin < aujourdhui;
   const v = enVigueur(c, aujourdhui);
   const semaine = resumeSemaine(v.horaires_scolaire || {});
   const nb = (c.avenants || []).length;
-  b.className = "carte-contrat" + (termine ? " termine" : "");
-  b.innerHTML = `<span class="nom">${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")}</span>
-    <span class="petit">${c.debut ? `Depuis le ${dateFr(c.debut)}` : "Date de début à compléter"}${termine ? " · terminé" : ""}</span>
-    <span class="petit">${v.semaines || 52} semaines par an · ${v.accueil === "periscolaire" ? "périscolaire" : "journée"}${
-      semaine ? ` · ${heuresFr(semaine.total)} par semaine (${semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")})` : ""}</span>
-    ${nb ? `<span class="petit">${nb} avenant${nb > 1 ? "s" : ""}</span>` : ""}`;
-  b.addEventListener("click", () => editerContrat(c));
-  return b;
+  const ouverte = enfantOuvert === c.id;
+  const nom = `${echapper(c.enfant_prenom)} ${echapper(c.enfant_nom || "")}`;
+  carte.className = "carte-contrat enfant" + (termine ? " termine" : "") + (ouverte ? " ouverte" : "");
+  carte.dataset.contrat = c.id;
+  Object.assign(carte, { _contrat: c, _famille: famille });
+  carte.innerHTML = `<button type="button" class="entete-carte" aria-expanded="${ouverte}">
+      <span class="nom">${nom}</span>
+      <span class="petit">${c.debut ? `Depuis le ${dateFr(c.debut)}` : "Date de début à compléter"}${termine ? " · terminé" : ""}${
+        nb ? ` · ${nb} avenant${nb > 1 ? "s" : ""}` : ""}</span>
+      <span class="petit">${v.semaines || 52} semaines par an${semaine ? ` · ${heuresFr(semaine.total)} par semaine (${
+        semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")})` : ""}</span>
+      <span class="chevron" aria-hidden="true">${picto("chevron")}</span>
+      <span class="sr-only">${ouverte ? "Refermer" : "Ouvrir"} la fiche de ${nom}</span>
+    </button>`;
+  carte.querySelector(".entete-carte").addEventListener("click", () => basculerEnfant(c, carte, aujourdhui, famille));
+  if (ouverte) carte.appendChild(dossierEnfant(c, aujourdhui));
+  return carte;
+}
+
+function basculerEnfant(c, carte, aujourdhui, famille) {
+  const remplacer = (id) => {
+    const ancienne = $(`#liste-familles-contrats [data-contrat="${CSS.escape(id)}"]`);
+    if (ancienne) ancienne.replaceWith(carteEnfant(ancienne._contrat, aujourdhui, ancienne._famille));
+  };
+  const avant = enfantOuvert;
+  enfantOuvert = avant === c.id ? "" : c.id;
+  if (avant && avant !== c.id) remplacer(avant);
+  const nouvelle = carteEnfant(c, aujourdhui, famille);
+  carte.replaceWith(nouvelle);
+  nouvelle.querySelector(".entete-carte").focus({ preventScroll: true });
+  if (enfantOuvert) nouvelle.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// Fiche dépliée : contrat en vigueur, historique (contrat initial puis avenants), documents, actions.
+function dossierEnfant(c, aujourdhui) {
+  const div = document.createElement("div");
+  div.className = "dossier-enfant";
+  const liste = versionsDe(c);
+  const v = enVigueur(c, aujourdhui);
+  const enCours = (i) => (c.avenants || []).filter((a) => a.date && a.date <= aujourdhui).length === i;
+  const historique = liste.map((x, i) => {
+    const changes = i ? changementsEntre(liste[i - 1], x) : [];
+    const futur = i && x.date > aujourdhui;
+    return `<li class="${enCours(i) ? "en-cours" : ""}">
+      <p class="titre-version">${i ? `Avenant n° ${i}` : "Contrat de travail"}${enCours(i) ? ` <span class="etat-version">en vigueur</span>` : ""}${
+        futur ? ` <span class="etat-version a-venir">à venir</span>` : ""}</p>
+      <p class="petit">${i ? `À partir du ${dateFr(x.date)}${x.motif ? ` · ${echapper(x.motif)}` : ""}` : c.debut ? `Depuis le ${dateFr(c.debut)}` : "Date de début à compléter"}</p>
+      ${i ? `<p class="petit">${changes.length ? `Change : ${changes.join(", ")}.` : "Aucune condition modifiée."}</p>
+        <div class="actions-version">
+          <button type="button" class="action" data-pdf-avenant="${echapper(x.id)}">${picto("pdf")}PDF de l'avenant</button>
+          <button type="button" class="action" data-modifier-avenant="${echapper(x.id)}">${picto("modifier")}Modifier</button>
+          <button type="button" class="action danger" data-supprimer-avenant="${echapper(x.id)}">${picto("supprimer")}Supprimer</button>
+        </div>` : ""}
+    </li>`;
+  }).join("");
+  div.innerHTML = `
+    <div class="barre-dossier">
+      <button type="button" class="principal" data-avenant>${picto("avenant")}Créer un avenant</button>
+      <button type="button" class="secondaire" data-modifier-contrat>${picto("modifier")}Modifier le contrat de travail</button>
+      <button type="button" class="secondaire" data-pdf-contrat>${picto("pdf")}Contrat de travail (PDF)</button>
+      <button type="button" class="icone fermer-dossier" data-fermer title="Refermer la fiche" aria-label="Refermer la fiche">${picto("fermer")}</button>
+    </div>
+    <div class="resultat-dossier" role="status"></div>
+    <div class="colonnes-dossier">
+      <section class="contrat-aujourdhui"><h3>Contrat aujourd'hui</h3>
+        <p class="petit">${(c.avenants || []).some((a) => a.date && a.date <= aujourdhui) ? "Conditions du contrat, avenants compris." : "Conditions du contrat de travail."}</p>
+        ${resumeEnVigueur(c, v)}</section>
+      <div class="suivi-contrat">
+        <section><h3>Historique du contrat</h3><ol class="historique">${historique}</ol></section>
+        <section><h3>Documents</h3><ul class="documents" data-documents><li class="petit">Chargement…</li></ul></section>
+      </div>
+    </div>
+    <p class="pied-dossier"><button type="button" class="lien" data-une-page>Modifier la fiche sur une seule page</button>
+      <button type="button" class="lien danger" data-supprimer-fiche>${picto("supprimer")}Supprimer la fiche</button></p>`;
+  const resultat = div.querySelector(".resultat-dossier");
+  div.querySelector("[data-fermer]").addEventListener("click", () => div.closest(".carte-contrat").querySelector(".entete-carte").click());
+  div.querySelector("[data-avenant]").addEventListener("click", () => ouvrirAssistant(c, "avenant"));
+  div.querySelector("[data-modifier-contrat]").addEventListener("click", () => ouvrirAssistant(c, "modification"));
+  div.querySelector("[data-pdf-contrat]").addEventListener("click", () => creerContratTravail(c.id, resultat));
+  div.querySelector("[data-une-page]").addEventListener("click", () => editerContrat(c));
+  div.querySelector("[data-supprimer-fiche]").addEventListener("click", async () => {
+    if (!confirm(`Supprimer la fiche de ${c.enfant_prenom} ? Son contrat et ses avenants seront effacés de l'application (les PDF déjà créés restent dans votre dossier).`)) return;
+    try { await api("contrats/supprimer", { id: c.id }); } catch (err) { alert(err.message); return; }
+    enfantOuvert = "";
+    afficherContrats();
+  });
+  div.querySelectorAll("[data-pdf-avenant]").forEach((b) => b.addEventListener("click", () => creerAvenantPdf(c.id, b.dataset.pdfAvenant, resultat)));
+  div.querySelectorAll("[data-modifier-avenant]").forEach((b) => b.addEventListener("click", () => ouvrirAssistant(c, "avenant", b.dataset.modifierAvenant)));
+  div.querySelectorAll("[data-supprimer-avenant]").forEach((b) => b.addEventListener("click", async () => {
+    const n = (c.avenants || []).findIndex((a) => a.id === b.dataset.supprimerAvenant) + 1;
+    if (!confirm(`Supprimer l'avenant n° ${n} ? Les conditions précédentes s'appliqueront de nouveau (le PDF déjà créé reste dans votre dossier).`)) return;
+    try { await api("contrats", { ...c, avenants: c.avenants.filter((a) => a.id !== b.dataset.supprimerAvenant) }); } catch (err) { alert(err.message); return; }
+    afficherContrats();
+  }));
+  rafraichirDocuments(c.id, div.querySelector("[data-documents]"));
+  return div;
+}
+
+// Documents créés pour un enfant (contrat de travail, avenants) : un lien ouvre le PDF.
+async function rafraichirDocuments(contratId, zone) {
+  zone ??= $(`#liste-familles-contrats [data-contrat="${CSS.escape(contratId || "")}"] [data-documents]`);
+  if (!zone || !contratId) return;
+  const docs = await api("documents?contrat_id=" + encodeURIComponent(contratId)).catch(() => []);
+  zone.innerHTML = docs.length ? docs.map((d, i) => `<li class="${d.existe ? "" : "introuvable"}">
+      ${picto(d.existe ? "pdf" : "introuvable")}
+      <span><strong>${echapper(d.titre)}</strong><span class="petit">${d.existe ? `créé le ${dateFr(d.date.slice(0, 10))}`
+        : "fichier déplacé ou supprimé : recréez-le"}</span></span>
+      ${d.existe ? `<button type="button" class="action" data-doc="${i}">${picto("ouvrir")}Ouvrir</button>` : ""}</li>`).join("")
+    : `<li class="petit">Aucun document pour l'instant. Le contrat de travail et les avenants créés en PDF apparaîtront ici.</li>`;
+  zone.querySelectorAll("[data-doc]").forEach((b) => b.addEventListener("click", () =>
+    api("ouvrir", { quoi: docs[+b.dataset.doc].chemin }).catch((err) => alert(err.message))));
 }
 
 function coordonnees(f) {
@@ -1149,22 +1410,41 @@ async function afficherContrats() {
   zone.innerHTML = familles.length ? "" : `<p class="vide-classeur">Aucune famille pour l'instant : commencez par « Ajouter une famille ».</p>`;
   familles.forEach((f) => {
     const enfants = liste.filter((c) => (c.famille || "").trim().toLowerCase() === f.nom.toLowerCase());
-    const bloc = document.createElement("section");
+    const siens = brouillons.filter((b) => (b.contrat?.famille || "").toLowerCase() === f.nom.toLowerCase());
+    // Bloc repliable : on ne voit que le nom de la famille, le nombre d'enfants et la flèche ; ouvert par défaut,
+    // l'état choisi est gardé d'une visite à l'autre.
+    const bloc = document.createElement("details");
     bloc.className = "panneau famille";
     bloc.dataset.famille = f.nom;
+    bloc.open = !famillesRepliees.has(f.nom) || enfants.some((c) => c.id === enfantOuvert);
     const parents = [1, 2].map((n) => [f[`parent${n}_civilite`], f[`parent${n}_prenom`], f[`parent${n}_nom`]].filter(Boolean).join(" ")).filter(Boolean);
-    bloc.innerHTML = `<div class="titre-panneau"><h2>Famille ${echapper(nomFamille(f))}</h2>
-        <div class="boutons-famille"><button class="secondaire" data-modifier>${f.id ? "Modifier la famille" : "Compléter la fiche famille"}</button>
-        <button class="principal" data-enfant>Ajouter un enfant</button></div></div>
-      <p class="petit">${echapper(parents.join(" et ") || "Parents à compléter")}${f.id ? "" : " · fiche famille à compléter"}</p>
-      ${coordonnees(f)}
-      <div class="cartes-contrats"></div>`;
-    enfants.forEach((c) => bloc.querySelector(".cartes-contrats").appendChild(carteEnfant(c, aujourdhui)));
-    const siens = brouillons.filter((b) => (b.contrat?.famille || "").toLowerCase() === f.nom.toLowerCase());
+    const actifs = enfants.filter((c) => !(c.fin && c.fin < aujourdhui)).length;
+    const compte = [enfants.length ? `${enfants.length} enfant${enfants.length > 1 ? "s" : ""}` : "aucun enfant",
+      enfants.length && actifs < enfants.length ? `${enfants.length - actifs} terminé${enfants.length - actifs > 1 ? "s" : ""}` : "",
+      siens.length ? `${siens.length} brouillon${siens.length > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ");
+    bloc.innerHTML = `<summary class="entete-famille">
+        <span class="picto-famille" aria-hidden="true">${picto("famille")}</span>
+        <span class="titre-famille"><h2>Famille ${echapper(nomFamille(f))}</h2><span class="compte">${compte}</span></span>
+        <span class="chevron" aria-hidden="true">${picto("chevron")}</span>
+      </summary>
+      <div class="contenu-famille">
+        <div class="infos-famille">
+          <div><p class="petit">${echapper(parents.join(" et ") || "Parents à compléter")}${f.id ? "" : " · fiche famille à compléter"}</p>
+          ${coordonnees(f)}</div>
+          <div class="boutons-famille"><button class="secondaire" data-modifier>${picto("modifier")}${f.id ? "Modifier la famille" : "Compléter la fiche famille"}</button>
+          <button class="principal" data-enfant>${picto("enfant")}Ajouter un enfant</button></div>
+        </div>
+        <div class="cartes-contrats"></div>
+      </div>`;
+    enfants.forEach((c) => bloc.querySelector(".cartes-contrats").appendChild(carteEnfant(c, aujourdhui, f)));
     siens.forEach((b) => bloc.querySelector(".cartes-contrats").appendChild(carteBrouillon(b)));
     if (!enfants.length && !siens.length) bloc.querySelector(".cartes-contrats").innerHTML = `<p class="petit">Aucun enfant pour l'instant.</p>`;
     bloc.querySelector("[data-modifier]").addEventListener("click", () => editerFamille(f));
     bloc.querySelector("[data-enfant]").addEventListener("click", () => demarrerAssistant(f.nom));
+    bloc.addEventListener("toggle", () => {
+      if (bloc.open) famillesRepliees.delete(f.nom); else famillesRepliees.add(f.nom);
+      noterRepliees();
+    });
     zone.appendChild(bloc);
   });
   // Familles des bulletins qui n'ont pas encore de fiche : création en un clic.
@@ -1193,7 +1473,7 @@ async function afficherContrats() {
 
 // Les formulaires s'ouvrent juste sous la famille concernée (en haut de la liste pour une nouvelle famille).
 function placerSous(formulaire, cleFamille) {
-  const bloc = $$("#liste-familles-contrats > section.famille").find((b) => b.dataset.famille === cleFamille);
+  const bloc = $$("#liste-familles-contrats > .famille").find((b) => b.dataset.famille === cleFamille);
   if (bloc) bloc.after(formulaire); else $("#liste-familles-contrats").before(formulaire);
 }
 
@@ -1235,7 +1515,9 @@ formFamille.addEventListener("submit", async (e) => {
 
 const NOUVELLE_FAMILLE = "__nouvelle";
 
-function editerContrat(c, famille, assistant = false) {
+function editerContrat(c, famille, mode = "fiche", avenantId = "") {
+  const assistant = mode !== "fiche";
+  modeSaisie = mode;
   contratEdite = c;
   formFamille.classList.add("cache");
   formContrat.reset();
@@ -1247,14 +1529,22 @@ function editerContrat(c, famille, assistant = false) {
     if (champ.type === "radio") { champ.checked = champ.value === (c?.[champ.name] || ""); continue; }
     champ.value = c?.[champ.name] || DEFAUTS_CONTRAT[champ.name] || (champ.tagName === "SELECT" ? champ.options[0]?.value ?? "" : "");
   }
-  ecrireFeries(c?.feries_travailles);
   // Nouvelle fiche : période d'essai de 2 mois proposée ; fiche existante sans essai renseigné : case décochée.
   ecrireEssai(c ? c.essai : ESSAI_DEFAUT);
   calculerAdaptation();
   $("#contrat-cree").textContent = "";
   if (!c && famille) formContrat.elements.famille.value = famille;
-  versions = [conditions(c), ...(c?.avenants || []).map((a) => ({ ...conditions(a), id: a.id, date: a.date, motif: a.motif }))];
-  chargerVersion(0);
+  versions = versionsDe(c);
+  if (mode === "avenant") {
+    // Nouvel avenant : il part des conditions les plus récentes ; avenant existant : on le reprend.
+    let i = versions.findIndex((v, n) => n && v.id === avenantId);
+    if (i < 0) {
+      versions.push({ ...structuredClone(versions[versions.length - 1]), id: "", date: "", motif: "",
+        signature_lieu: profilConnu.ville || "", signature_date: "" });
+      i = versions.length - 1;
+    }
+    chargerVersion(i);
+  } else chargerVersion(0);
   proposerSelonFamille();
   const fam = familles.find((f) => f.nom === (c?.famille || famille));
   $("#titre-form-contrat").textContent = c ? `${c.enfant_prenom} ${c.enfant_nom || ""}` : `Nouvel enfant${fam ? ` · famille ${nomFamille(fam)}` : ""}`;
@@ -1265,6 +1555,8 @@ function editerContrat(c, famille, assistant = false) {
   if (assistant) {
     remplirEmployeur();
     if (!formContrat.elements.signature_lieu.value) formContrat.elements.signature_lieu.value = profilConnu.ville || "";
+    etapesVues.clear();
+    if (mode !== "nouveau") etapes().forEach((_, i) => etapesVues.add(i));
     allerEtape(0);
   } else {
     marquerRemplis(formContrat);
@@ -1274,7 +1566,8 @@ function editerContrat(c, famille, assistant = false) {
 }
 
 // --- assistant « Ajouter un enfant » : tout le contrat de travail, en plein écran, une étape à la fois
-const etapes = () => $$("#form-contrat [data-etape]");
+const etapes = () => $$("#form-contrat [data-etape]").filter((e) =>
+  (modeSaisie === "avenant" ? ETAPES_AVENANT.includes(e.dataset.etape) : e.dataset.etape !== "avenant"));
 let etapeActive = 0;
 let profilConnu = {};
 // Rubriques du profil reprises dans le contrat (même liste que contrat_travail.REQUIS_PROFIL).
@@ -1288,8 +1581,16 @@ function modeAssistant(actif) {
   $("#assistant-fin").classList.add("cache");
   $("#assistant-nav").classList.remove("cache");
   $("#assistant-quitter").classList.remove("cache");
-  // Dans l'assistant, toutes les informations du contrat de travail sont demandées.
-  $$("#form-contrat [data-requis]").forEach((c) => (c.required = actif));
+  formContrat.classList.toggle("mode-avenant", modeSaisie === "avenant");
+  $("#titre-signature").textContent = modeSaisie === "avenant" ? "Signature de l'avenant" : "Signature du contrat";
+  $("#assistant-brouillon").closest(".assistant-brouillon").classList.toggle("invisible", modeSaisie !== "nouveau");
+  // Dans l'assistant, toutes les informations du contrat de travail sont demandées (pour un avenant :
+  // celles des étapes de l'avenant).
+  // Un avenant ne cite que ce qui change : seule sa date d'effet est alors obligatoire (une ancienne fiche
+  // incomplète ne doit pas bloquer l'avenant).
+  const visibles = new Set(etapes());
+  $$("#form-contrat [data-requis]").forEach((c) => (c.required = actif && visibles.has(c.closest("[data-etape]"))
+    && (modeSaisie !== "avenant" || c.id === "av-date")));
   formContrat.querySelectorAll(".mention:not(.calcule)").forEach((m) => m.remove());
   marquerChamps(formContrat);
   afficherEssai();
@@ -1314,8 +1615,11 @@ function allerEtape(n) {
     echapper(e.dataset.titre)}</button></li>`).join("");
   $("#assistant-plan [aria-current]")?.scrollIntoView({ block: "nearest", inline: "center" });
   $("#assistant-precedent").classList.toggle("invisible", !etapeActive);
-  $("#assistant-suivant").textContent = reste ? "Suivant" : "Enregistrer la fiche";
-  if (liste[etapeActive].dataset.etape === "signature") afficherRecapitulatif();
+  $("#assistant-suivant").textContent = reste ? "Suivant" : modeSaisie === "avenant" ? "Enregistrer l'avenant" : "Enregistrer la fiche";
+  if (liste[etapeActive].dataset.etape === "signature") (modeSaisie === "avenant" ? afficherRecapAvenant : afficherRecapitulatif)();
+  if (liste[etapeActive].dataset.etape === "avenant") $("#resume-avant").innerHTML = `<h3 class="sous-titre">${
+    versionActive > 1 ? `Conditions de l'avenant n° ${versionActive - 1}` : "Conditions du contrat de travail"} (avant cet avenant)</h3>
+    ${resumeEnVigueur(contratEdite, versions[versionActive - 1])}`;
   if (liste[etapeActive].dataset.etape === "remuneration") afficherResume();
   formContrat.scrollTo(0, 0);
   liste[etapeActive].querySelector("input:not([type=checkbox]):not([type=radio]), select, textarea")?.focus({ preventScroll: true });
@@ -1328,6 +1632,20 @@ $("#assistant-plan").addEventListener("click", (e) => {
 function etapeValide(el) {
   const invalide = [...el.querySelectorAll("input, select, textarea")].find((c) => c.offsetParent !== null && !c.checkValidity());
   if (invalide) { invalide.reportValidity(); return false; }
+  if (el.dataset.etape === "avenant") {
+    const date = $("#av-date").value, debut = formContrat.elements.debut.value;
+    const autre = versions.some((v, n) => n && n !== versionActive && v.date === date);
+    $("#av-date").setCustomValidity(debut && date && date <= debut ? `La date d'effet doit être après le début du contrat (${dateFr(debut)}).`
+      : autre ? "Un autre avenant prend déjà effet à cette date." : "");
+    if (!$("#av-date").reportValidity()) return false;
+  }
+  if (el.dataset.etape === "signature" && modeSaisie === "avenant") {
+    sauverVersion();
+    if (!MODIFIABLES.some((k) => !memeValeur(versions[versionActive - 1][k], versions[versionActive][k]))) {
+      alert("Cet avenant ne change aucune condition : modifiez au moins une rubrique (horaires, salaire…) aux étapes précédentes.");
+      return false;
+    }
+  }
   if (el.dataset.etape === "horaires" && formContrat.elements.planning.value !== "oui" && !resumeSemaine(lireHoraires("scolaire"))) {
     alert("Indiquez l'emploi du temps de l'enfant : heure d'arrivée et heure de départ des jours d'accueil.");
     return false;
@@ -1380,7 +1698,7 @@ $("#assistant-brouillon").addEventListener("click", async () => {
 
 async function reprendreBrouillon(b) {
   profilConnu = await api("profil").catch(() => ({}));
-  editerContrat({ ...b.contrat, avenants: [] }, "", true);
+  editerContrat({ ...b.contrat, avenants: [] }, "", "nouveau");
   contratEdite = null;
   brouillonEdite = b.id;
   etapesVues.clear();
@@ -1419,12 +1737,12 @@ function champsFiche() {
     if (champ.type === "radio") { if (champ.checked || !(champ.name in d)) d[champ.name] = champ.checked ? champ.value : ""; }
     else d[champ.name] = champ.value;
   }
-  d.feries_travailles = lireFeries();
   return d;
 }
 
 function fermerContrat() {
   formContrat.classList.add("cache");
+  modeSaisie = "fiche";
   modeAssistant(false);
 }
 
@@ -1460,24 +1778,60 @@ function afficherRecapitulatif() {
     <p class="petit">Après l'enregistrement, vous pourrez créer le contrat de travail en PDF, sur le modèle officiel de l'Urssaf.</p>`;
 }
 
+// Avenant : récapitulatif de ce qui change (le PDF de l'avenant ne cite que ces lignes).
+function texteCondition(k, v) {
+  if (k.startsWith("horaires")) { const r = resumeSemaine(v[k] || {}); return r ? `${heuresFr(r.total)} par semaine (${r.detail})` : "aucun"; }
+  if (k === "feries_travailles") return (v[k] || "").split(",").filter(Boolean).map((x) => FERIES[x.trim()] || x).join(", ") || "aucun";
+  const champ = formContrat.elements[k];
+  const brut = valeurAffichee(k, v);
+  const texte = champ.tagName === "SELECT" ? [...champ.options].find((o) => o.value === brut)?.textContent.trim() : brut;
+  if (!texte || texte === "—") return "non précisé";
+  const unite = { tarif_horaire: " €", tarif_complementaire: " €", entretien_jour: " €", repas_jour: " €", frais_km: " €",
+    taux_majoration: " %", ferie_majoration: " %" }[k] || "";
+  return texte + (unite && /\d$/.test(texte) ? unite : "");
+}
+function afficherRecapAvenant() {
+  sauverVersion();
+  const v = versions[versionActive], avant = versions[versionActive - 1];
+  const changes = MODIFIABLES.filter((k) => !memeValeur(avant[k], v[k]));
+  $("#recapitulatif").innerHTML = `<h3 class="sous-titre">Ce qui change le ${v.date ? dateFr(v.date) : "(date à choisir)"}</h3>
+    ${changes.length ? `<table class="tableau-changements"><thead><tr><th scope="col">Condition</th><th scope="col">Avant</th>
+      <th scope="col">À partir du ${v.date ? dateFr(v.date) : "…"}</th></tr></thead><tbody>${changes.map((k) => `<tr>
+      <th scope="row">${LIBELLES[k].charAt(0).toUpperCase() + LIBELLES[k].slice(1)}</th>
+      <td>${echapper(texteCondition(k, avant))}</td><td><strong>${echapper(texteCondition(k, v))}</strong></td></tr>`).join("")}</tbody></table>
+      <p class="petit">Les autres clauses du contrat restent inchangées.</p>`
+    : `<p class="alerte-texte">Aucune condition n'a changé : revenez aux étapes précédentes pour modifier ce qui change.</p>`}`;
+}
+
 async function demarrerAssistant(famille) {
   profilConnu = await api("profil").catch(() => ({}));
   brouillonEdite = null;
   brouillonAJour = false;
   etapesVues.clear();
-  editerContrat(null, famille, true);
+  editerContrat(null, famille, "nouveau");
+}
+
+// Contrat existant : modification ou avenant, avec l'assistant plein écran.
+async function ouvrirAssistant(c, mode, avenantId = "") {
+  profilConnu = await api("profil").catch(() => ({}));
+  brouillonEdite = null;
+  brouillonAJour = true;
+  editerContrat(c, c.famille, mode, avenantId);
 }
 $("#nouvel-enfant").addEventListener("click", async () => { await afficherContrats(); demarrerAssistant(""); });
 
-// Contrat de travail en PDF : résultat affiché avec un lien pour l'ouvrir.
-async function creerContratTravail(contratId, zone) {
-  zone.innerHTML = `<p class="petit">Création du contrat…</p>`;
+// Contrat de travail ou avenant en PDF : résultat affiché avec un lien pour l'ouvrir.
+const creerAvenantPdf = (contratId, avenantId, zone) => creerContratTravail(contratId, zone, avenantId);
+async function creerContratTravail(contratId, zone, avenantId = "") {
+  zone.innerHTML = `<p class="petit">Création du ${avenantId ? "PDF de l'avenant" : "contrat"}…</p>`;
   try {
-    const r = await api("contrat-travail", { contrat_id: contratId || "" });
-    zone.innerHTML = `<p>Contrat enregistré : ${echapper(r.chemin)} <button type="button" class="lien" data-ouvrir-pdf>Ouvrir</button></p>
+    const r = avenantId ? await api("avenant-pdf", { contrat_id: contratId, avenant_id: avenantId })
+      : await api("contrat-travail", { contrat_id: contratId || "" });
+    zone.innerHTML = `<p>${avenantId ? "Avenant" : "Contrat"} enregistré : ${echapper(r.chemin)} <button type="button" class="lien" data-ouvrir-pdf>Ouvrir</button></p>
       ${r.manquants.length ? `<p class="alerte-texte">Rubriques laissées vides (à compléter dans le PDF, ou dans les fiches avant de le recréer) :
         ${r.manquants.map(echapper).join(", ")}.</p>` : ""}`;
     zone.querySelector("[data-ouvrir-pdf]").addEventListener("click", () => api("ouvrir", { quoi: r.chemin }).catch((err) => alert(err.message)));
+    rafraichirDocuments(contratId);
   } catch (err) { zone.innerHTML = `<p class="alerte-texte">${echapper(err.message)}</p>`; }
 }
 
@@ -1497,9 +1851,13 @@ formContrat.addEventListener("submit", async (e) => {
   const pdf = pdfApresEnregistrement;
   pdfApresEnregistrement = false;
   const assistant = formContrat.classList.contains("assistant");
+  const mode = modeSaisie;
   sauverVersion();
   const d = { id: contratEdite?.id, ...versions[0], avenants: versions.slice(1) };
   Object.assign(d, champsFiche());
+  // Avenant : la signature saisie est celle de l'avenant ; celle du contrat ne change pas.
+  if (mode === "avenant") { d.signature_lieu = contratEdite.signature_lieu || ""; d.signature_date = contratEdite.signature_date || ""; }
+  const avenantSaisi = mode === "avenant" ? versions[versionActive] : null;
   const sansDate = d.avenants.findIndex((a) => !a.date);
   const tropTot = d.avenants.findIndex((a) => d.debut && a.date && a.date <= d.debut);
   if (sansDate >= 0 || tropTot >= 0) {
@@ -1510,7 +1868,7 @@ formContrat.addEventListener("submit", async (e) => {
   }
   let enregistre;
   try {
-    if (assistant) {
+    if (assistant && mode !== "avenant") {
       // La fiche famille est créée ou mise à jour avec les informations du parent employeur.
       const avant = familles.find((x) => x.nom === d.famille);
       const f = { ...(avant || {}), id: avant?.id || "", nom: avant?.nom || "" };
@@ -1526,16 +1884,25 @@ formContrat.addEventListener("submit", async (e) => {
     // Fin de l'assistant : proposition de créer le contrat de travail tout de suite.
     etapes().forEach((x) => x.classList.remove("etape-active"));
     $("#assistant-etape").textContent = "Terminé";
-    $("#assistant-titre").textContent = `La fiche de ${enregistre.enfant_prenom} est enregistrée`;
     $("#assistant-barre").style.width = "100%";
     $("#assistant-plan").innerHTML = "";
     const fin = $("#assistant-fin");
-    fin.innerHTML = `<p>Toutes les informations du contrat sont enregistrées. Vous pouvez maintenant créer le contrat de travail,
+    const av = avenantSaisi && enregistre.avenants.find((a) => a.date === avenantSaisi.date);
+    const numero = av ? enregistre.avenants.indexOf(av) + 1 : 0;
+    $("#assistant-titre").textContent = av ? `L'avenant n° ${numero} de ${enregistre.enfant_prenom} est enregistré`
+      : mode === "modification" ? `Le contrat de ${enregistre.enfant_prenom} est modifié` : `La fiche de ${enregistre.enfant_prenom} est enregistrée`;
+    fin.innerHTML = av ? `<p>L'avenant prend effet le ${dateFr(av.date)}. Créez-le en PDF : il ne cite que ce qui change,
+        à imprimer en deux exemplaires et à signer avec la famille.</p>
+        <div class="boutons"><button type="button" class="principal" data-creer>Créer l'avenant (PDF)</button>
+        <button type="button" class="secondaire" data-fermer>Fermer</button></div><div data-resultat role="status"></div>`
+      : `<p>Toutes les informations du contrat sont enregistrées. Vous pouvez maintenant créer le contrat de travail,
       rempli sur le modèle officiel de l'Urssaf, à imprimer en deux exemplaires et à signer avec la famille.</p>
       <div class="boutons"><button type="button" class="principal" data-creer>Créer le contrat de travail (PDF)</button>
       <button type="button" class="secondaire" data-fermer>Fermer</button></div><div data-resultat role="status"></div>`;
     fin.classList.remove("cache");
-    fin.querySelector("[data-creer]").addEventListener("click", () => creerContratTravail(enregistre.id, fin.querySelector("[data-resultat]")));
+    fin.querySelector("[data-creer]").addEventListener("click", () => (av
+      ? creerAvenantPdf(enregistre.id, av.id, fin.querySelector("[data-resultat]"))
+      : creerContratTravail(enregistre.id, fin.querySelector("[data-resultat]"))));
     fin.querySelector("[data-fermer]").addEventListener("click", fermerContrat);
     $("#assistant-nav").classList.add("cache");
     $("#assistant-quitter").classList.add("cache");
