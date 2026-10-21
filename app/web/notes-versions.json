@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.8.1",
+    "date": "2026-10-21",
+    "titre": "Familles plus lisibles",
+    "nouveautes": [
+      "Familles et contrats : les familles sont repliées à l'ouverture de la page ; un clic sur une famille l'ouvre. En recherchant un nom ou un prénom, les familles trouvées s'ouvrent toutes seules.",
+      "Les informations de chaque famille (parents, adresse, téléphone, e-mail, n° Pajemploi) ont chacune leur pictogramme et sont plus espacées.",
+      "« Modifier la famille » ouvre le formulaire directement dans l'encadré de la famille.",
+      "Fiche d'un enfant : la flèche en haut à droite l'ouvre et la referme (la croix a été retirée)."
+    ]
+  },
+  {
     "version": "1.8.0",
     "date": "2026-10-21",
     "titre": "Des repères visuels partout",
