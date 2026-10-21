@@ -200,6 +200,19 @@ def creer_app(port, jeton):
     def ecrire_contrat():
         return jsonify(donnees.enregistrer_contrat(request.get_json(force=True)))
 
+    @app.get("/api/brouillons")
+    def lire_brouillons():
+        return jsonify(donnees.brouillons())
+
+    @app.post("/api/brouillons")
+    def ecrire_brouillon():
+        return jsonify(donnees.enregistrer_brouillon(request.get_json(force=True)))
+
+    @app.post("/api/brouillons/supprimer")
+    def supprimer_brouillon():
+        donnees.supprimer_brouillon(request.get_json(force=True).get("id", ""))
+        return jsonify({"ok": True})
+
     @app.post("/api/contrats/supprimer")
     def supprimer_contrat():
         donnees.supprimer_contrat(request.get_json(force=True).get("id", ""))

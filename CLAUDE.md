@@ -190,3 +190,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (avec `data-titre`) est une étape, dans l'ordre du DOM. Les champs `data-requis` ne sont obligatoires que dans
   l'assistant (les anciennes fiches restent enregistrables). Les champs `f_*` (parent employeur) vont dans la fiche
   famille, créée ou mise à jour avant la fiche enfant. Modifier une fiche existante reste un formulaire en ligne.
+- Assistant, suite : brouillons dans `donnees\brouillons.json` (`donnees.brouillons()`, routes `/api/brouillons`), jamais
+  comptés comme fiches ; supprimés à l'enregistrement de la fiche. Champs calculés : `<div class="champ-calcule">` avec
+  `<output>` (fonction JS `calcule(id, valeur, aide)`). Dans `.grille-champs`, chaque enfant occupe 3 lignes en
+  `subgrid` (intitulé / champ / aide) pour que les champs d'une ligne s'alignent : `marquerChamps` regroupe le texte du
+  libellé dans `.intitule`. `essai` = « 2 mois », « 6 semaines »… ou « aucune ». Heures complémentaires : %
+  (`#taux-complementaire`, non enregistré) ⇄ `tarif_complementaire` ; heures majorées : `taux_majoration` ⇄
+  `#tarif-majore` (non enregistré) ; `afficherNetHoraire(source)` recalcule l'autre champ.

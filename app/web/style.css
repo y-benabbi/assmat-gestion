@@ -242,7 +242,7 @@ pre#journal { font-size: 0.8rem; max-height: 280px; overflow: auto; white-space:
 
 /* ---------------------------------------------------------------- formulaires */
 .formulaire { max-width: 720px; }
-fieldset { border: 0; margin: 0 0 18px; padding: 22px 24px; background: var(--papier); border-radius: 16px; }
+fieldset { min-width: 0; border: 0; margin: 0 0 18px; padding: 22px 24px; background: var(--papier); border-radius: 16px; }
 legend { float: left; width: 100%; font-size: 1.2rem; margin-bottom: 8px; padding: 0; }
 legend + * { clear: both; }
 label { display: block; margin: 14px 0; }
@@ -542,6 +542,63 @@ form.assistant .assistant-nav { display: flex; justify-content: space-between; p
 form.assistant .assistant-nav button { min-width: 160px; }
 .assistant-fin { background: var(--papier); border-radius: 16px; padding: 22px 24px; }
 @media (max-width: 600px) {
-  .assistant-plan { display: none; }
+  .assistant-plan { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  .assistant-plan li { flex: none; }
   form.assistant .assistant-nav button { min-width: 0; flex: 1; }
+}
+
+/* rubriques des formulaires, choix, période d'essai, brouillons */
+[data-etape] > .sous-titre:first-child { border-top: 0; padding-top: 0; margin-top: 4px; }
+.groupe-radios { margin: 14px 0; }
+.titre-champ { display: block; }
+.radios { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 10px; }
+.radios .case-a-cocher { margin: 0; }
+.grille-champs .large { grid-column: 1 / -1; }
+.assistant-plan button { font: inherit; border: 0; background: none; color: inherit; padding: 0; cursor: pointer; }
+.assistant-plan li:has(button.faite) { background: var(--menthe); color: var(--menthe-encre); }
+.assistant-plan li:has(button.active) { background: var(--eucalyptus); color: #fff; font-weight: 700; }
+.assistant-plan li:hover { box-shadow: 0 0 0 2px var(--eucalyptus); }
+.assistant-brouillon { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.assistant-brouillon .petit { min-height: 1em; }
+.carte-contrat.brouillon { background: var(--tournesol-clair) !important; }
+.carte-contrat.brouillon:hover { box-shadow: none; }
+.etiquette-brouillon { justify-self: start; font-size: 0.75rem; font-weight: 700; background: var(--tournesol);
+  border-radius: 99px; padding: 1px 10px; }
+.boutons-brouillon { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 6px; }
+.lien.danger { color: var(--erreur); }
+@media (max-width: 600px) {
+  form.assistant .assistant-nav { flex-wrap: wrap; }
+  .assistant-brouillon { order: 3; flex-basis: 100%; }
+}
+.radios input, .case-a-cocher input { width: auto; flex: none; }
+.radios .case-a-cocher { white-space: nowrap; }
+
+/* outils des plages horaires */
+.outils-plage { display: inline-flex; gap: 2px; margin-left: 2px; }
+.icone { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
+  background: transparent; color: var(--encre-douce); cursor: pointer; }
+.icone svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icone:hover { background: var(--eucalyptus-clair); color: var(--eucalyptus-fonce); }
+.horaires:not(.a-coller) [data-outil=coller] { opacity: 0.3; pointer-events: none; }
+.plage.copiee input { box-shadow: 0 0 0 2px var(--tournesol); }
+
+/* champs remplis, champs calculés, alignement des champs d'une même ligne */
+input.rempli:not(.recherche), select.rempli, textarea.rempli { background: #fff; border-color: var(--eucalyptus-clair); }
+.grille-champs { grid-auto-rows: auto; }
+.grille-champs > * { grid-row: span 3; }
+.grille-champs > label, .grille-champs > .champ-calcule, .grille-champs > .groupe-radios {
+  display: grid; grid-template-rows: subgrid; grid-row: span 3; align-content: start; margin: 14px 0 0; }
+.grille-champs > * > .intitule, .grille-champs > .groupe-radios > .titre-champ { align-self: end; }
+.grille-champs > label > input, .grille-champs > label > select { align-self: start; }
+.champ-calcule output { display: flex; align-items: center; min-height: 46px; margin-top: 6px; padding: 8px 12px;
+  border-radius: 10px; border: 2px dashed var(--eucalyptus); background: var(--eucalyptus-clair);
+  font-weight: 700; color: var(--eucalyptus-fonce); }
+.champ-calcule.vide output { font-weight: 400; color: var(--encre-douce); border-color: var(--trait); background: var(--brume); }
+.mention.calcule { color: var(--eucalyptus-fonce); background: var(--eucalyptus-clair); border: 1px solid var(--eucalyptus); }
+.grille-champs.trois { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grille-champs.ligne-essai { grid-template-columns: 8em 11em minmax(0, 1fr); }
+@media (max-width: 600px) {
+  .grille-champs.trois { grid-template-columns: 1fr; }
+  .grille-champs.ligne-essai { grid-template-columns: 1fr 1fr; }
+  .grille-champs.ligne-essai .champ-calcule { grid-column: 1 / -1; }
 }

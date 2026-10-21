@@ -14,6 +14,7 @@ from chemins import DOSSIER_DONNEES
 FICHIER_PROFIL = DOSSIER_DONNEES / "profil.json"
 FICHIER_CONTRATS = DOSSIER_DONNEES / "contrats.json"
 FICHIER_FAMILLES = DOSSIER_DONNEES / "familles.json"
+FICHIER_BROUILLONS = DOSSIER_DONNEES / "brouillons.json"
 
 CHAMPS_PROFIL = {
     "civilite": "Madame",
@@ -68,7 +69,7 @@ CHAMPS_CONTRAT = {
     "enfant_prenom": "",
     "enfant_nom": "",
     "enfant_naissance": "",        # AAAA-MM-JJ
-    "enfant_genre": "",            # « fille » ou « garcon » (accords dans les courriers)
+    "enfant_genre": "",            # « fille », « garcon » ou « autre » (accords dans les courriers)
     "debut": "",                   # début de l'accueil
     "fin": "",                     # vide : contrat en cours
     "semaines": "52",              # semaines d'accueil par an : « 52 » (année complète) ou moins
@@ -82,7 +83,7 @@ CHAMPS_CONTRAT = {
     "horaires_vacances": {},
     "notes": "",
     # Contrat de travail (modèle CDI Pajemploi), hors conditions modifiables par avenant.
-    "essai": "",                   # durée de la période d'essai, en texte (« 2 mois »)
+    "essai": "",                   # durée de la période d'essai, en texte (« 2 mois ») ; « aucune » s'il n'y en a pas
     "adaptation_jours": "", "adaptation_debut": "", "adaptation_fin": "",
     "delai_prevenance": "",        # pour modifier les jours et horaires (« 15 jours »)
     "planning": "",                # « oui » : horaires fixés par un planning écrit (année incomplète)
@@ -93,7 +94,7 @@ CHAMPS_CONTRAT = {
     "frais_km": "",                # € par km
     "jour_paiement": "",           # jour du mois où le salaire est versé
     "repos_jour": "dimanche",
-    "repos_travaille": "majore",   # « majore » (payé + 25 %) ou « recupere » (repos + 25 %)
+    "repos_travaille": "",         # « majore » (payé + 25 %), « recupere » (repos + 25 %) ou vide (non précisé)
     "premier_mai": "chome",        # « chome » ou « travaille »
     "feries_travailles": "",       # clés de contrat_travail.FERIES séparées par des virgules
     "ferie_majoration": "10",      # % pour un jour férié ordinaire travaillé (10 % au moins)
@@ -297,6 +298,32 @@ def supprimer_contrat(ident: str) -> bool:
         reste = [x for x in liste if x.get("id") != ident]
         _ecrire(FICHIER_CONTRATS, reste)
     return len(reste) != len(liste)
+
+
+# Brouillons de l'assistant « Ajouter un enfant » : saisie en cours, reprise plus tard. Ils ne comptent
+# nulle part ailleurs (échéances, impôts, courriers) tant que la fiche n'est pas enregistrée.
+def brouillons() -> list:
+    with _verrou:
+        liste = [b for b in _lire(FICHIER_BROUILLONS, []) if isinstance(b, dict)]
+    return sorted(liste, key=lambda b: b.get("date", ""), reverse=True)
+
+
+def enregistrer_brouillon(b: dict) -> dict:
+    from datetime import datetime
+    famille = b.get("famille") if isinstance(b.get("famille"), dict) else {}
+    propre = {"id": str(b.get("id") or secrets.token_hex(4)), "date": datetime.now().isoformat(timespec="seconds"),
+              "etape": int(b.get("etape") or 0),
+              "contrat": b.get("contrat") if isinstance(b.get("contrat"), dict) else {},
+              "famille": {str(k): str(v) for k, v in famille.items()}}
+    with _verrou:
+        liste = [x for x in _lire(FICHIER_BROUILLONS, []) if isinstance(x, dict) and x.get("id") != propre["id"]]
+        _ecrire(FICHIER_BROUILLONS, liste + [propre])
+    return propre
+
+
+def supprimer_brouillon(ident: str) -> None:
+    with _verrou:
+        _ecrire(FICHIER_BROUILLONS, [x for x in _lire(FICHIER_BROUILLONS, []) if isinstance(x, dict) and x.get("id") != ident])
 
 
 def _semaines(c: dict) -> int:

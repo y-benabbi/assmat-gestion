@@ -229,20 +229,37 @@ function appliquerFiltres() { $$("[data-filtre]").forEach(appliquerFiltre); }
 document.addEventListener("input", (e) => { if (e.target.matches?.("[data-filtre]")) appliquerFiltre(e.target); });
 
 // ------------------------------------------------------------- champs obligatoires et facultatifs
-// Chaque libellé de formulaire reçoit la mention « obligatoire » ou « facultatif ».
+// Chaque libellé de formulaire reçoit la mention « obligatoire » ou « facultatif ». Le texte du libellé est
+// regroupé dans <span class="intitule"> : dans une grille, les champs d'une même ligne s'alignent ainsi.
 function marquerChamps(formulaire) {
   formulaire.querySelectorAll("label").forEach((label) => {
     const champ = label.querySelector("input, select, textarea");
     if (!champ || ["checkbox", "radio", "hidden"].includes(champ.type) || label.querySelector(".mention")) return;
+    let intitule = label.querySelector(":scope > .intitule");
+    if (!intitule) {
+      const avant = [];
+      for (const n of label.childNodes) { if (n === champ || n.contains?.(champ)) break; avant.push(n); }
+      if (!avant.some((n) => n.textContent.trim())) return;
+      intitule = document.createElement("span");
+      intitule.className = "intitule";
+      avant.forEach((n) => intitule.appendChild(n));
+      label.prepend(intitule);
+    }
     const obligatoire = champ.required || champ.hasAttribute("data-obligatoire");
-    const texte = [...label.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
-    if (!texte) return;
     const mention = document.createElement("span");
     mention.className = "mention" + (obligatoire ? " obligatoire" : "");
     mention.textContent = obligatoire ? "obligatoire" : "facultatif";
-    texte.after(mention);
+    intitule.appendChild(mention);
   });
 }
+
+// Champs remplis légèrement mis en valeur (et rafraîchis après chaque remplissage par le programme).
+function marquerRemplis(racine = document) {
+  racine.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea")
+    .forEach((c) => c.classList.toggle("rempli", !!c.value.trim()));
+}
+document.addEventListener("input", (e) => { if (e.target.matches?.("input, select, textarea")) marquerRemplis(e.target.parentElement); });
+document.addEventListener("change", (e) => { if (e.target.matches?.("input, select, textarea")) marquerRemplis(e.target.parentElement); });
 $$("form.formulaire").forEach(marquerChamps);
 
 function echapper(t) {
@@ -663,7 +680,7 @@ const MODIFIABLES = ["semaines", "accueil", "tarif_horaire", "entretien_jour", "
 const CHAMPS_SIMPLES = MODIFIABLES.filter((k) => !k.startsWith("horaires"));
 // Valeurs proposées pour une nouvelle fiche (les autres champs commencent vides).
 const DEFAUTS_CONTRAT = { semaines: "52", taux_majoration: "10", ferie_majoration: "10", repos_jour: "dimanche",
-  repos_travaille: "majore", premier_mai: "chome" };
+  premier_mai: "chome" };
 // Jours fériés ordinaires (mêmes clés que contrat_travail.FERIES).
 const FERIES = { "1er janvier": "1er janvier", "vendredi saint": "Vendredi saint (Alsace-Moselle)", "lundi de paques": "Lundi de Pâques",
   "8 mai": "8 mai", "ascension": "Jeudi de l'Ascension", "lundi de pentecote": "Lundi de Pentecôte",
@@ -680,10 +697,19 @@ let versionActive = 0;
 let suggestions = { familles: [], champs: {} };
 
 // --- emploi du temps : heures d'arrivée et de départ, une deuxième plage possible (coupure)
+// Icônes des outils de chaque plage horaire : copier, coller, vider.
+const ICONES = {
+  copier: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg>',
+  coller: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2M9 11h6M9 15h4"/></svg>',
+  vider: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
+const TITRES_OUTILS = { copier: "Copier cette plage", coller: "Coller la plage copiée ici", vider: "Vider cette plage" };
 const plage = (periode, jour, n) => `<span class="plage" data-plage="${n}">
   <input type="time" step="300" data-h="${periode}.${jour}.${n}.debut" aria-label="${PERIODES[periode]}, ${jour}, arrivée${n ? " (2e plage)" : ""}">
   <span aria-hidden="true">à</span>
-  <input type="time" step="300" data-h="${periode}.${jour}.${n}.fin" aria-label="${PERIODES[periode]}, ${jour}, départ${n ? " (2e plage)" : ""}"></span>`;
+  <input type="time" step="300" data-h="${periode}.${jour}.${n}.fin" aria-label="${PERIODES[periode]}, ${jour}, départ${n ? " (2e plage)" : ""}">
+  <span class="outils-plage">${Object.keys(ICONES).map((o) => `<button type="button" class="icone" data-outil="${o}"
+    data-cible="${periode}.${jour}.${n}" title="${TITRES_OUTILS[o]}" aria-label="${TITRES_OUTILS[o]} (${jour})">${ICONES[o]}</button>`).join("")}</span></span>`;
 const celluleHoraires = (periode, jour) => `<td class="${periode === "vacances" ? "col-vacances" : ""}" data-titre="${PERIODES[periode]}"><div class="plages">
   ${plage(periode, jour, 0)}${plage(periode, jour, 1)}
   <button type="button" class="lien ajout-plage" data-coupure="${periode}.${jour}">+ Coupure</button></div></td>`;
@@ -750,14 +776,54 @@ const nombreFr = (t) => parseFloat(String(t || "").replace(/\s/g, "").replace(",
 // Part du brut qui reste en net : celle des derniers bulletins lus, sinon une estimation.
 const tauxNet = () => suggestions.taux_net?.taux || 0.78;
 
-function afficherNetHoraire() {
-  const brut = nombreFr(formContrat.elements.tarif_horaire.value);
-  const t = suggestions.taux_net;
-  $("#net-horaire").textContent = brut ? `≈ ${euros(brut * tauxNet(), 2)} net de l'heure (indicatif : ${
-    t?.source === "bulletins" ? `cotisations de vos derniers bulletins, ${Math.round(100 * (1 - t.taux))} % du brut`
-      : "environ 22 % de cotisations"})` : "";
+// Champ calculé : valeur bien visible (« — » quand elle ne peut pas encore être calculée) et précision dessous.
+function calcule(id, valeur, aide = "") {
+  $("#" + id).textContent = valeur || "—";
+  $("#" + id).closest(".champ-calcule").classList.toggle("vide", !valeur);
+  const zone = $(`#${id}-aide`);
+  if (zone) zone.textContent = aide;
 }
-formContrat.elements.tarif_horaire.addEventListener("input", () => { afficherNetHoraire(); afficherResume(); });
+
+// À chaque montant brut, son équivalent net indicatif. Heures complémentaires et heures majorées : le
+// pourcentage et le salaire horaire majoré sont liés, chacun se calcule quand on modifie l'autre.
+const montantFr = (v) => (v ? v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "");
+const pourcentFr = (v) => (Math.round(v * 100) / 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 });
+
+function afficherNetHoraire(source = "chargement") {
+  const el = formContrat.elements;
+  const brut = nombreFr(el.tarif_horaire.value);
+  const tauxComp = $("#taux-complementaire"), tarifMajore = $("#tarif-majore");
+  // Heures complémentaires : sans majoration, les deux champs restent vides.
+  if (source === "taux-complementaire" || (source === "tarif_horaire" && tauxComp.value.trim()))
+    el.tarif_complementaire.value = brut && tauxComp.value.trim() ? montantFr(brut * (1 + nombreFr(tauxComp.value) / 100)) : "";
+  else if (source !== "tarif_horaire" || !tauxComp.value.trim()) {
+    const comp = nombreFr(el.tarif_complementaire.value);
+    tauxComp.value = brut && comp ? pourcentFr((comp / brut - 1) * 100) : "";
+  }
+  // Heures majorées (au-delà de 45 h) : 10 % au moins.
+  if (source === "tarif-majore") {
+    const tm = nombreFr(tarifMajore.value);
+    el.taux_majoration.value = brut && tm ? pourcentFr((tm / brut - 1) * 100) : "";
+  } else tarifMajore.value = brut ? montantFr(brut * (1 + (nombreFr(el.taux_majoration.value) || 10) / 100)) : "";
+  const taux = el.taux_majoration.value.trim() ? nombreFr(el.taux_majoration.value) : 10;
+  el.taux_majoration.setCustomValidity(taux < 10 ? "La majoration des heures au-delà de 45 h est de 10 % au moins." : "");
+  [tauxComp, el.tarif_complementaire, el.taux_majoration, tarifMajore].forEach((c) => c.classList.toggle("rempli", !!c.value.trim()));
+
+  const t = suggestions.taux_net;
+  const source_ = t?.source === "bulletins" ? `cotisations de vos derniers bulletins : ${Math.round(100 * (1 - t.taux))} % du brut`
+    : "environ 22 % de cotisations";
+  calcule("net-horaire", brut ? `${euros(brut * tauxNet(), 2)} net` : "", brut ? `Estimation : ${source_}.` : "Indiquez le salaire brut.");
+  const comp = nombreFr(el.tarif_complementaire.value);
+  calcule("net-complementaire", comp ? `${euros(comp * tauxNet(), 2)} net` : brut ? `${euros(brut * tauxNet(), 2)} net` : "",
+    comp ? "" : "Sans majoration : au tarif normal.");
+  const tm = nombreFr(tarifMajore.value);
+  calcule("net-majore", tm ? `${euros(tm * tauxNet(), 2)} net` : "", taux < 10 ? "10 % au moins." : "");
+}
+$("#taux-complementaire").addEventListener("input", () => afficherNetHoraire("taux-complementaire"));
+formContrat.elements.tarif_complementaire.addEventListener("input", () => afficherNetHoraire("tarif_complementaire"));
+formContrat.elements.taux_majoration.addEventListener("input", () => afficherNetHoraire("taux_majoration"));
+$("#tarif-majore").addEventListener("input", () => afficherNetHoraire("tarif-majore"));
+formContrat.elements.tarif_horaire.addEventListener("input", () => { afficherNetHoraire("tarif_horaire"); afficherResume(); });
 ["entretien_jour", "repas_jour"].forEach((k) => formContrat.elements[k].addEventListener("input", afficherResume));
 
 // Semaines d'école dans l'année (calendrier scolaire), pour estimer la mensualisation quand les
@@ -812,31 +878,85 @@ function afficherCas() {
   $$("#form-contrat .annee-incomplete").forEach((e) => e.classList.toggle("cache", !incomplete));
   $$("#form-contrat .annee-complete").forEach((e) => e.classList.toggle("cache", incomplete));
   $$("#form-contrat .planning-ecrit").forEach((e) => e.classList.toggle("cache", !incomplete || formContrat.elements.planning.value !== "oui"));
-  $("#cas-contrat").textContent = !incomplete ? "Contrat de travail : année complète (cas n° 1 du modèle)."
-    : semaines <= 46 ? "Contrat de travail : année incomplète (cas n° 2 du modèle)."
-    : "Le modèle de l'Urssaf prévoit 52 semaines, ou 46 au plus hors congés : le contrat sera rempli comme une année incomplète (cas n° 2).";
+  calcule("cas-contrat", incomplete ? "Année incomplète (cas n° 2)" : "Année complète (cas n° 1)",
+    !incomplete ? "Accueil sur 52 semaines, congés compris." : semaines <= 46 ? "46 semaines d'accueil ou moins, hors congés."
+    : "Le modèle de l'Urssaf prévoit 52 semaines, ou 46 au plus : le contrat sera rempli comme une année incomplète.");
 }
 formContrat.elements.planning.addEventListener("change", afficherCas);
-["tarif_complementaire", "taux_majoration", "frais_km"].forEach((k) => formContrat.elements[k].addEventListener("input", afficherResume));
+formContrat.elements.frais_km.addEventListener("input", afficherResume);
 
-// Période d'adaptation : date de fin calculée (jours calendaires, 30 au plus).
+// --- période d'essai : case « il y a une période d'essai », nombre + unité, dernier jour calculé.
+// Enregistrée en texte (« 2 mois », « aucune » quand il n'y en a pas).
+const ESSAI_DEFAUT = "2 mois";
+function ecrireEssai(texte) {
+  const aucune = texte === "aucune" || !texte;
+  const m = /(\d+)\s*(jour|semaine|mois)/i.exec(texte || "");
+  $("#essai-oui").checked = !aucune;
+  $("#essai-nombre").value = m ? m[1] : "2";
+  $("#essai-unite").value = m ? { jour: "jours", semaine: "semaines", mois: "mois" }[m[2].toLowerCase()] : "mois";
+  afficherEssai();
+}
+function lireEssai() {
+  const n = parseInt($("#essai-nombre").value, 10);
+  if (!$("#essai-oui").checked) return "aucune";
+  if (!n) return "";
+  return `${n} ${n === 1 ? { jours: "jour", semaines: "semaine", mois: "mois" }[$("#essai-unite").value] : $("#essai-unite").value}`;
+}
+function afficherEssai() {
+  const oui = $("#essai-oui").checked;
+  $("#ligne-essai").classList.toggle("cache", !oui);
+  $("#essai-nombre").required = oui && formContrat.classList.contains("assistant");
+  formContrat.elements.essai.value = lireEssai();
+  const n = parseInt($("#essai-nombre").value, 10);
+  const debut = formContrat.elements.debut.value;
+  let fin = "";
+  if (oui && n && debut) {
+    const d = new Date(debut + "T12:00:00");
+    const unite = $("#essai-unite").value;
+    if (unite === "mois") d.setMonth(d.getMonth() + n); else d.setDate(d.getDate() + n * (unite === "semaines" ? 7 : 1));
+    d.setDate(d.getDate() - 1);
+    fin = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  }
+  calcule("fin-essai", fin, fin || !n ? "" : "D'après la date d'embauche, à indiquer plus haut.");
+}
+["#essai-oui", "#essai-nombre", "#essai-unite"].forEach((c) => $(c).addEventListener("input", afficherEssai));
+$("#essai-oui").addEventListener("change", afficherEssai);
+
+// --- période d'adaptation : nombre de jours calendaires calculé d'après les dates (30 au plus).
 function calculerAdaptation() {
   const el = formContrat.elements;
-  const jours = Math.min(30, parseInt(el.adaptation_jours.value, 10) || 0);
-  if (!jours) return;
-  if (!el.adaptation_debut.value) el.adaptation_debut.value = el.debut.value;
-  if (!el.adaptation_debut.value) return;
-  const d = new Date(el.adaptation_debut.value + "T12:00:00");
-  d.setDate(d.getDate() + jours - 1);
-  el.adaptation_fin.value = d.toISOString().slice(0, 10);
+  if (el.adaptation_fin.value && !el.adaptation_debut.value) el.adaptation_debut.value = el.debut.value;
+  const du = el.adaptation_debut.value, au = el.adaptation_fin.value;
+  const jours = du && au ? Math.round((new Date(au + "T12:00:00") - new Date(du + "T12:00:00")) / 864e5) + 1 : 0;
+  el.adaptation_jours.value = jours > 0 ? String(jours) : "";
+  const message = du && au && jours < 1 ? "Le dernier jour doit être après le premier."
+    : jours > 30 ? "La période d'adaptation dure 30 jours calendaires au plus." : "";
+  el.adaptation_fin.setCustomValidity(message);
+  calcule("jours-adaptation", jours > 0 ? `${jours} jour${jours > 1 ? "s" : ""}` : "", message || (jours > 0 ? "Jours calendaires, 30 au plus." : ""));
 }
-formContrat.elements.adaptation_jours.addEventListener("input", calculerAdaptation);
-formContrat.elements.adaptation_debut.addEventListener("change", calculerAdaptation);
+formContrat.elements.adaptation_debut.addEventListener("input", calculerAdaptation);
+formContrat.elements.adaptation_fin.addEventListener("input", calculerAdaptation);
 
 $("#horaires-contrat").addEventListener("input", afficherResume);
+let plageCopiee = null;     // [arrivée, départ] de la dernière plage copiée
 $("#horaires-contrat").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
+  if (b.dataset.outil) {
+    const [p, j, n] = b.dataset.cible.split(".");
+    const debut = champH(p, j, n, "debut"), fin = champH(p, j, n, "fin");
+    if (b.dataset.outil === "copier") {
+      if (!debut.value && !fin.value) return;
+      plageCopiee = [debut.value, fin.value];
+      $("#horaires-contrat").classList.add("a-coller");
+      $$("#horaires-contrat .plage.copiee").forEach((x) => x.classList.remove("copiee"));
+      b.closest(".plage").classList.add("copiee");
+    } else if (b.dataset.outil === "coller" && plageCopiee) [debut.value, fin.value] = plageCopiee;
+    else if (b.dataset.outil === "vider") { debut.value = ""; fin.value = ""; }
+    marquerRemplis(b.closest(".plage"));
+    afficherResume();
+    return;
+  }
   if (b.dataset.coupure) {
     const [p, j] = b.dataset.coupure.split(".");
     afficherCoupure(p, j, true);
@@ -1017,7 +1137,8 @@ function coordonnees(f) {
 }
 
 async function afficherContrats() {
-  const [liste, fams] = await Promise.all([api("contrats").catch(() => []), api("familles").catch(() => [])]);
+  const [liste, fams, brouillons] = await Promise.all([api("contrats").catch(() => []), api("familles").catch(() => []),
+    api("brouillons").catch(() => [])]);
   familles = fams;
   await chargerSuggestions();
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -1039,7 +1160,9 @@ async function afficherContrats() {
       ${coordonnees(f)}
       <div class="cartes-contrats"></div>`;
     enfants.forEach((c) => bloc.querySelector(".cartes-contrats").appendChild(carteEnfant(c, aujourdhui)));
-    if (!enfants.length) bloc.querySelector(".cartes-contrats").innerHTML = `<p class="petit">Aucun enfant pour l'instant.</p>`;
+    const siens = brouillons.filter((b) => (b.contrat?.famille || "").toLowerCase() === f.nom.toLowerCase());
+    siens.forEach((b) => bloc.querySelector(".cartes-contrats").appendChild(carteBrouillon(b)));
+    if (!enfants.length && !siens.length) bloc.querySelector(".cartes-contrats").innerHTML = `<p class="petit">Aucun enfant pour l'instant.</p>`;
     bloc.querySelector("[data-modifier]").addEventListener("click", () => editerFamille(f));
     bloc.querySelector("[data-enfant]").addEventListener("click", () => demarrerAssistant(f.nom));
     zone.appendChild(bloc);
@@ -1057,6 +1180,13 @@ async function afficherContrats() {
     editerFamille({ id: "", nom });
     completerFamille(nom);
   }));
+  // Brouillons d'une nouvelle famille (pas encore de fiche) : rangés en haut de la liste.
+  const connuesFiches = new Set(familles.map((f) => f.nom.toLowerCase()));
+  const orphelins = brouillons.filter((b) => !connuesFiches.has((b.contrat?.famille || "").toLowerCase()));
+  const zoneB = $("#brouillons-nouvelles");
+  zoneB.classList.toggle("cache", !orphelins.length);
+  zoneB.innerHTML = orphelins.length ? `<h2>Brouillons pour une nouvelle famille</h2><div class="cartes-contrats"></div>` : "";
+  orphelins.forEach((b) => zoneB.querySelector(".cartes-contrats").appendChild(carteBrouillon(b)));
   appliquerFiltres();
   return liste;
 }
@@ -1081,6 +1211,7 @@ function editerFamille(f) {
   placerSous(formFamille, f?.nom);
   $("#supprimer-famille").classList.toggle("cache", !f?.id);
   formFamille.classList.remove("cache");
+  marquerRemplis(formFamille);
   formFamille.scrollIntoView({ behavior: "smooth" });
 }
 $("#nouvelle-famille").addEventListener("click", () => editerFamille(null));
@@ -1113,9 +1244,13 @@ function editerContrat(c, famille, assistant = false) {
     + (assistant ? `<option value="${NOUVELLE_FAMILLE}">Nouvelle famille…</option>` : "");
   for (const champ of formContrat.elements) {
     if (!champ.name || MODIFIABLES.includes(champ.name) || champ.name.startsWith("f_")) continue;
+    if (champ.type === "radio") { champ.checked = champ.value === (c?.[champ.name] || ""); continue; }
     champ.value = c?.[champ.name] || DEFAUTS_CONTRAT[champ.name] || (champ.tagName === "SELECT" ? champ.options[0]?.value ?? "" : "");
   }
   ecrireFeries(c?.feries_travailles);
+  // Nouvelle fiche : période d'essai de 2 mois proposée ; fiche existante sans essai renseigné : case décochée.
+  ecrireEssai(c ? c.essai : ESSAI_DEFAUT);
+  calculerAdaptation();
   $("#contrat-cree").textContent = "";
   if (!c && famille) formContrat.elements.famille.value = famille;
   versions = [conditions(c), ...(c?.avenants || []).map((a) => ({ ...conditions(a), id: a.id, date: a.date, motif: a.motif }))];
@@ -1132,6 +1267,7 @@ function editerContrat(c, famille, assistant = false) {
     if (!formContrat.elements.signature_lieu.value) formContrat.elements.signature_lieu.value = profilConnu.ville || "";
     allerEtape(0);
   } else {
+    marquerRemplis(formContrat);
     placerSous(formContrat, c?.famille || famille);
     formContrat.scrollIntoView({ behavior: "smooth" });
   }
@@ -1154,28 +1290,40 @@ function modeAssistant(actif) {
   $("#assistant-quitter").classList.remove("cache");
   // Dans l'assistant, toutes les informations du contrat de travail sont demandées.
   $$("#form-contrat [data-requis]").forEach((c) => (c.required = actif));
-  formContrat.querySelectorAll(".mention").forEach((m) => m.remove());
+  formContrat.querySelectorAll(".mention:not(.calcule)").forEach((m) => m.remove());
   marquerChamps(formContrat);
+  afficherEssai();
 }
 
+const etapesVues = new Set();
+
 function allerEtape(n) {
+  marquerRemplis(formContrat);
   const liste = etapes();
   etapeActive = Math.max(0, Math.min(n, liste.length - 1));
+  etapesVues.add(etapeActive);
   liste.forEach((e, i) => e.classList.toggle("etape-active", i === etapeActive));
   const reste = liste.length - 1 - etapeActive;
   $("#assistant-etape").textContent = `Étape ${etapeActive + 1} sur ${liste.length} · ${
     reste ? `encore ${reste} étape${reste > 1 ? "s" : ""} après celle-ci` : "dernière étape"}`;
   $("#assistant-titre").textContent = liste[etapeActive].dataset.titre;
   $("#assistant-barre").style.width = `${Math.round(100 * (etapeActive + 1) / liste.length)}%`;
-  $("#assistant-plan").innerHTML = liste.map((e, i) => `<li class="${i < etapeActive ? "faite" : i === etapeActive ? "active" : ""}">${
-    echapper(e.dataset.titre)}</li>`).join("");
+  // Plan des étapes : un clic sur un titre y mène directement.
+  $("#assistant-plan").innerHTML = liste.map((e, i) => `<li><button type="button" data-aller-etape="${i}"
+    class="${i === etapeActive ? "active" : etapesVues.has(i) ? "faite" : ""}" ${i === etapeActive ? 'aria-current="step"' : ""}>${
+    echapper(e.dataset.titre)}</button></li>`).join("");
+  $("#assistant-plan [aria-current]")?.scrollIntoView({ block: "nearest", inline: "center" });
   $("#assistant-precedent").classList.toggle("invisible", !etapeActive);
   $("#assistant-suivant").textContent = reste ? "Suivant" : "Enregistrer la fiche";
   if (liste[etapeActive].dataset.etape === "signature") afficherRecapitulatif();
   if (liste[etapeActive].dataset.etape === "remuneration") afficherResume();
   formContrat.scrollTo(0, 0);
-  liste[etapeActive].querySelector("input:not([type=checkbox]), select, textarea")?.focus({ preventScroll: true });
+  liste[etapeActive].querySelector("input:not([type=checkbox]):not([type=radio]), select, textarea")?.focus({ preventScroll: true });
 }
+$("#assistant-plan").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-aller-etape]");
+  if (b) allerEtape(+b.dataset.allerEtape);
+});
 
 function etapeValide(el) {
   const invalide = [...el.querySelectorAll("input, select, textarea")].find((c) => c.offsetParent !== null && !c.checkValidity());
@@ -1189,16 +1337,91 @@ function etapeValide(el) {
 
 $("#assistant-suivant").addEventListener("click", () => {
   if (!etapeValide(etapes()[etapeActive])) return;
-  if (etapeActive === etapes().length - 1) formContrat.requestSubmit();
-  else allerEtape(etapeActive + 1);
+  if (etapeActive < etapes().length - 1) { allerEtape(etapeActive + 1); return; }
+  // Enregistrement : toutes les étapes doivent être complètes (on a pu en sauter en cliquant sur leur titre).
+  for (let i = 0; i < etapes().length; i++) {
+    allerEtape(i);
+    if (!etapeValide(etapes()[i])) return;
+  }
+  formContrat.requestSubmit();
 });
 $("#assistant-precedent").addEventListener("click", () => allerEtape(etapeActive - 1));
 $("#assistant-quitter").addEventListener("click", () => {
-  if (!$("#assistant-fin").classList.contains("cache") || confirm("Quitter sans enregistrer ? Les informations saisies seront perdues.")) fermerContrat();
+  if (!$("#assistant-fin").classList.contains("cache") || brouillonAJour
+    || confirm("Quitter sans enregistrer ? Les informations saisies depuis le dernier brouillon seront perdues.")) {
+    fermerContrat();
+    if (brouillonEdite) afficherContrats();      // le brouillon apparaît dans la liste
+  }
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && formContrat.classList.contains("assistant")) $("#assistant-quitter").click();
 });
+
+// --- brouillons : la saisie de l'assistant peut être enregistrée puis reprise plus tard.
+let brouillonEdite = null;       // brouillon repris (id), effacé quand la fiche est enregistrée
+let brouillonAJour = false;
+formContrat.addEventListener("input", () => { brouillonAJour = false; $("#brouillon-enregistre").textContent = ""; });
+
+function photoBrouillon() {
+  sauverVersion();
+  const famille = {};
+  for (const champ of formContrat.elements) if (champ.name?.startsWith("f_")) famille[champ.name] = champ.value;
+  return { id: brouillonEdite || "", etape: etapeActive, contrat: { ...versions[0], ...champsFiche() }, famille };
+}
+
+$("#assistant-brouillon").addEventListener("click", async () => {
+  try {
+    const b = await api("brouillons", photoBrouillon());
+    brouillonEdite = b.id;
+    brouillonAJour = true;
+    $("#brouillon-enregistre").textContent = `Brouillon enregistré à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`;
+  } catch (err) { alert(err.message); }
+});
+
+async function reprendreBrouillon(b) {
+  profilConnu = await api("profil").catch(() => ({}));
+  editerContrat({ ...b.contrat, avenants: [] }, "", true);
+  contratEdite = null;
+  brouillonEdite = b.id;
+  etapesVues.clear();
+  for (const [nom, valeur] of Object.entries(b.famille || {})) if (formContrat.elements[nom]) formContrat.elements[nom].value = valeur;
+  $("#qualite-autre").classList.toggle("invisible", formContrat.elements.f_parent1_qualite.value !== "autre");
+  $("#titre-form-contrat").textContent = "Nouvel enfant";
+  brouillonAJour = true;
+  etapes().forEach((_, i) => i <= b.etape && etapesVues.add(i));
+  allerEtape(b.etape || 0);
+}
+
+function carteBrouillon(b) {
+  const div = document.createElement("div");
+  const nom = [b.contrat?.enfant_prenom, b.contrat?.enfant_nom].filter(Boolean).join(" ") || "Enfant sans prénom";
+  const total = etapes().length;
+  div.className = "carte-contrat brouillon";
+  div.innerHTML = `<span class="etiquette-brouillon">Brouillon</span>
+    <span class="nom">${echapper(nom)}</span>
+    <span class="petit">Arrêté à l'étape ${(b.etape || 0) + 1} sur ${total} · enregistré le ${dateFr(b.date.slice(0, 10))}</span>
+    <span class="boutons-brouillon"><button type="button" class="principal" data-reprendre>Reprendre</button>
+    <button type="button" class="lien danger" data-supprimer>Supprimer le brouillon</button></span>`;
+  div.querySelector("[data-reprendre]").addEventListener("click", () => reprendreBrouillon(b));
+  div.querySelector("[data-supprimer]").addEventListener("click", async () => {
+    if (!confirm(`Supprimer le brouillon de ${nom} ? Les informations saisies seront perdues.`)) return;
+    await api("brouillons/supprimer", { id: b.id }).catch((err) => alert(err.message));
+    afficherContrats();
+  });
+  return div;
+}
+
+// Champs de la fiche hors conditions modifiables par avenant (boutons radio : la valeur cochée).
+function champsFiche() {
+  const d = {};
+  for (const champ of formContrat.elements) {
+    if (!champ.name || MODIFIABLES.includes(champ.name) || champ.name.startsWith("f_")) continue;
+    if (champ.type === "radio") { if (champ.checked || !(champ.name in d)) d[champ.name] = champ.checked ? champ.value : ""; }
+    else d[champ.name] = champ.value;
+  }
+  d.feries_travailles = lireFeries();
+  return d;
+}
 
 function fermerContrat() {
   formContrat.classList.add("cache");
@@ -1210,10 +1433,10 @@ function remplirEmployeur() {
   const f = familles.find((x) => x.nom === formContrat.elements.famille.value) || {};
   for (const champ of formContrat.elements)
     if (champ.name?.startsWith("f_")) champ.value = f[champ.name.slice(2)] || "";
-  $("#qualite-autre").classList.toggle("cache", formContrat.elements.f_parent1_qualite.value !== "autre");
+  $("#qualite-autre").classList.toggle("invisible", formContrat.elements.f_parent1_qualite.value !== "autre");
 }
 formContrat.elements.famille.addEventListener("change", () => { if (formContrat.classList.contains("assistant")) remplirEmployeur(); });
-formContrat.elements.f_parent1_qualite.addEventListener("change", (e) => $("#qualite-autre").classList.toggle("cache", e.target.value !== "autre"));
+formContrat.elements.f_parent1_qualite.addEventListener("change", (e) => $("#qualite-autre").classList.toggle("invisible", e.target.value !== "autre"));
 formContrat.elements.f_parent1_nom.addEventListener("change", () => {
   // Nouvelle famille : le nom de l'enfant reprend celui du parent s'il est encore vide.
   if (!formContrat.elements.enfant_nom.value) formContrat.elements.enfant_nom.value = formContrat.elements.f_parent1_nom.value;
@@ -1239,6 +1462,9 @@ function afficherRecapitulatif() {
 
 async function demarrerAssistant(famille) {
   profilConnu = await api("profil").catch(() => ({}));
+  brouillonEdite = null;
+  brouillonAJour = false;
+  etapesVues.clear();
   editerContrat(null, famille, true);
 }
 $("#nouvel-enfant").addEventListener("click", async () => { await afficherContrats(); demarrerAssistant(""); });
@@ -1255,7 +1481,7 @@ async function creerContratTravail(contratId, zone) {
   } catch (err) { zone.innerHTML = `<p class="alerte-texte">${echapper(err.message)}</p>`; }
 }
 
-formContrat.elements.debut.addEventListener("change", () => { afficherOngletsVersions(); calculerAdaptation(); });
+formContrat.elements.debut.addEventListener("change", () => { afficherOngletsVersions(); calculerAdaptation(); afficherEssai(); });
 $("#annuler-contrat").addEventListener("click", fermerContrat);
 $("#supprimer-contrat").addEventListener("click", async () => {
   if (!contratEdite || !confirm(`Supprimer la fiche de ${contratEdite.enfant_prenom} ?`)) return;
@@ -1273,9 +1499,7 @@ formContrat.addEventListener("submit", async (e) => {
   const assistant = formContrat.classList.contains("assistant");
   sauverVersion();
   const d = { id: contratEdite?.id, ...versions[0], avenants: versions.slice(1) };
-  for (const champ of formContrat.elements)
-    if (champ.name && !MODIFIABLES.includes(champ.name) && !champ.name.startsWith("f_")) d[champ.name] = champ.value;
-  d.feries_travailles = lireFeries();
+  Object.assign(d, champsFiche());
   const sansDate = d.avenants.findIndex((a) => !a.date);
   const tropTot = d.avenants.findIndex((a) => d.debut && a.date && a.date <= d.debut);
   if (sansDate >= 0 || tropTot >= 0) {
@@ -1294,6 +1518,8 @@ formContrat.addEventListener("submit", async (e) => {
       if (!avant?.id || Object.keys(f).some((k) => (f[k] ?? "") !== (avant[k] ?? ""))) d.famille = (await api("familles", f)).nom;
     }
     enregistre = await api("contrats", d);
+    if (assistant && brouillonEdite) await api("brouillons/supprimer", { id: brouillonEdite }).catch(() => {});
+    brouillonEdite = null;
   } catch (err) { alert(err.message); return; }
   const liste = afficherContrats();
   if (assistant) {
@@ -1330,6 +1556,7 @@ const formProfil = $("#form-profil");
 async function chargerProfil() {
   const p = await api("profil").catch(() => ({}));
   for (const [cle, val] of Object.entries(p)) if (formProfil.elements[cle]) formProfil.elements[cle].value = val ?? "";
+  marquerRemplis(formProfil);
   return p;
 }
 formProfil.addEventListener("submit", async (e) => {

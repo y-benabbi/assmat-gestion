@@ -186,7 +186,7 @@ def valeurs_contrat(p: dict, f: dict, fiche: dict, taux_net: float) -> dict:
     v.update({
         "Enfant_NOM": c.get("enfant_nom", ""), "Enfant_PRENOM": c.get("enfant_prenom", ""),
         "Enfant_NAISSANCE": _date(c.get("enfant_naissance")), "Contrat_DATE-Debut": _date(debut),
-        "Contrat_ESSAI": c.get("essai", ""), "Contrat_ADAPTATION": c.get("adaptation_jours", ""),
+        "Contrat_ESSAI": "Pas de période d'essai" if c.get("essai") == "aucune" else c.get("essai", ""), "Contrat_ADAPTATION": c.get("adaptation_jours", ""),
         "Contrat_DebutADAPTATION": _date(c.get("adaptation_debut")),
         "Contrat_FinADAPTATION": _date(c.get("adaptation_fin")),
     })

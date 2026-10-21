@@ -82,6 +82,16 @@ def main():
     v = ct.valeurs_contrat(PROFIL, FAMILLE, {**fiche, "planning": "oui", "delai_planning": "2 mois", "avenants": []}, 0.78)
     assert v["CHOIX CAS 2"] == "/B" and v["Cas2B_Calendaires"] == "2 mois" and "Cas2-JOUR1" not in v, v
 
+    # Pas de période d'essai ; travail le jour de repos non précisé : aucune case cochée.
+    v = ct.valeurs_contrat(PROFIL, FAMILLE, {**fiche, "essai": "aucune", "repos_travaille": "", "avenants": []}, 0.78)
+    assert v["Contrat_ESSAI"] == "Pas de période d'essai" and "REPOS" not in v, v
+
+    # Brouillons de l'assistant : enregistrés à part, sans compter comme fiche enfant.
+    b = donnees.enregistrer_brouillon({"etape": 3, "contrat": {"famille": "Dupont", "enfant_prenom": "Noé"}, "famille": "invalide"})
+    assert donnees.brouillons()[0]["id"] == b["id"] and b["famille"] == {} and len(donnees.contrats()) == 1
+    donnees.supprimer_brouillon(b["id"])
+    assert donnees.brouillons() == []
+
     # Fiche incomplète : rubriques signalées.
     manque = ct.manquants(PROFIL, {}, {"enfant_prenom": "Léa"})
     assert "Nom du parent employeur" in manque and "Emploi du temps" in manque and "Date d'embauche" in manque, manque
