@@ -94,6 +94,7 @@ def creer_app(port, jeton):
     import contrat_travail
     import courriers
     import donnees
+    import icones
     import impots
     import parametres
     import revenus
@@ -467,6 +468,19 @@ def creer_app(port, jeton):
     @app.get("/api/sites")
     def lire_sites():
         return jsonify(donnees.sites())
+
+    @app.get("/api/icone-site")
+    def icone_site():
+        """Icône d'un des sites d'activités (récupérée sur le site puis gardée dans donnees\\icones)."""
+        url = request.args.get("url", "")
+        if url not in {s["url"] for s in donnees.sites()}:
+            return jsonify({"erreur": "Site inconnu"}), 404
+        trouve = icones.icone(url)
+        if not trouve:
+            return jsonify({"erreur": "Pas d'icône"}), 404
+        reponse = app.response_class(trouve[0], mimetype=trouve[1])
+        reponse.headers["Cache-Control"] = "private, max-age=86400"
+        return reponse
 
     @app.post("/api/sites")
     def enregistrer_sites():

@@ -2173,25 +2173,28 @@ formContrat.addEventListener("submit", async (e) => {
 });
 
 // ------------------------------------------------------------- sites d'activités
-// Raccourcis carrés façon application de téléphone : l'icône du site s'il en propose une (apple-touch-icon),
-// sinon l'initiale sur une couleur pastel (une couleur différente pour chaque site voisin).
+// Raccourcis carrés façon application de téléphone : l'icône du site (récupérée par l'application sur le site
+// lui-même, /api/icone-site), sinon l'initiale sur une couleur pastel (une couleur différente pour chaque site voisin).
 let sites = [];
 let siteEdite = -1;
 const COULEURS_SITES = ["#f6c9d4", "#a6dcc5", "#ffd978", "#d9cff3", "#bfe0f2", "#f8d2b4"];
 const domaine = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
 function tuileSite(site, i) {
   const couleur = COULEURS_SITES[i % COULEURS_SITES.length];
-  let icone = "";
-  try { icone = `<img alt="" loading="lazy" src="${echapper(new URL("/apple-touch-icon.png", site.url).href)}">`; } catch { /* adresse invalide */ }
+  const icone = `<img alt="" src="/api/icone-site?url=${encodeURIComponent(site.url)}">`;
   return `<a class="tuile-site" href="${echapper(site.url)}" target="_blank" rel="noopener noreferrer" data-site="${i}"
       title="${echapper(site.description || domaine(site.url))}">
     <span class="icone-site" style="--fond:${couleur}"><span class="initiale-site" aria-hidden="true">${echapper([...site.nom][0] || "?")}</span>${icone}</span>
     <span class="nom-site">${echapper(site.nom)}</span></a>`;
 }
-// Icône trop petite ou absente : on garde l'initiale.
+// Grande icône : elle remplit la tuile ; petite (favicon) : centrée sur fond blanc ; aucune : l'initiale reste.
 function surveillerIcones(zone) {
   zone.querySelectorAll(".icone-site img").forEach((img) => {
-    const verifier = () => img.classList.toggle("chargee", img.naturalWidth >= 48);
+    const verifier = () => {
+      if (!img.naturalWidth) return;
+      img.classList.add("chargee", img.naturalWidth >= 96 ? "pleine" : "petite");
+      img.closest(".icone-site").classList.add("avec-image");
+    };
     img.addEventListener("load", verifier);
     img.addEventListener("error", () => img.remove());
     if (img.complete) verifier();

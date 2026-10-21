@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.9.1",
+    "date": "2026-10-21",
+    "titre": "Icônes des sites d'activités",
+    "nouveautes": [
+      "Idées d'activités : chaque site s'affiche avec sa propre icône, récupérée sur le site la première fois puis gardée sur l'ordinateur. Un site sans icône garde son initiale en couleur."
+    ]
+  },
+  {
     "version": "1.9.0",
     "date": "2026-10-21",
     "titre": "Menu des bulletins et sites d'activités",

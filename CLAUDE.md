@@ -70,6 +70,7 @@ py -m venv .venv
 .venv\Scripts\python tests\test_contrats.py        # avenants : conditions en vigueur à une date
 .venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
 .venv\Scripts\python tests\test_contrat_travail.py # contrat de travail Urssaf rempli (champs du modèle, cas 1 et 2)
+.venv\Scripts\python tests\test_icones.py         # icônes des sites d'activités (sites imités en local), cache
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
 
@@ -226,5 +227,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `explorer /select,`) ; case à récupérer = ce bulletin (`/api/action` avec `cibles` = emplacements prévus, filtre de
   `_cmd_telecharger_manquants`) ou tous. Les deux routes n'ouvrent que des fichiers connus (`fichier_connu`).
 - Sites d'activités (module `activites`) : `donnees.sites()` (`donnees\sites.json`, `SITES_DEFAUT` tant qu'il n'existe
-  pas ; `enregistrer_sites(None)` les remet), routes `/api/sites`. Tuiles carrées (`tuileSite`) : initiale sur un pastel,
-  remplacée par l'`apple-touch-icon.png` du site s'il en a une (≥ 48 px), sur le tableau de bord et dans la rubrique.
+  pas ; `enregistrer_sites(None)` les remet), routes `/api/sites`. Tuiles carrées (`tuileSite`) : icône du site servie par
+  `/api/icone-site?url=` (seulement pour une adresse de la liste) : `icones.py` la cherche sur le site (plus grande
+  `<link rel=…icon>` de la page, puis `/apple-touch-icon.png`, `/favicon.ico`, SVG en dernier), la garde dans
+  `donnees\icones\` (une par nom de domaine ; absence notée, réessayée après 7 jours). ≥ 96 px : remplit la tuile ;
+  plus petite : centrée sur fond blanc ; aucune : initiale sur un pastel. Sur le tableau de bord et dans la rubrique.

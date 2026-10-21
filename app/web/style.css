@@ -876,8 +876,10 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
 .grande .icone-site { width: 78px; height: 78px; border-radius: 22px; }
 .initiale-site { font: 600 1.9rem/1 var(--titre); color: var(--encre); }
 .grande .initiale-site { font-size: 2.3rem; }
-.icone-site img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #fff; opacity: 0; }
+.icone-site img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
 .icone-site img.chargee { opacity: 1; }
+.icone-site img.petite { inset: 20%; width: 60%; height: 60%; object-fit: contain; }
+.icone-site.avec-image { background: #fff; }
 .nom-site { max-width: 100%; font-size: 0.86rem; font-weight: 700; line-height: 1.2; text-align: center;
   overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .tuile-site:hover .nom-site { color: var(--eucalyptus-fonce); }
