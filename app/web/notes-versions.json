@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.10.0",
+    "date": "2026-10-22",
+    "titre": "Une nouvelle présentation, plus douce",
+    "nouveautes": [
+      "Nouvelles couleurs : rose poudré et lavande partout ; l'abricot signale ce qui demande votre attention (bulletins à récupérer, mise à jour disponible).",
+      "Le menu est maintenant à gauche, rangé par thèmes (Mon argent, Mes familles, Mes démarches). Une pastille indique le nombre de bulletins à récupérer. Sur téléphone, le bouton « Menu » l'ouvre par-dessus la page.",
+      "Vos sites d'activités sont toujours à portée de main : leurs petites icônes sont en haut à gauche de chaque page.",
+      "Tableau de bord : « Bonjour » avec votre prénom et trois chiffres clés, « À faire » bien en évidence, un agenda du mois avec les prochaines échéances, vos revenus de l'année, les bulletins des six derniers mois et les sites d'activités.",
+      "Nouveau bloc « Aujourd'hui » : l'heure d'arrivée et de départ de chaque enfant (une ligne par plage s'il y a une coupure). Quand la journée est finie, il montre le prochain jour d'accueil. Si un enfant a des horaires différents pendant les vacances, choisissez « Période scolaire » ou « Vacances »."
+    ]
+  },
+  {
     "version": "1.9.2",
     "date": "2026-10-21",
     "titre": "Icônes des sites plus nettes",
