@@ -304,7 +304,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   Corbeille de Windows via `SHFileOperationW`, toutes les copies d'une photo rangée) ; clic maintenu = glisser-déposer. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
   rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`). Des photos à trier glissées sur
   la zone des photos rangées (`#contenu-photos`) sont rangées avec les filtres choisis (enfant, réalisation :
-  `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien.
+  `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien. Listes de vignettes (à trier, rangées, mises de côté) affichées par tranches
+  (`rendreParTranches`, `TRANCHE_PHOTOS`, repère `.suite-photos` suivi par un IntersectionObserver) ; les listes de données
+  (`donneesPhotos`) restent complètes : « Tout sélectionner », Maj + clic et les actions ne dépendent pas de ce qui est affiché.
 - Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans
   `Activités\<Titre>`, ajoutables dès la création — gardés dans `documentsEnAttente` puis envoyés après l'enregistrement)
   et la **réalisation** (une activité à une date ; appelée « séance » dans les données et le code : `seances`, `S0001`),

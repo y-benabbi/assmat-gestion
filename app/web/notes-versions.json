@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.7",
+    "date": "2026-10-22",
+    "titre": "Photos plus rapides à afficher",
+    "nouveautes": [
+      "Photos : quand il y a beaucoup de photos, la page n'affiche d'abord que les premières, puis ajoute les suivantes à mesure que vous descendez. Elle s'ouvre ainsi beaucoup plus vite."
+    ]
+  },
+  {
     "version": "1.11.6",
     "date": "2026-10-22",
     "titre": "On voit quand l'application travaille",

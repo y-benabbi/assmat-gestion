@@ -3013,6 +3013,45 @@ async function afficherPhotos() {
   afficherMisDeCote();
 }
 
+// Beaucoup de photos : les vignettes sont ajoutées par tranches, quand le bas de la liste approche de l'écran.
+// `morceaux` = [{debut, html}] : `debut` (facultatif) ouvre une section qui contient une `.grille-photos`, `html` est
+// une fonction qui donne la vignette, ajoutée à la dernière grille. Après une action, au moins autant de vignettes qu'avant sont remises
+// (la page ne remonte pas toute seule).
+const TRANCHE_PHOTOS = 120;
+function rendreParTranches(conteneur, morceaux, vide) {
+  conteneur._observateur?.disconnect();
+  const deja = conteneur._rendus || 0;
+  conteneur.innerHTML = morceaux.length ? "" : vide;
+  conteneur._rendus = 0;
+  if (!morceaux.length) return;
+  let grille = null;
+  const suite = document.createElement("div");
+  suite.className = "suite-photos";
+  const ajouter = (n) => {
+    const fin = Math.min(morceaux.length, conteneur._rendus + n);
+    for (let i = conteneur._rendus; i < fin; i++) {
+      const m = morceaux[i];
+      if (!m.debut && !grille && conteneur.classList.contains("grille-photos")) grille = conteneur;
+      else if (m.debut || !grille) {
+        suite.insertAdjacentHTML("beforebegin", m.debut || `<div class="grille-photos"></div>`);
+        grille = [...conteneur.querySelectorAll(".grille-photos")].at(-1);
+      }
+      // Vignette fabriquée au moment de l'ajout : elle montre la sélection du moment.
+      if (grille === conteneur) suite.insertAdjacentHTML("beforebegin", m.html());
+      else grille.insertAdjacentHTML("beforeend", m.html());
+    }
+    conteneur._rendus = fin;
+    if (fin >= morceaux.length) { conteneur._observateur?.disconnect(); suite.remove(); }
+  };
+  conteneur.appendChild(suite);
+  ajouter(Math.max(TRANCHE_PHOTOS, deja));
+  if (!suite.isConnected) return;
+  conteneur._observateur = new IntersectionObserver((entrees) => {
+    if (entrees.some((x) => x.isIntersecting)) ajouter(TRANCHE_PHOTOS);
+  }, { rootMargin: "600px 0px" });
+  conteneur._observateur.observe(suite);
+}
+
 function afficherATrier() {
   const liste = donneesPhotos.a_trier;
   ["#nb-a-trier", "#nb-a-trier-panneau"].forEach((b) => {
@@ -3020,23 +3059,26 @@ function afficherATrier() {
     $(b).classList.toggle("cache", !liste.length);
   });
   groupesCourants = grouper(liste);
-  let html = "", jour = null;
+  const morceaux = [];
+  let jour = null;
   groupesCourants.forEach((g, i) => {
+    let entete = "";
     if (g.jour !== jour) {
       jour = g.jour;
-      html += `<h3 class="jour-photos">${g.jour ? jourLong(g.jour) : "Sans date de prise de vue"}</h3>`;
+      entete = `<h3 class="jour-photos">${g.jour ? jourLong(g.jour) : "Sans date de prise de vue"}</h3>`;
     }
     const debut = heureFr(g.elements[0].date), fin = heureFr(g.elements.at(-1).date);
     const heure = g.jour ? (fin !== debut ? `${debut} – ${fin}` : debut) : "";
-    html += `<div class="groupe-photos"><button type="button" class="titre-groupe" data-groupe="${i}" title="Choisir tout ce moment">${
+    entete += `<div class="groupe-photos"><button type="button" class="titre-groupe" data-groupe="${i}" title="Choisir tout ce moment">${
       heure ? `<strong>${heure}</strong> · ` : ""}${pluriel(g.elements.length, g.elements.every((e) => e.genre === "video") ? "vidéo" : "élément")}</button>
-      <div class="grille-photos">${g.elements.map((e) => vignette(e, `data-cle="${e.cle}"`, selTri.has(e.cle),
-        e.doublon ? `<span class="etiquette" title="Déjà rangée sous le numéro ${e.doublon}">Déjà rangée</span>` : "")).join("")}</div></div>`;
+      <div class="grille-photos"></div></div>`;
+    g.elements.forEach((e, j) => morceaux.push({ debut: j ? "" : entete, html: () => vignette(e, `data-cle="${e.cle}"`, selTri.has(e.cle),
+      e.doublon ? `<span class="etiquette" title="Déjà rangée sous le numéro ${e.doublon}">Déjà rangée</span>` : "") }));
   });
   const sources = donneesPhotos.sources.map((s) => `« ${echapper(nomDossier(s))} »`).join(", ");
-  $("#groupes-a-trier").innerHTML = html || `<p class="vide-photos">${picto("coche")}Aucune photo à trier.
+  rendreParTranches($("#groupes-a-trier"), morceaux, `<p class="vide-photos">${picto("coche")}Aucune photo à trier.
     <span class="petit" title="Dossiers lus : ${echapper(sources || "aucun")}">Dossiers de photos :
-    <button class="lien" data-aller-photos="fonctionnalites">Paramètres</button></span></p>`;
+    <button class="lien" data-aller-photos="fonctionnalites">Paramètres</button></span></p>`);
   $$("[data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
   afficherBarreTri();
 }
@@ -3500,22 +3542,23 @@ function afficherRangees() {
       r ? `<small class="date-realisation">du ${dateFr(r.date)}</small>` : ""}</span></button>`).join("");
   const liste = rangeesVisibles();
   $("#nb-rangees").textContent = pluriel(liste.length, "élément");
-  let html = "", mois = null;
-  liste.forEach((r) => {
+  let mois = null;
+  const toutes = realisations();
+  const morceaux = liste.map((r) => {
     const m = (r.date || "").slice(0, 7);
+    let debut = "";
     if (m !== mois) {
-      if (mois !== null) html += "</div>";
       mois = m;
-      html += `<h3 class="jour-photos">${m ? new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
-        .replace(/^./, (c) => c.toUpperCase()) : "Sans date"}</h3><div class="grille-photos">`;
+      debut = `<h3 class="jour-photos">${m ? new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+        .replace(/^./, (c) => c.toUpperCase()) : "Sans date"}</h3><div class="grille-photos"></div>`;
     }
-    const realisation = !r.enfants.length && realisations().find((x) => x.id === r.seance);
+    const realisation = !r.enfants.length && toutes.find((x) => x.id === r.seance);
     const noms = r.enfants.map((i) => enfantPar(i)?.prenom).filter(Boolean).join(", ") || (realisation ? realisation.activite.titre : "");
-    html += vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
-      `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || r.numero)}</span>`);
+    return { debut, html: () => vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
+      `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || r.numero)}</span>`) };
   });
-  $("#grille-rangees").innerHTML = liste.length ? html + "</div>" : `<p class="vide-photos">${d.rangees.length
-    ? "Aucune photo pour ce choix." : `Aucune photo rangée. ${d.a_trier.length ? "Ouvrez « À trier », en bas à droite." : ""}`}</p>`;
+  rendreParTranches($("#grille-rangees"), morceaux, `<p class="vide-photos">${d.rangees.length
+    ? "Aucune photo pour ce choix." : `Aucune photo rangée. ${d.a_trier.length ? "Ouvrez « À trier », en bas à droite." : ""}`}</p>`);
   afficherBarreRangees();
 }
 
@@ -3726,8 +3769,7 @@ function afficherMisDeCote() {
       $(nb).textContent = `(${liste.length})`;
       $(bloc).classList.toggle("cache", !liste.length);
       // Les aperçus ne sont chargés qu'à l'ouverture du bloc (il peut y avoir beaucoup de photos personnelles).
-      $(grille).innerHTML = $(bloc).open ? liste.slice(0, 300).map((e) => vignette(e, `data-cle="${e.cle}"`, sel.has(e.cle))).join("")
-        + (liste.length > 300 ? `<p class="petit">… et ${liste.length - 300} autres.</p>` : "") : "";
+      rendreParTranches($(grille), $(bloc).open ? liste.map((e) => ({ html: () => vignette(e, `data-cle="${e.cle}"`, sel.has(e.cle)) })) : [], "");
       $(bouton).disabled = !sel.size;
     });
 }

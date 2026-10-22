@@ -1367,3 +1367,6 @@ button.secondaire.en-cours .rond-chargement, button.lien.en-cours .rond-chargeme
 body.demarrage-en-cours .chargement, body.demarrage-en-cours .barre-chargement { display: none; }
 body.demarrage-en-cours { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .demarrage .logo { animation: none; } }
+
+/* Repère en bas d'une liste de photos : les suivantes sont ajoutées quand il approche de l'écran. */
+.suite-photos { grid-column: 1 / -1; height: 1px; }
