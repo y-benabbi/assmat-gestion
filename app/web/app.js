@@ -2856,20 +2856,20 @@ document.addEventListener("keydown", (e) => {
 });
 $("#deselectionner-tri").addEventListener("click", viderTri);
 
-// Liste des activités : séances des jours concernés, puis toutes les activités (une séance est créée à cette date).
+// Liste des réalisations des jours concernés (« Peinture d'automne du 14 octobre 2026 »), puis toutes les activités :
+// choisir une activité crée sa réalisation à la date de la photo.
 function remplirActivites(select, jours, toutesSeances = false, valeur = select.value) {
-  const seances = activitesConnues.flatMap((a) => a.seances.map((s) => ({ ...s, titre: a.titre })));
-  const utiles = seances.filter((s) => toutesSeances || jours.includes(s.date));
-  select.innerHTML = `<option value="">Aucune activité</option>`
-    + (utiles.length ? `<optgroup label="${toutesSeances ? "Séances" : "Séances de ce jour"}">${utiles.map((s) =>
-      `<option value="s:${s.id}">${echapper(s.titre)} (${dateCourte(s.date)})</option>`).join("")}</optgroup>` : "")
-    + (activitesConnues.length ? `<optgroup label="Activités">${activitesConnues.map((a) =>
+  const utiles = realisations().filter((s) => toutesSeances || jours.includes(s.date)).sort((x, y) => y.date.localeCompare(x.date));
+  select.innerHTML = `<option value="">Aucune réalisation</option>`
+    + (utiles.length ? `<optgroup label="${toutesSeances ? "Réalisations" : "Réalisations de ce jour"}">${utiles.map((s) =>
+      `<option value="s:${s.id}">${echapper(nomRealisation(s.activite.titre, s.date))}</option>`).join("")}</optgroup>` : "")
+    + (activitesConnues.length ? `<optgroup label="Nouvelle réalisation de l'activité">${activitesConnues.map((a) =>
       `<option value="a:${a.id}">${echapper(a.titre)}</option>`).join("")}</optgroup>` : "")
     + `<option value="nouvelle">Nouvelle activité…</option>`;
   select.value = [...select.options].some((o) => o.value === valeur) ? valeur : "";
 }
 
-// Séance correspondant au choix (créée si besoin à la date de la photo) ; null si on renonce.
+// Réalisation correspondant au choix (créée si besoin à la date de la photo) ; null si on renonce.
 async function seanceChoisie(select, jour) {
   const v = select.value;
   if (!v) return "";
@@ -3045,9 +3045,11 @@ async function deposerFichiers(fichiers) {
 function afficherRangees() {
   const d = donneesPhotos;
   afficherCasesEnfants();
-  const avecSeance = activitesConnues.filter((a) => a.seances.some((s) => s.photos?.length));
-  if (filtreActivite.startsWith("a:") && !avecSeance.some((a) => `a:${a.id}` === filtreActivite)) filtreActivite = "";
-  $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans activité"], ...avecSeance.map((a) => [`a:${a.id}`, a.titre])]
+  // Filtre « Réalisations » : celles qui ont des photos, de la plus récente à la plus ancienne.
+  const avecPhotos = realisations().filter((s) => s.photos?.length).sort((x, y) => y.date.localeCompare(x.date));
+  if (filtreActivite.startsWith("s:") && !avecPhotos.some((s) => `s:${s.id}` === filtreActivite)) filtreActivite = "";
+  $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans réalisation"],
+    ...avecPhotos.map((s) => [`s:${s.id}`, nomRealisation(s.activite.titre, s.date)])]
     .map(([v, t]) => `<button type="button" class="ligne-filtre" data-filtre-activite="${v}" aria-pressed="${filtreActivite === v}">${
       echapper(t)}</button>`).join("");
   const liste = rangeesVisibles();
@@ -3102,10 +3104,8 @@ function afficherCasesEnfants() {
 $("#recherche-enfants").addEventListener("input", (e) => { rechercheEnfant = e.target.value; afficherCasesEnfants(); });
 
 function rangeesVisibles() {
-  const seancesDe = (id) => new Set(activitesConnues.find((a) => a.id === id)?.seances.map((s) => s.id) || []);
-  const seances = filtreActivite.startsWith("a:") ? seancesDe(filtreActivite.slice(2)) : null;
   return donneesPhotos.rangees.filter((r) => (!filtreEnfant || r.enfants.includes(filtreEnfant))
-    && (!filtreActivite || (filtreActivite === "aucune" ? !r.seance : seances?.has(r.seance))));
+    && (!filtreActivite || (filtreActivite === "aucune" ? !r.seance : `s:${r.seance}` === filtreActivite)));
 }
 
 function afficherBarreRangees() {
@@ -3256,19 +3256,38 @@ function afficherMisDeCote() {
   });
 $("#actualiser-photos").addEventListener("click", () => afficherPhotos());
 
-// ------------------------------------------------------------- activités (modèles réutilisables et séances)
+// ------------------------------------------------------------- activités et réalisations
+// Deux onglets. « Activités » : les fiches réutilisables (description, à préparer, documents, ajoutés dès la création).
+// « Réalisations » : une activité faite ou prévue à une date (une « séance » dans les données), sur un calendrier ;
+// un clic sur un jour montre ses réalisations en détail (à préparer, documents, photos rangées avec elles).
 let activiteOuverte = "";          // identifiant, « nouvelle » ou vide
+let vueAteliers = "activites";
+let documentsEnAttente = [];       // documents choisis pour une activité pas encore enregistrée
+let moisRealisations = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let jourRealisations = isoJour(new Date());
+
+// « Peinture d'automne du 14 octobre 2026 » : nom d'une réalisation partout où elle est proposée.
+const nomRealisation = (titre, jour) => `${titre} du ${dateFr(jour)}`;
+const realisations = () => activitesConnues.flatMap((a) => a.seances.map((s) => ({ ...s, activite: a })));
 
 async function afficherAteliers() {
   const r = await api("ateliers").catch((e) => { alert(e.message); return null; });
   if (!r) return;
   activitesConnues = r.activites;
   $("#ateliers-sans-dossier").classList.toggle("cache", r.configure);
+  $$("[data-vue-ateliers]").forEach((b) => {
+    const oui = b.dataset.vueAteliers === vueAteliers;
+    b.classList.toggle("actif", oui);
+    b.setAttribute("aria-selected", String(oui));
+  });
+  $("#vue-activites").classList.toggle("cache", vueAteliers !== "activites");
+  $("#vue-realisations").classList.toggle("cache", vueAteliers !== "realisations");
+  if (vueAteliers === "realisations") { afficherRealisations(); return; }
   const aujourdhui = isoJour(new Date());
   $("#liste-activites").innerHTML = r.activites.length ? r.activites.map((a) => {
     const passees = a.seances.filter((s) => s.date <= aujourdhui), venir = a.seances.filter((s) => s.date > aujourdhui);
-    const detail = [venir.length ? `prochaine le ${dateCourte(venir.at(-1).date)}` : "",
-      passees.length ? `${pluriel(passees.length, "séance")}, la dernière le ${dateCourte(passees[0].date)}` : "jamais réalisée"]
+    const detail = [venir.length ? `prévue le ${dateCourte(venir.at(-1).date)}` : "",
+      passees.length ? `${pluriel(passees.length, "réalisation")}, la dernière le ${dateCourte(passees[0].date)}` : "jamais réalisée"]
       .filter(Boolean).join(" · ");
     return `<li><button type="button" class="carte-activite" data-activite="${a.id}" aria-pressed="${activiteOuverte === a.id}">
       ${pastille("activite", "familles")}<span><span class="nom">${echapper(a.titre)}</span><span class="petit">${detail}</span></span></button></li>`;
@@ -3277,56 +3296,71 @@ async function afficherAteliers() {
   afficherFicheActivite();
 }
 
+function choisirVueAteliers(vue) {
+  vueAteliers = vue;
+  afficherAteliers();
+}
+$$("[data-vue-ateliers]").forEach((b) => b.addEventListener("click", () => choisirVueAteliers(b.dataset.vueAteliers)));
+
+function listeDocuments(a) {
+  return (a.documents || []).map((d) => `<li>${picto("pdf")}<button type="button" class="lien" data-ouvrir-document="${
+    echapper(d.nom)}" data-activite-document="${a.id}">${echapper(d.nom)}</button></li>`).join("");
+}
+
 function afficherFicheActivite() {
   const fiche = $("#fiche-activite");
   const a = activitesConnues.find((x) => x.id === activiteOuverte);
   if (!a && activiteOuverte !== "nouvelle") { fiche.classList.add("cache"); return; }
   fiche.classList.remove("cache");
   const aujourdhui = isoJour(new Date());
-  const seances = a ? a.seances.map((s) => {
-    const prepare = new Set(s.prepare || []);
-    const liste = (a.a_preparer || []).length ? `<ul class="a-preparer">${a.a_preparer.map((x) => `<li><label class="case-a-cocher">
-      <input type="checkbox" data-prepare="${s.id}" value="${echapper(x)}" ${prepare.has(x) ? "checked" : ""}>${echapper(x)}</label></li>`).join("")}</ul>` : "";
-    const nb = s.photos?.length || 0;
-    return `<li class="${s.date > aujourdhui ? "a-venir-seance" : ""}"><div class="entete-seance"><strong>${dateFr(s.date)}</strong>
-      <span class="petit">${s.date > aujourdhui ? "à venir" : s.date === aujourdhui ? "aujourd'hui" : "réalisée"}</span>
-      <span class="actions-seance">${nb ? `<button type="button" class="action" data-voir-photos="${a.id}">${picto("appareil")}${pluriel(nb, "photo")}</button>` : ""}
-      <button type="button" class="action danger" data-supprimer-seance="${s.id}">${picto("supprimer")}Retirer</button></span></div>
-      ${s.date >= aujourdhui ? liste : ""}</li>`;
-  }).join("") : "";
+  const dates = a ? a.seances.map((s) => `<li><button type="button" class="lien" data-voir-jour="${s.date}">${dateFr(s.date)}</button>
+      <span class="petit">${s.date > aujourdhui ? "prévue" : s.date === aujourdhui ? "aujourd'hui" : "réalisée"}${
+      s.photos?.length ? ` · ${pluriel(s.photos.length, "photo")}` : ""}</span></li>`).join("") : "";
   fiche.innerHTML = `<form id="form-activite" class="formulaire-activite">
       <h2>${a ? echapper(a.titre) : "Nouvelle activité"}</h2>
       <label>Titre <input name="titre" required maxlength="120" value="${echapper(a?.titre || "")}" placeholder="Peinture d'automne"></label>
       <label>Description <textarea name="description" rows="3" placeholder="Déroulement, âges, durée…">${echapper(a?.description || "")}</textarea></label>
       <label>À préparer, acheter ou rassembler <textarea name="a_preparer" rows="4"
         placeholder="Une ligne par élément : gouache, pinceaux, feuilles ramassées…">${echapper((a?.a_preparer || []).join("\n"))}</textarea></label>
+      <h3 class="sous-titre">Documents</h3>
+      <ul class="documents-activite" id="documents-activite">${a ? listeDocuments(a) || `<li class="petit">Aucun document.</li>` : ""}</ul>
+      <div class="zone-depot" id="depot-activite">Glissez ici des documents (modèles, coloriages, images…) ou
+        <button type="button" class="lien" id="choisir-documents">choisissez des fichiers</button>.
+        ${a ? `Ils sont copiés dans le dossier « Activités\\${echapper(a.dossier || a.titre)} ».`
+          : "Ils seront copiés dans le dossier de l'activité à l'enregistrement."}
+        <input type="file" id="fichiers-activite" class="cache" multiple></div>
+      ${a ? `<div class="boutons"><button type="button" class="secondaire" data-ouvrir-dossier-activite>${picto("dossier")}Ouvrir le dossier de l'activité</button></div>` : ""}
       <div class="boutons">
         <button class="principal" data-picto-js="coche">Enregistrer</button>
         <button type="button" class="secondaire" data-fermer-activite>Fermer</button>
         ${a ? `<button type="button" class="action danger" data-supprimer-activite>${picto("supprimer")}Supprimer l'activité</button>` : ""}
       </div>
     </form>
-    ${a ? `<h3 class="sous-titre">Séances</h3>
+    ${a ? `<h3 class="sous-titre">Réalisations</h3>
+      <ul class="dates-realisations">${dates || `<li class="petit">Pas encore réalisée.</li>`}</ul>
       <div class="ligne nouvelle-seance"><label>Date <input type="date" id="date-seance" value="${aujourdhui}"></label>
-        <button type="button" class="secondaire" id="ajouter-seance">${picto("plus")}Faire cette activité</button></div>
-      <p class="petit">Une séance par date. Cochez ce qui est prêt pour chaque séance à venir.</p>
-      <ul class="liste-seances">${seances || `<li class="petit">Aucune séance pour l'instant.</li>`}</ul>
-      <h3 class="sous-titre">Documents</h3>
-      <ul class="documents-activite">${(a.documents || []).map((d) => `<li>${picto("pdf")}<button type="button" class="lien" data-ouvrir-document="${
-        echapper(d.nom)}">${echapper(d.nom)}</button></li>`).join("") || `<li class="petit">Aucun document.</li>`}</ul>
-      <div class="zone-depot" id="depot-activite">Glissez ici des documents (modèles, coloriages, images…) ou
-        <button type="button" class="lien" id="choisir-documents">choisissez des fichiers</button>.
-        Ils sont copiés dans le dossier « Activités\\${echapper(a.dossier || a.titre)} ».
-        <input type="file" id="fichiers-activite" class="cache" multiple></div>
-      <div class="boutons"><button type="button" class="secondaire" data-ouvrir-dossier-activite>${picto("dossier")}Ouvrir le dossier de l'activité</button></div>` : ""}`;
+        <button type="button" class="secondaire" id="ajouter-seance">${picto("plus")}Ajouter une réalisation</button></div>` : ""}`;
   fiche.querySelector("[data-picto-js]")?.insertAdjacentHTML("afterbegin", picto("coche"));
   marquerChamps($("#form-activite"));
+  if (!a) afficherDocumentsEnAttente();
 }
 
-async function envoyerDocuments(fichiers) {
+// Activité pas encore enregistrée : les documents choisis attendent l'enregistrement (la fiche n'est pas redessinée,
+// pour garder ce qui est déjà saisi).
+function afficherDocumentsEnAttente() {
+  $("#documents-activite").innerHTML = documentsEnAttente.map((f, i) => `<li>${picto("pdf")}<span>${echapper(f.name)}</span>
+    <button type="button" class="icone" data-retirer-attente="${i}" aria-label="Retirer">${picto("fermer")}</button></li>`).join("");
+}
+
+async function envoyerDocuments(fichiers, activite = activiteOuverte) {
   if (!fichiers.length) return;
+  if (activite === "nouvelle") {
+    documentsEnAttente.push(...fichiers);
+    afficherDocumentsEnAttente();
+    return;
+  }
   const donnees = new FormData();
-  donnees.append("activite", activiteOuverte);
+  donnees.append("activite", activite);
   [...fichiers].forEach((f) => donnees.append("fichiers", f, f.name));
   const r = await fetch("/api/ateliers/document", { method: "POST", body: donnees }).then((x) => x.json()).catch((e) => ({ erreurs: [e.message] }));
   if (r.erreurs?.length) alert(r.erreurs.join("\n"));
@@ -3335,8 +3369,12 @@ async function envoyerDocuments(fichiers) {
 
 $("#nouvelle-activite").addEventListener("click", () => {
   activiteOuverte = "nouvelle";
-  afficherAteliers();
-  $("#fiche-activite").scrollIntoView({ behavior: "smooth", block: "start" });
+  documentsEnAttente = [];
+  vueAteliers = "activites";
+  afficherAteliers().then(() => {
+    $("#fiche-activite").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("#form-activite")?.elements.titre.focus();
+  });
 });
 $("#liste-activites").addEventListener("click", (e) => {
   const b = e.target.closest("[data-activite]");
@@ -3352,14 +3390,51 @@ $("#fiche-activite").addEventListener("submit", async (e) => {
       description: f.elements.description.value, a_preparer: f.elements.a_preparer.value });
     activiteOuverte = a.id;
   } catch (err) { alert(err.message); return; }
-  afficherAteliers();
+  const attente = documentsEnAttente;
+  documentsEnAttente = [];
+  if (attente.length) await envoyerDocuments(attente);
+  else afficherAteliers();
 });
+
+// Actions communes aux deux onglets (documents, photos, retrait d'une réalisation, cases « prêt »).
+async function actionAteliers(cible) {
+  if (cible.dataset.ouvrirDocument) {
+    api("ateliers/ouvrir", { activite: cible.dataset.activiteDocument, nom: cible.dataset.ouvrirDocument }).catch((err) => alert(err.message));
+  } else if (cible.dataset.supprimerSeance) {
+    if (!confirm("Retirer cette réalisation ? Les photos rangées restent en place.")) return;
+    await api("ateliers/seance/supprimer", { id: cible.dataset.supprimerSeance }).catch((err) => alert(err.message));
+    afficherAteliers();
+  } else if (cible.dataset.voirPhotos) {
+    filtreActivite = `s:${cible.dataset.voirPhotos}`;
+    filtreEnfant = "";
+    ouvrirOnglet("photos");
+  } else if (cible.dataset.ouvrirPhoto) {
+    api("photos/ouvrir", { numero: cible.dataset.ouvrirPhoto }).catch((err) => alert(err.message));
+  } else if (cible.dataset.voirJour) {
+    jourRealisations = cible.dataset.voirJour;
+    const d = new Date(jourRealisations + "T12:00:00");
+    moisRealisations = new Date(d.getFullYear(), d.getMonth(), 1);
+    choisirVueAteliers("realisations");
+  } else if (cible.dataset.ouvrirFiche) {
+    activiteOuverte = cible.dataset.ouvrirFiche;
+    choisirVueAteliers("activites");
+  }
+}
+async function cochePrepare(e) {
+  const seance = e.target.dataset.prepare;
+  if (!seance) return;
+  const prepare = $$(`[data-prepare="${seance}"]`).filter((c) => c.checked).map((c) => c.value);
+  await api("ateliers/seance/modifier", { id: seance, prepare }).catch((err) => alert(err.message));
+  const s = realisations().find((x) => x.id === seance);
+  if (s) s.prepare = prepare;
+}
+
 $("#fiche-activite").addEventListener("click", async (e) => {
   const cible = e.target.closest("button");
   if (!cible) return;
-  if (cible.matches("[data-fermer-activite]")) { activiteOuverte = ""; afficherAteliers(); }
+  if (cible.matches("[data-fermer-activite]")) { activiteOuverte = ""; documentsEnAttente = []; afficherAteliers(); }
   else if (cible.matches("[data-supprimer-activite]")) {
-    if (!confirm("Supprimer cette activité ? Son dossier de documents et les photos rangées restent en place.")) return;
+    if (!confirm("Supprimer cette activité et ses réalisations ? Son dossier de documents et les photos rangées restent en place.")) return;
     await api("ateliers/supprimer", { id: activiteOuverte }).catch((err) => alert(err.message));
     activiteOuverte = "";
     afficherAteliers();
@@ -3367,26 +3442,16 @@ $("#fiche-activite").addEventListener("click", async (e) => {
     try { await api("ateliers/seance", { activite: activiteOuverte, date: $("#date-seance").value }); }
     catch (err) { alert(err.message); return; }
     afficherAteliers();
-  } else if (cible.dataset.supprimerSeance) {
-    if (!confirm("Retirer cette séance ? Les photos rangées restent en place.")) return;
-    await api("ateliers/seance/supprimer", { id: cible.dataset.supprimerSeance }).catch((err) => alert(err.message));
-    afficherAteliers();
-  } else if (cible.dataset.voirPhotos) {
-    filtreActivite = `a:${cible.dataset.voirPhotos}`;
-    filtreEnfant = "";
-    ouvrirOnglet("photos");
-  } else if (cible.dataset.ouvrirDocument) {
-    api("ateliers/ouvrir", { activite: activiteOuverte, nom: cible.dataset.ouvrirDocument }).catch((err) => alert(err.message));
+  } else if (cible.dataset.retirerAttente) {
+    documentsEnAttente.splice(Number(cible.dataset.retirerAttente), 1);
+    afficherDocumentsEnAttente();
   } else if (cible.matches("[data-ouvrir-dossier-activite]")) {
     api("ateliers/ouvrir", { activite: activiteOuverte }).catch((err) => alert(err.message));
   } else if (cible.id === "choisir-documents") $("#fichiers-activite").click();
+  else actionAteliers(cible);
 });
-$("#fiche-activite").addEventListener("change", async (e) => {
-  if (e.target.id === "fichiers-activite") { envoyerDocuments(e.target.files); return; }
-  const seance = e.target.dataset.prepare;
-  if (!seance) return;
-  const prepare = $$(`[data-prepare="${seance}"]`).filter((c) => c.checked).map((c) => c.value);
-  await api("ateliers/seance/modifier", { id: seance, prepare }).catch((err) => alert(err.message));
+$("#fiche-activite").addEventListener("change", (e) => {
+  if (e.target.id === "fichiers-activite") { envoyerDocuments([...e.target.files]); e.target.value = ""; }
 });
 $("#fiche-activite").addEventListener("dragover", (e) => {
   const zone = e.target.closest?.("#depot-activite");
@@ -3398,8 +3463,108 @@ $("#fiche-activite").addEventListener("drop", (e) => {
   if (!zone || !e.dataTransfer?.files.length) return;
   e.preventDefault();
   zone.classList.remove("survol");
-  envoyerDocuments(e.dataTransfer.files);
+  envoyerDocuments([...e.dataTransfer.files]);
 });
+
+// --- réalisations : calendrier du mois, puis le détail du jour choisi
+function afficherRealisations() {
+  const premier = moisRealisations;
+  const cle = isoJour(premier).slice(0, 7);
+  $("#titre-mois-realisations").textContent = premier.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+    .replace(/^./, (c) => c.toUpperCase());
+  const parJour = {};
+  realisations().forEach((r) => (parJour[r.date] ??= []).push(r));
+  const debut = new Date(premier);
+  debut.setDate(1 - ((premier.getDay() + 6) % 7));        // lundi de la première semaine
+  const aujourdhui = isoJour(new Date());
+  const cases = [];
+  for (let d = new Date(debut); cases.length < 42; d.setDate(d.getDate() + 1)) {
+    const iso = isoJour(d);
+    if (cases.length % 7 === 0 && cases.length >= 35 && iso.slice(0, 7) !== cle) break;
+    const liste = parJour[iso] || [];
+    const puces = liste.slice(0, 3).map((r) => `<span class="puce-realisation${r.date > aujourdhui ? " a-venir" : ""}">${
+      echapper(r.activite.titre)}${r.photos?.length ? picto("appareil") : ""}</span>`).join("")
+      + (liste.length > 3 ? `<span class="puce-plus">+${liste.length - 3}</span>` : "");
+    cases.push(`<button type="button" class="jour${iso.slice(0, 7) !== cle ? " hors-mois" : ""}${iso === aujourdhui ? " aujourdhui" : ""}${
+      iso === jourRealisations ? " choisi" : ""}" data-jour="${iso}" aria-pressed="${iso === jourRealisations}"
+      title="${echapper(liste.map((r) => r.activite.titre).join(", ") || jourLong(iso))}"><span class="numero-jour">${d.getDate()}</span>${puces}</button>`);
+  }
+  $("#calendrier-realisations").innerHTML = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
+    .map((j) => `<span class="nom-jour">${j}</span>`).join("") + cases.join("");
+  afficherJourRealisations();
+}
+
+function carteRealisation(r) {
+  const a = r.activite, aujourdhui = isoJour(new Date());
+  const prepare = new Set(r.prepare || []);
+  const etat = r.date > aujourdhui ? "prévue" : r.date === aujourdhui ? "aujourd'hui" : "réalisée";
+  const aPreparer = (a.a_preparer || []).length ? `<h4>À préparer</h4><ul class="a-preparer">${a.a_preparer.map((x) => `<li>
+    <label class="case-a-cocher"><input type="checkbox" data-prepare="${r.id}" value="${echapper(x)}" ${prepare.has(x) ? "checked" : ""}>${
+    echapper(x)}</label></li>`).join("")}</ul>` : "";
+  const docs = listeDocuments(a);
+  const photos = r.photos || [];
+  return `<article class="carte-realisation${r.date > aujourdhui ? " a-venir-seance" : ""}">
+    <div class="entete-seance"><h3>${echapper(a.titre)}</h3><span class="etat-realisation">${etat}</span></div>
+    ${a.description ? `<p class="description-activite">${echapper(a.description)}</p>` : ""}
+    ${aPreparer}
+    ${docs ? `<h4>Documents</h4><ul class="documents-activite">${docs}</ul>` : ""}
+    ${photos.length ? `<h4>${pluriel(photos.length, "photo")}</h4><div class="photos-realisation">${photos.map((n) =>
+      `<button type="button" class="mini-photo" data-ouvrir-photo="${n}" title="Photo ${n} : ouvrir"><img loading="lazy" alt="" src="/api/photos/miniature?numero=${n}"
+        onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'${n}'}))"></button>`).join("")}</div>` : ""}
+    <div class="boutons">
+      ${photos.length ? `<button type="button" class="action" data-voir-photos="${r.id}">${picto("appareil")}Voir dans Photos</button>` : ""}
+      <button type="button" class="action" data-ouvrir-fiche="${a.id}">${picto("activite")}Fiche de l'activité</button>
+      <button type="button" class="action danger" data-supprimer-seance="${r.id}">${picto("supprimer")}Retirer</button>
+    </div>
+  </article>`;
+}
+
+function afficherJourRealisations() {
+  const liste = realisations().filter((r) => r.date === jourRealisations);
+  const deja = new Set(liste.map((r) => r.activite.id));
+  const autres = activitesConnues.filter((a) => !deja.has(a.id));
+  $("#jour-realisations").innerHTML = `<h2>${jourLong(jourRealisations)}</h2>
+    ${liste.map(carteRealisation).join("") || `<p class="petit">Aucune réalisation ce jour-là.</p>`}
+    ${autres.length ? `<div class="ligne nouvelle-seance"><label>Ajouter une réalisation <select id="activite-realisation">${
+      autres.map((a) => `<option value="${a.id}">${echapper(a.titre)}</option>`).join("")}</select></label>
+      <button type="button" class="secondaire" id="ajouter-realisation">${picto("plus")}Ajouter</button></div>`
+      : activitesConnues.length ? "" : `<p class="petit">Créez d'abord une activité dans l'onglet « Activités ».</p>`}`;
+}
+
+$("#calendrier-realisations").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-jour]");
+  if (!b) return;
+  jourRealisations = b.dataset.jour;
+  if (jourRealisations.slice(0, 7) !== isoJour(moisRealisations).slice(0, 7)) {
+    const d = new Date(jourRealisations + "T12:00:00");
+    moisRealisations = new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+  afficherRealisations();
+  if (matchMedia("(max-width: 900px)").matches) $("#jour-realisations").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+const changerMoisRealisations = (n) => {
+  moisRealisations = new Date(moisRealisations.getFullYear(), moisRealisations.getMonth() + n, 1);
+  afficherRealisations();
+};
+$("#mois-realisations-precedent").addEventListener("click", () => changerMoisRealisations(-1));
+$("#mois-realisations-suivant").addEventListener("click", () => changerMoisRealisations(1));
+$("#mois-realisations-precedent").innerHTML = picto("monter").replace("m6 15 6-6 6 6", "m15 6-6 6 6 6");
+$("#mois-realisations-suivant").innerHTML = picto("monter").replace("m6 15 6-6 6 6", "m9 6 6 6-6 6");
+$("#mois-realisations-aujourdhui").addEventListener("click", () => {
+  jourRealisations = isoJour(new Date());
+  moisRealisations = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  afficherRealisations();
+});
+$("#jour-realisations").addEventListener("click", async (e) => {
+  const cible = e.target.closest("button");
+  if (!cible) return;
+  if (cible.id === "ajouter-realisation") {
+    try { await api("ateliers/seance", { activite: $("#activite-realisation").value, date: jourRealisations }); }
+    catch (err) { alert(err.message); return; }
+    afficherAteliers();
+  } else actionAteliers(cible);
+});
+$("#jour-realisations").addEventListener("change", cochePrepare);
 
 // ------------------------------------------------------------- mises à jour
 async function verifierVersion(manuel = false) {

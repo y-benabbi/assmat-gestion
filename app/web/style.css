@@ -1189,7 +1189,66 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .documents-activite .picto { color: var(--eucalyptus); }
 .nouvelle-seance { align-items: flex-end; flex-wrap: wrap; }
 .nouvelle-seance label { margin: 0; flex: 0 1 220px; }
+.dates-realisations { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.dates-realisations li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.documents-activite .icone { margin-left: auto; width: 28px; height: 28px; padding: 5px; border: 0; border-radius: 8px; background: none;
+  color: var(--encre-douce); cursor: pointer; }
+.documents-activite .icone:hover { background: var(--brume); color: var(--erreur); }
+.formulaire-activite .zone-depot { margin-bottom: 6px; }
+
+/* Onglets Activités / Réalisations */
+.onglets-ateliers { margin: 0 0 18px; }
+.onglets-ateliers button { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; font-size: 1rem; cursor: pointer; }
+.onglets-ateliers button .picto { margin: 0; }
+
+/* Réalisations : grand calendrier du mois, détail du jour à droite */
+.realisations { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 22px; align-items: start; }
+.calendrier-realisations { margin: 0; }
+.calendrier-realisations .titre-bloc { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.calendrier-realisations h2 { margin: 0; min-width: 9.5em; text-align: center; font-size: 1.25rem; }
+.grand-calendrier { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.grand-calendrier .nom-jour { font-size: 0.78rem; font-weight: 700; color: var(--encre-douce); text-transform: uppercase; text-align: center; padding: 4px 0; }
+.grand-calendrier .jour { display: flex; flex-direction: column; align-items: stretch; gap: 3px; min-height: 104px; padding: 6px;
+  border: 2px solid var(--trait); border-radius: 12px; background: var(--papier); color: var(--encre); text-align: left; cursor: pointer;
+  font: inherit; overflow: hidden; }
+.grand-calendrier .jour:hover { border-color: var(--menthe-fonce); }
+.grand-calendrier .hors-mois { background: var(--brume); color: #bdb6cf; border-color: transparent; }
+.grand-calendrier .choisi { border-color: var(--eucalyptus); box-shadow: 0 0 0 2px var(--eucalyptus-clair); }
+.grand-calendrier .numero-jour { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 700;
+  font-variant-numeric: tabular-nums; }
+.grand-calendrier .aujourdhui .numero-jour { background: var(--eucalyptus); color: #fff; }
+.puce-realisation { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; padding: 3px 7px;
+  border-radius: 8px; background: var(--lavande); color: var(--menthe-encre); font-size: 0.8rem; font-weight: 700; line-height: 1.2;
+  overflow-wrap: anywhere; }
+.puce-realisation .picto { width: 12px; height: 12px; margin-left: 4px; vertical-align: -1px; }
+.puce-realisation.a-venir { background: var(--tournesol-clair); color: #8a5a12; }
+.hors-mois .puce-realisation { opacity: 0.6; }
+.puce-plus { font-size: 0.78rem; font-weight: 700; color: var(--encre-douce); padding-left: 4px; }
+.jour-realisations { margin: 0; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+.jour-realisations > h2 { margin-top: 0; }
+.carte-realisation { padding: 14px 16px; margin-bottom: 14px; border-radius: 14px; background: var(--brume); }
+.carte-realisation.a-venir-seance { background: var(--tournesol-clair); }
+.carte-realisation h3 { margin: 0; font-size: 1.15rem; }
+.carte-realisation h4 { margin: 14px 0 4px; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--encre-douce); }
+.carte-realisation .boutons { margin-top: 12px; }
+.etat-realisation { padding: 2px 10px; border-radius: 999px; background: var(--papier); font-size: 0.82rem; font-weight: 700; color: var(--encre-douce); }
+.description-activite { margin: 8px 0 0; white-space: pre-line; }
+.photos-realisation { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; }
+.mini-photo { aspect-ratio: 1; padding: 0; border: 0; border-radius: 10px; overflow: hidden; background: var(--lavande); cursor: zoom-in; }
+.mini-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mini-photo .sans-apercu { display: grid; place-items: center; height: 100%; font-size: 0.75rem; color: var(--encre-douce); }
+.jour-realisations .nouvelle-seance { padding-top: 12px; border-top: 1px dashed var(--trait); }
+.jour-realisations .nouvelle-seance label { flex: 1 1 200px; }
+.jour-realisations .nouvelle-seance select { width: 100%; }
+@media (max-width: 1100px) { .realisations { grid-template-columns: 1fr; } .jour-realisations { position: static; max-height: none; } }
 @media (max-width: 900px) { .ateliers { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .grand-calendrier { gap: 3px; }
+  .grand-calendrier .jour { min-height: 58px; padding: 3px; align-items: center; }
+  .puce-realisation { width: 8px; height: 8px; padding: 0; font-size: 0; border-radius: 50%; background: var(--eucalyptus); }
+  .puce-realisation.a-venir { background: var(--tournesol); }
+  .puce-realisation .picto, .puce-plus { display: none; }
+}
 .titre-bloc h2 .badge { display: inline-grid; margin-left: 8px; vertical-align: 3px; }
 .rangees-photos > .grille-photos { margin-bottom: 6px; }
 .barre-photos .actions-selection { flex: 1; justify-content: flex-end; }

@@ -105,7 +105,7 @@ peinture = ateliers.enregistrer(peinture | {"titre": "Peinture des feuilles"})
 assert (racine / "Activités" / "Peinture des feuilles" / "modele.pdf").is_file(), "dossier renommé avec le titre"
 venir = ateliers.ajouter_seance(peinture["id"], date.fromordinal(date.today().toordinal() + 5).isoformat())
 ech = [e for e in donnees.echeances(date.today()) if e["type"] == "activite"]
-assert ech and ech[0]["titre"] == "Activité : Peinture des feuilles" and "0 sur 3" in ech[0]["detail"], ech
+assert ech and ech[0]["titre"] == "Réalisation : Peinture des feuilles" and "0 sur 3" in ech[0]["detail"], ech
 ateliers.supprimer_seance(venir["id"])
 print("activités : modèle, séances, liste à préparer, documents, échéance")
 

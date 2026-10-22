@@ -1,9 +1,9 @@
-"""Activités (rubrique « Activités ») : des modèles réutilisables, et leurs séances datées.
+"""Activités (rubrique « Activités ») : des modèles réutilisables, et leurs réalisations datées.
 
 Une activité : identifiant (« A0007 », jamais modifié), titre, description, liste « à préparer » (matériel à
 préparer, acheter, rassembler) et documents utiles, rangés dans « Activités\\<Titre> » du dossier principal.
-Chaque fois qu'elle est faite, une séance (« S0012 ») porte sa date et ce qui est déjà prêt pour elle. Les photos
-rangées avec une activité sont rattachées à une séance (photos.py).
+Chaque fois qu'elle est faite, une réalisation (« S0012 », appelée séance dans les données) porte sa date et ce qui
+est déjà prêt pour elle. Les photos rangées avec une réalisation y sont rattachées (photos.py).
 
 Fichier donnees\\activites.json : {"compteur_activites", "compteur_seances", "activites": [...]}.
 """
@@ -101,7 +101,7 @@ def _date_valide(texte: str) -> str:
     try:
         return date.fromisoformat(str(texte or "").strip()).isoformat()
     except ValueError:
-        raise ValueError("Date de la séance invalide.")
+        raise ValueError("Date de la réalisation invalide.")
 
 
 def ajouter_seance(activite_id: str, jour: str) -> dict:
@@ -133,7 +133,7 @@ def modifier_seance(seance_id: str, valeurs: dict) -> dict:
                         s["prepare"] = [x for x in _liste_texte(valeurs["prepare"]) if x in a.get("a_preparer", [])]
                     _ecrire(d)
                     return s
-    raise ValueError("Séance introuvable.")
+    raise ValueError("Réalisation introuvable.")
 
 
 def supprimer_seance(seance_id: str) -> None:
@@ -180,7 +180,7 @@ def ajouter_document(activite_id: str, nom: str, contenu: bytes) -> dict:
 
 
 def echeances(jour: date, horizon_jours: int) -> list:
-    """Séances à venir : (date, titre, détail)."""
+    """Réalisations à venir : (date, titre, détail)."""
     fin = date.fromordinal(jour.toordinal() + horizon_jours).isoformat()
     liste = []
     for a in activites():
@@ -190,5 +190,5 @@ def echeances(jour: date, horizon_jours: int) -> list:
                 prets = len([x for x in s.get("prepare") or [] if x in a_preparer])
                 detail = (f"À préparer : {prets} sur {len(a_preparer)} prêt{'s' if prets > 1 else ''}."
                           if a_preparer else "")
-                liste.append((date.fromisoformat(s["date"]), f"Activité : {a['titre']}", detail))
+                liste.append((date.fromisoformat(s["date"]), f"Réalisation : {a['titre']}", detail))
     return liste

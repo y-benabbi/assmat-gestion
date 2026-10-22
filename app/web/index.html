@@ -195,7 +195,7 @@
           <input type="search" id="recherche-enfants" placeholder="Rechercher" aria-label="Rechercher un enfant ou une famille"></label>
         <p class="indice-depot">Déposez les photos sur un enfant</p>
         <details class="bloc-filtre" open><summary>Enfants</summary><div id="cases-enfants"></div></details>
-        <details class="bloc-filtre" open><summary>Activités</summary><div id="filtre-activite"></div></details>
+        <details class="bloc-filtre" open><summary>Réalisations</summary><div id="filtre-activite"></div></details>
       </aside>
       <!-- À droite : les photos rangées -->
       <div class="contenu-photos">
@@ -213,7 +213,7 @@
           </div>
           <div class="pastilles-enfants" id="pastilles-tri"></div>
           <div class="ligne-barre">
-            <label>Activité <select id="activite-tri"></select></label>
+            <label>Réalisation <select id="activite-tri"></select></label>
             <span class="boutons">
               <button class="principal" id="ranger" data-picto="coche" disabled>Ranger</button>
               <button class="secondaire" id="ignorer">Ignorer</button>
@@ -237,7 +237,7 @@
             <p class="libelle">Qui est sur <span id="titre-editeur"></span> ?</p>
             <div class="pastilles-enfants" id="pastilles-editeur"></div>
             <div class="ligne-barre">
-              <label>Activité <select id="activite-editeur"></select></label>
+              <label>Réalisation <select id="activite-editeur"></select></label>
               <span class="boutons">
                 <button class="principal" id="enregistrer-editeur" data-picto="coche">Enregistrer</button>
                 <button class="secondaire" id="annuler-editeur">Annuler</button>
@@ -283,16 +283,38 @@
       <h1>Activités</h1>
       <button class="principal" id="nouvelle-activite" data-picto="plus">Nouvelle activité</button>
     </div>
-    <p class="petit">Vos activités, réutilisables d'une année à l'autre : ce qu'il faut préparer, les documents utiles
-      (modèles, coloriages…) et chaque séance réalisée. Les photos rangées avec une activité s'y retrouvent.</p>
+    <div class="versions onglets-ateliers" role="tablist">
+      <button type="button" role="tab" data-vue-ateliers="activites" data-picto="activite">Activités</button>
+      <button type="button" role="tab" data-vue-ateliers="realisations" data-picto="calendrier">Réalisations</button>
+    </div>
     <div class="panneau alerte cache" id="ateliers-sans-dossier">
       <p>Les documents des activités sont rangés dans le <strong>dossier principal</strong> : choisissez-le d'abord.</p>
       <button class="principal" data-aller="fonctionnalites">Ouvrir les Paramètres</button>
     </div>
-    <input type="search" class="recherche" data-filtre="#liste-activites > li" placeholder="Rechercher une activité…">
-    <div class="ateliers">
-      <ul class="liste-activites" id="liste-activites"></ul>
-      <div class="panneau fiche-activite cache" id="fiche-activite"></div>
+    <!-- Activités : les fiches réutilisables (description, à préparer, documents) -->
+    <div class="vue-ateliers" id="vue-activites">
+      <input type="search" class="recherche" data-filtre="#liste-activites > li" placeholder="Rechercher une activité…">
+      <div class="ateliers">
+        <ul class="liste-activites" id="liste-activites"></ul>
+        <div class="panneau fiche-activite cache" id="fiche-activite"></div>
+      </div>
+    </div>
+    <!-- Réalisations : une activité faite (ou prévue) à une date, sur un calendrier -->
+    <div class="vue-ateliers cache" id="vue-realisations">
+      <div class="realisations">
+        <div class="panneau calendrier-realisations">
+          <div class="titre-bloc">
+            <div class="choix-mois">
+              <button class="icone" id="mois-realisations-precedent" aria-label="Mois précédent"></button>
+              <h2 id="titre-mois-realisations"></h2>
+              <button class="icone" id="mois-realisations-suivant" aria-label="Mois suivant"></button>
+            </div>
+            <button type="button" class="secondaire" id="mois-realisations-aujourdhui">Aujourd'hui</button>
+          </div>
+          <div class="grand-calendrier" id="calendrier-realisations"></div>
+        </div>
+        <div class="panneau jour-realisations" id="jour-realisations"></div>
+      </div>
     </div>
   </section>
 
@@ -1010,7 +1032,7 @@
           <label class="interrupteur"><input type="checkbox" name="modules.photos"><span><strong>Photos</strong>
             <small>Tri des photos et vidéos par enfant, impression pour le cahier d'activités</small></span></label>
           <label class="interrupteur"><input type="checkbox" name="modules.ateliers"><span><strong>Activités</strong>
-            <small>Vos activités, ce qu'il faut préparer, leurs documents et les séances réalisées</small></span></label>
+            <small>Vos activités (ce qu'il faut préparer, documents) et leurs réalisations sur un calendrier</small></span></label>
           <label class="interrupteur"><input type="checkbox" name="modules.activites"><span><strong>Accès rapide</strong>
             <small>Vos sites préférés, en raccourcis sur le tableau de bord et en haut de la page</small></span></label>
           <label class="interrupteur bientot"><input type="checkbox" disabled><span><strong>Suivi du mois, congés payés</strong>
@@ -1298,7 +1320,10 @@
             gardé dans « Format source », au même endroit et sous le même nom.</li>
           <li><strong>Doublons</strong> : une photo au contenu identique à une photo déjà rangée est signalée « Déjà rangée » ;
             la ranger complète simplement la photo existante.</li>
-          <li><strong>Métadonnées</strong> : le numéro, l'activité et la séance sont aussi écrits dans les informations
+          <li><strong>Réalisations</strong> : une activité se prépare une fois (fiche, documents) et se réalise à une date.
+            Une photo rangée avec une réalisation (« Peinture d'automne du 14 octobre 2026 ») apparaît dans son détail,
+            dans l'onglet « Réalisations » de la rubrique Activités.</li>
+          <li><strong>Métadonnées</strong> : le numéro, l'activité et la réalisation sont aussi écrits dans les informations
             (XMP) des photos JPEG, sans toucher à l'image.</li>
         </ul>
       </details>

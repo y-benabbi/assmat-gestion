@@ -32,7 +32,7 @@ app/                 code Python (lancé par app/main.py)
   chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
   principal.py       dossier principal : passage (déplacement des anciens dossiers, progression), sauvegarde
   photos.py          rubrique Photos : photos/vidéos à trier, enfants présents, rangement, numéros, impression
-  ateliers.py        rubrique Activités : modèles d'activités, séances datées, documents (donnees\activites.json)
+  ateliers.py        rubrique Activités : modèles d'activités, réalisations datées, documents (donnees\activites.json)
   web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
 scripts/             installer.ps1, verifier.ps1, commun.ps1 (exécutés depuis l'application installée)
 distribution/        ce que l'on copie dans le dossier « Programme » de l'utilisatrice
@@ -281,6 +281,11 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
   rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`).
-- Activités (`ateliers.py`) : une activité est un modèle (titre, description, `a_preparer`, documents dans
-  `Activités\<Titre>`) ; une séance (une par date) porte `prepare` et apparaît dans les échéances (type `activite`).
-  Les photos rangées avec une activité sont rattachées à une séance (choisie ou créée depuis la barre de tri).
+- Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans
+  `Activités\<Titre>`, ajoutables dès la création — gardés dans `documentsEnAttente` puis envoyés après l'enregistrement)
+  et la **réalisation** (une activité à une date ; appelée « séance » dans les données et le code : `seances`, `S0001`),
+  qui porte `prepare` et apparaît dans les échéances (« Réalisation : … », type `activite`). Rubrique en deux onglets
+  (`vueAteliers`) : « Activités » (liste + fiche) et « Réalisations » (grand calendrier du mois, un clic sur un jour montre
+  ses réalisations en détail : à préparer, documents, photos rangées avec elles). Partout où une réalisation est proposée
+  (filtre « Réalisations » des photos, barre de tri), elle s'appelle « [titre] du [date] » (`nomRealisation`).
+  Les photos rangées avec une réalisation y sont rattachées (choisie ou créée depuis la barre de tri).
