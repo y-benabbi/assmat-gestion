@@ -90,6 +90,7 @@ PAGE_REFUSEE = """<!doctype html><html lang="fr"><meta charset="utf-8"><title>As
 def creer_app(port, jeton):
     from flask import Flask, jsonify, make_response, redirect, request, send_from_directory
 
+    import ateliers
     import bibliotheque
     import contrat_travail
     import courriers
@@ -97,6 +98,8 @@ def creer_app(port, jeton):
     import icones
     import impots
     import parametres
+    import photos
+    import principal
     import revenus
     from pajemploi import Pajemploi
 
@@ -145,7 +148,9 @@ def creer_app(port, jeton):
 
     @app.post("/api/parametres")
     def ecrire_parametres():
-        p = parametres.enregistrer(request.get_json(force=True))
+        d = request.get_json(force=True)
+        d.pop("dossier_principal", None)        # changé seulement par /api/principal (fichiers déplacés)
+        p = parametres.enregistrer(d)
         p["mot_de_passe_enregistre"] = parametres.mot_de_passe_enregistre()
         return jsonify(p)
 
@@ -430,12 +435,191 @@ def creer_app(port, jeton):
         import tkinter
         from tkinter import filedialog
 
+        titre = str((request.get_json(silent=True) or {}).get("titre") or "Choisir un dossier")[:80]
         racine = tkinter.Tk()
         racine.withdraw()
         racine.attributes("-topmost", True)
-        chemin = filedialog.askdirectory(title="Dossier des bulletins de salaire")
+        chemin = filedialog.askdirectory(title=titre)
         racine.destroy()
         return jsonify({"chemin": os.path.normpath(chemin) if chemin else ""})
+
+    # ------------------------------------------------ dossier principal
+    @app.get("/api/principal")
+    def lire_principal():
+        p = parametres.brut()
+        anciens = [str(d) for d, _ in principal.anciens_dossiers(p) if d.is_dir()] if not p.get("dossier_principal") else []
+        return jsonify({"principal": p.get("dossier_principal", ""), "proposition": principal.proposition(),
+                        "anciens": anciens, "deplacement": principal.etat(),
+                        "sous_dossiers": list(parametres.SOUS_DOSSIERS.values())})
+
+    @app.post("/api/principal")
+    def choisir_principal():
+        try:
+            principal.lancer(str(request.get_json(force=True).get("chemin") or ""))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        return jsonify(principal.etat())
+
+    # ------------------------------------------------ photos
+    def envoyer_fichier(chemin, cache=True):
+        from flask import send_file
+        if not chemin or not Path(chemin).is_file():
+            return jsonify({"erreur": "Introuvable"}), 404
+        reponse = send_file(chemin, conditional=True)
+        if cache:
+            reponse.headers["Cache-Control"] = "private, max-age=86400"
+        return reponse
+
+    @app.get("/api/photos")
+    def lire_photos():
+        return jsonify(photos.lister())
+
+    @app.post("/api/photos/ranger")
+    def ranger_photos():
+        d = request.get_json(force=True)
+        try:
+            return jsonify(photos.ranger([str(c) for c in d.get("cles") or []], [str(i) for i in d.get("enfants") or []],
+                                         str(d.get("seance") or "")))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+
+    @app.post("/api/photos/modifier")
+    def modifier_photo():
+        d = request.get_json(force=True)
+        try:
+            return jsonify(photos.modifier(str(d.get("numero")), [str(i) for i in d.get("enfants") or []],
+                                           str(d.get("seance") or "")))
+        except (ValueError, photos.ModuleAbsent) as e:
+            return jsonify({"erreur": str(e)}), 400
+        except OSError as e:
+            return jsonify({"erreur": f"Fichier inaccessible : {e}"}), 409
+
+    @app.post("/api/photos/remettre")
+    def remettre_photo():
+        try:
+            return jsonify(photos.remettre_a_trier(str(request.get_json(force=True).get("numero"))))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        except OSError as e:
+            return jsonify({"erreur": f"Fichier inaccessible : {e}"}), 409
+
+    @app.post("/api/photos/ignorer")
+    def ignorer_photos():
+        d = request.get_json(force=True)
+        photos.ignorer([str(c) for c in d.get("cles") or []], bool(d.get("ignorer", True)))
+        return jsonify({"ok": True})
+
+    @app.post("/api/photos/deposer")
+    def deposer_photos():
+        deposes, erreurs = [], []
+        dates = request.form.getlist("modifie")
+        for i, f in enumerate(request.files.getlist("fichiers")):
+            try:
+                deposes.append(photos.deposer(f.filename or "photo", f.read(), dates[i] if i < len(dates) else None))
+            except ValueError as e:
+                erreurs.append(str(e))
+        return jsonify({"deposes": len(deposes), "erreurs": erreurs})
+
+    @app.get("/api/photos/miniature")
+    def miniature_photo():
+        chemin = photos.chemin_a_trier(request.args.get("cle", "")) if request.args.get("cle") \
+            else photos.chemin_range(request.args.get("numero", ""), affichable=False)
+        return envoyer_fichier(photos.miniature(chemin) if chemin else None)
+
+    @app.get("/api/photos/image")
+    def image_photo():
+        return envoyer_fichier(photos.chemin_range(request.args.get("numero", "")), cache=False)
+
+    @app.post("/api/photos/ouvrir")
+    def ouvrir_photo():
+        d = request.get_json(force=True)
+        chemin = photos.chemin_a_trier(str(d.get("cle"))) if d.get("cle") else photos.chemin_range(str(d.get("numero")), False)
+        if not chemin or not chemin.is_file():
+            return jsonify({"erreur": "Introuvable"}), 404
+        if d.get("montrer"):
+            subprocess.Popen(["explorer", "/select,", os.path.normpath(chemin)])
+        else:
+            os.startfile(chemin)
+        return jsonify({"ok": True})
+
+    @app.get("/api/photos/imprimer")
+    def imprimer_photos():
+        numeros = [n for n in request.args.get("numeros", "").split(",") if n.isdigit()]
+        try:
+            par_page = int(request.args.get("par_page") or 16)
+        except ValueError:
+            par_page = 16
+        return photos.page_impression(numeros, par_page), 200, {"Content-Type": "text/html; charset=utf-8"}
+
+    # ------------------------------------------------ activités (modèles et séances)
+    @app.get("/api/ateliers")
+    def lire_ateliers():
+        index = photos._index()["photos"]
+        par_seance = {}
+        for numero, meta in index.items():
+            if meta.get("seance"):
+                par_seance.setdefault(meta["seance"], []).append(numero)
+        liste = ateliers.activites()
+        for a in liste:
+            a["documents"] = ateliers.documents(a)
+            for s in a["seances"]:
+                s["photos"] = sorted(par_seance.get(s["id"], []))
+        return jsonify({"activites": liste, "configure": bool(parametres.brut().get("dossier_principal"))})
+
+    def reponse_atelier(fonction, *args):
+        try:
+            return jsonify(fonction(*args) or {"ok": True})
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+
+    @app.post("/api/ateliers")
+    def ecrire_atelier():
+        return reponse_atelier(ateliers.enregistrer, request.get_json(force=True))
+
+    @app.post("/api/ateliers/supprimer")
+    def supprimer_atelier():
+        return reponse_atelier(ateliers.supprimer, str(request.get_json(force=True).get("id", "")))
+
+    @app.post("/api/ateliers/seance")
+    def ajouter_seance():
+        d = request.get_json(force=True)
+        return reponse_atelier(ateliers.ajouter_seance, str(d.get("activite", "")), str(d.get("date", "")))
+
+    @app.post("/api/ateliers/seance/modifier")
+    def modifier_seance():
+        d = request.get_json(force=True)
+        return reponse_atelier(ateliers.modifier_seance, str(d.get("id", "")), d)
+
+    @app.post("/api/ateliers/seance/supprimer")
+    def supprimer_seance():
+        return reponse_atelier(ateliers.supprimer_seance, str(request.get_json(force=True).get("id", "")))
+
+    @app.post("/api/ateliers/document")
+    def ajouter_document_atelier():
+        ajoutes, erreurs = [], []
+        for f in request.files.getlist("fichiers"):
+            try:
+                ajoutes.append(ateliers.ajouter_document(request.form.get("activite", ""), f.filename or "document", f.read()))
+            except ValueError as e:
+                erreurs.append(str(e))
+        return jsonify({"ajoutes": ajoutes, "erreurs": erreurs})
+
+    @app.post("/api/ateliers/ouvrir")
+    def ouvrir_atelier():
+        d = request.get_json(force=True)
+        a = ateliers.activite(str(d.get("activite", "")))
+        dossier_a = ateliers.dossier(a) if a else None
+        if not dossier_a:
+            return jsonify({"erreur": "Introuvable"}), 404
+        if d.get("nom"):
+            cible = next((doc["chemin"] for doc in ateliers.documents(a) if doc["nom"] == d["nom"]), None)
+        else:
+            dossier_a.mkdir(parents=True, exist_ok=True)
+            cible = str(dossier_a)
+        if not cible:
+            return jsonify({"erreur": "Introuvable"}), 404
+        os.startfile(cible)
+        return jsonify({"ok": True})
 
     def fichier_connu(quoi):
         """Un fichier précis n'est ouvert que s'il fait partie de la dernière analyse, des bulletins lus pour
@@ -448,8 +632,13 @@ def creer_app(port, jeton):
     @app.post("/api/ouvrir")
     def ouvrir():
         quoi = request.get_json(force=True).get("quoi")
+        dossiers_principal = {cle: str(parametres.dossier(cle) or "") for cle in ("photos", "activites", "a_trier", "sauvegarde")}
+        for d in dossiers_principal.values():
+            if d:
+                Path(d).mkdir(parents=True, exist_ok=True)
         cible = {"bulletins": parametres.charger().get("dossier_bulletins", ""),
                  "courriers": str(dossier_courriers()) if dossier_courriers().is_dir() else "",
+                 "principal": parametres.brut().get("dossier_principal", ""), **dossiers_principal,
                  "diagnostics": str(DIAGNOSTICS), "journaux": str(JOURNAUX)}.get(quoi) or fichier_connu(quoi)
         if cible and os.path.exists(cible):
             os.startfile(cible)
@@ -545,7 +734,7 @@ def creer_app(port, jeton):
 
 
 # Modules Python nécessaires (requirements.txt) : nom à importer.
-MODULES = ("flask", "playwright", "keyring", "pypdf")
+MODULES = ("flask", "playwright", "keyring", "pypdf", "PIL", "pillow_heif")
 
 
 def installer_modules_manquants():
@@ -578,6 +767,8 @@ def main():
     threading.Thread(target=installer_modules_manquants, daemon=True).start()
     port, jeton = preparer_serveur()
     app = creer_app(port, jeton)
+    import principal
+    threading.Thread(target=principal.sauvegarder, daemon=True).start()     # copie des fiches, une fois par jour
     ouvrir = lambda: webbrowser.open(adresse(port, jeton))  # noqa: E731
     if "--apres-mise-a-jour" in sys.argv:
         # La page restée ouverte se recharge seule ; on n'ouvre un onglet que si elle a été fermée.
