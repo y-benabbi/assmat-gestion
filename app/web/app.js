@@ -2891,10 +2891,9 @@ function afficherBarreTri() {
   $("#pastilles-tri").innerHTML = choisies.length ? visibles.map((e) => pastilleEnfant(e, enfantsTri.has(e.id), true)).join("")
     + (visibles.length < tous.length ? `<button type="button" class="lien autres-enfants" data-autres-enfants>Autre enfant…</button>` : "") : "";
   $("#consigne-tri").textContent = `${pluriel(choisies.length, "élément")} sélectionné${choisies.length > 1 ? "s" : ""}`;
-  $("#ranger").disabled = !choisies.length || !enfantsTri.size;
   $("#ignorer").disabled = !choisies.length;
-  $("#ranger").lastChild.textContent = enfantsTri.size > 1 ? `Ranger pour ${enfantsTri.size} enfants` : "Ranger";
   remplirActivites($("#activite-tri"), choisies.map((e) => (e.date || "").slice(0, 10)).filter(Boolean));
+  majBoutonRanger();
   $("#barre-tri").classList.toggle("cache", !choisies.length);
   majBarrePhotos();
 }
@@ -3013,13 +3012,25 @@ $("#pastilles-tri").addEventListener("click", (e) => {
   afficherBarreTri();
 });
 
-async function rangerSelection(enfants) {
+// Sans enfant, une réalisation suffit : la photo va dans « Réalisations » jusqu'à ce qu'un enfant soit choisi.
+function majBoutonRanger() {
+  const n = selTri.size, avecRealisation = !!$("#activite-tri").value;
+  $("#ranger").disabled = !n || (!enfantsTri.size && !avecRealisation);
+  $("#ranger").lastChild.textContent = enfantsTri.size > 1 ? `Ranger pour ${enfantsTri.size} enfants`
+    : !enfantsTri.size && avecRealisation ? "Ranger sans enfant" : "Ranger";
+}
+$("#activite-tri").addEventListener("change", majBoutonRanger);
+
+// seanceImposee : réalisation sur laquelle les photos ont été glissées (sinon, celle choisie dans la barre).
+async function rangerSelection(enfants, seanceImposee = "") {
   const choisies = donneesPhotos.a_trier.filter((e) => selTri.has(e.cle));
-  if (!choisies.length || !enfants.length) return;
+  if (!choisies.length || (!enfants.length && !seanceImposee && !$("#activite-tri").value)) return;
   const jour = choisies.map((e) => e.date).filter(Boolean).sort()[0]?.slice(0, 10);
-  let seance;
-  try { seance = await seanceChoisie($("#activite-tri"), jour); } catch (err) { alert(err.message); return; }
-  if (seance === null) return;
+  let seance = seanceImposee;
+  if (!seance) {
+    try { seance = await seanceChoisie($("#activite-tri"), jour); } catch (err) { alert(err.message); return; }
+    if (seance === null) return;
+  }
   $("#ranger").disabled = true;
   document.body.classList.add("occupe");
   try {
@@ -3143,7 +3154,8 @@ function afficherRangees() {
       html += `<h3 class="jour-photos">${m ? new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
         .replace(/^./, (c) => c.toUpperCase()) : "Sans date"}</h3><div class="grille-photos">`;
     }
-    const noms = r.enfants.map((i) => enfantPar(i)?.prenom).filter(Boolean).join(", ");
+    const realisation = !r.enfants.length && realisations().find((x) => x.id === r.seance);
+    const noms = r.enfants.map((i) => enfantPar(i)?.prenom).filter(Boolean).join(", ") || (realisation ? realisation.activite.titre : "");
     html += vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
       `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || r.numero)}</span>`);
   });
@@ -3267,8 +3279,12 @@ $("#grille-rangees").addEventListener("dragstart", (e) => {
 });
 
 // Glisser des photos rangées sur une réalisation du filtre : elles y sont rattachées (« Sans réalisation » les en
-// détache). Leurs enfants ne changent pas.
-const caseRealisation = (e) => e.dataTransfer?.types.includes(RANGEES_GLISSEES) && e.target.closest?.("#filtre-activite [data-case-realisation]");
+// détache). Leurs enfants ne changent pas. Des photos à trier glissées sur une réalisation y sont rangées.
+// Photos à trier : seulement sur une réalisation (pas « Sans réalisation »).
+const caseRealisation = (e) => {
+  const c = e.target.closest?.("#filtre-activite [data-case-realisation]"), types = e.dataTransfer?.types || [];
+  return c && (types.includes(RANGEES_GLISSEES) || (types.includes(PHOTOS_GLISSEES) && c.dataset.caseRealisation)) ? c : null;
+};
 document.addEventListener("dragover", (e) => {
   const c = caseRealisation(e);
   $$("#filtre-activite .survol").forEach((x) => x !== c && x.classList.remove("survol"));
@@ -3281,6 +3297,11 @@ document.addEventListener("drop", async (e) => {
   if (!c) return;
   e.preventDefault();
   c.classList.remove("survol");
+  // Photos à trier : rangées dans cette réalisation, pour les enfants déjà choisis dans la barre (ou sans enfant).
+  if (e.dataTransfer.types.includes(PHOTOS_GLISSEES)) {
+    if (c.dataset.caseRealisation) rangerSelection([...enfantsTri], c.dataset.caseRealisation);
+    return;
+  }
   await rattacherPhotos(e.dataTransfer.getData(RANGEES_GLISSEES).split(",").filter(Boolean), c.dataset.caseRealisation);
   afficherPhotos();
 });
@@ -3316,7 +3337,9 @@ $("#pastilles-editeur").addEventListener("click", (e) => {
 });
 $("#annuler-editeur").addEventListener("click", () => $("#editeur-rangees").classList.add("cache"));
 $("#enregistrer-editeur").addEventListener("click", async () => {
-  if (!enfantsEditeur.size) { alert("Choisissez au moins un enfant (ou utilisez « Remettre à trier »)."); return; }
+  if (!enfantsEditeur.size && !$("#activite-editeur").value) {
+    alert("Choisissez au moins un enfant ou une réalisation (ou utilisez « Remettre à trier »)."); return;
+  }
   const choisies = donneesPhotos.rangees.filter((r) => selRangees.has(r.numero));
   let seance;
   try { seance = await seanceChoisie($("#activite-editeur"), choisies.map((r) => r.date).filter(Boolean).sort()[0]?.slice(0, 10)); }

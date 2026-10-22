@@ -267,7 +267,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Photos (`photos.py`) : dossiers sources = `dossiers_photos` (iCloud…) + « À trier » du dossier principal (dépôts
   depuis l'Explorateur, copiés). Ranger **déplace** depuis la source (voulu : la photo quitte aussi iCloud et le
   téléphone). Rangement `Photos et vidéos\Famille\Enfant\AAAA\PRÉNOM - Activité - Photo 0012.jpg`, une copie par
-  enfant ; le numéro (`photos.json`, `compteur`) identifie la photo et figure dans le nom (un fichier rangé sans
+  enfant ; sans enfant mais avec une réalisation : `Photos et vidéos\Réalisations\S0012 - Titre du 14 octobre 2026\Titre -
+  Photo 0012.jpg` (`photos.REALISATIONS`, `dossier_realisation` ; le dossier commence par l'identifiant, relu par
+  `numeroter` pour un dépôt à la main), quittée dès qu'un enfant est associé ; le numéro (`photos.json`, `compteur`) identifie la photo et figure dans le nom (un fichier rangé sans
   numéro en reçoit un). HEIC → JPEG (pillow-heif), original dans `Photos et vidéos\Format source\` (même arborescence, même nom). Numéro et
   activité aussi écrits en XMP dans le JPEG (sans réencodage). Enfants proposés = présents à l'heure de la photo
   (`donnees.en_vigueur`) ± `marge_photos` minutes ; aucun = « hors horaires », mis de côté. Doublons par empreinte

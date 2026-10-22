@@ -200,6 +200,30 @@ assert (racine / "Photos et vidéos" / "Martin" / "Hugo" / "2025" / "Hugo - Phot
 assert any(x["numero"] == "0004" and x["enfants"] == [hugo["id"]] for x in liste["rangees"])
 print("numérotation : photo ajoutée à la main renommée « Hugo - Photo 0004 »")
 
+# Photo d'une réalisation sans enfant : dans « Réalisations\<identifiant> - <titre> du <date> », puis dans le dossier de
+# l'enfant dès qu'il est choisi.
+dossier_r = racine / "Photos et vidéos" / "Réalisations" / f"{seance['id']} - Peinture des feuilles du 19 octobre 2026"
+assert photos.dossier_realisation(seance["id"]) == dossier_r.name
+cle = next(e["cle"] for e in photos.lister()["a_trier"] if e["nom"] == "IMG_0004.JPG")
+r = photos.ranger([cle], [], seance["id"])
+assert r == {"ranges": ["0005"], "erreurs": []}, r
+assert (dossier_r / "Peinture des feuilles - Photo 0005.jpg").is_file()
+assert next(x for x in photos.lister()["rangees"] if x["numero"] == "0005")["enfants"] == []
+try:
+    photos.modifier("0005", [], "")
+    raise AssertionError("ni enfant ni réalisation : refusé")
+except ValueError:
+    pass
+photos.modifier("0005", [lea["id"]], seance["id"])
+assert (racine / "Photos et vidéos" / "Dupont" / "Léa" / "2026" / "Léa - Peinture des feuilles - Photo 0005.jpg").is_file()
+assert not dossier_r.exists(), "retirée du dossier de la réalisation"
+# Déposée à la main dans le dossier d'une réalisation : numérotée et rattachée à la réalisation.
+image(dossier_r / "atelier.jpg", "2026:10:19 15:00:00", (7, 7, 7))
+photos.lister()
+assert (dossier_r / "Peinture des feuilles - Photo 0006.jpg").is_file()
+assert photos._index()["photos"]["0006"]["seance"] == seance["id"]
+print("réalisation sans enfant : dossier « Réalisations », puis dossier de l'enfant ; dépôt à la main rattaché")
+
 # Ignorer puis remettre ; remettre à trier une photo rangée.
 cle = next(e["cle"] for e in liste["a_trier"] if e["nom"] == "Capture.png")
 photos.ignorer([cle])

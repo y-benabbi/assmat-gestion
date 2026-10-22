@@ -4,10 +4,11 @@ Sources : les dossiers choisis dans les Paramètres (ex. iCloud Photos) et « À
 photo rangée en est DÉPLACÉE (elle disparaît aussi du téléphone : c'est voulu).
 
 Rangement : « Photos et vidéos\\Famille\\Enfant\\AAAA\\Prénom - Activité - Photo 0042.jpg », une copie par enfant
-présent sur la photo. Le numéro (« Photo 0042 », « Vidéo 0043 ») est l'identifiant unique : un seul compteur,
+présent sur la photo. Sans enfant, une photo de réalisation va dans « Réalisations\\S0012 - Titre du 14 octobre
+2026\\Titre - Photo 0042.jpg », jusqu'à ce qu'un enfant lui soit associé. Le numéro (« Photo 0042 », « Vidéo 0043 ») est l'identifiant unique : un seul compteur,
 jamais réutilisé, le même pour toutes les copies d'une photo, qui n'est donc affichée qu'une fois. Les photos
 iPhone (HEIC) sont converties en JPEG ; l'original va dans « Format source », même arborescence, même nom.
-Le numéro, la séance et l'activité sont aussi écrits dans les métadonnées XMP des JPEG.
+Le numéro, la réalisation (« Seance ») et l'activité sont aussi écrits dans les métadonnées XMP des JPEG.
 
 Pré-classement : la date de prise de vue (EXIF, ou en-tête des vidéos) est comparée aux horaires d'accueil des
 contrats en vigueur ce jour-là (avec une marge réglable) : en dehors, la photo est mise de côté (« Hors
@@ -42,6 +43,11 @@ VIDEOS = {".mov", ".mp4", ".m4v", ".3gp", ".avi"}
 HEIC = {".heic", ".heif"}
 JPEG = {".jpg", ".jpeg"}
 FORMAT_SOURCE = "Format source"
+# Photos d'une réalisation sans enfant : « Réalisations\S0012 - Pâte à sel du 14 octobre 2026 ». Le dossier commence par
+# l'identifiant de la réalisation (le titre peut changer). Dès qu'un enfant est choisi, la photo passe dans son dossier.
+REALISATIONS = "Réalisations"
+RE_DOSSIER_REALISATION = re.compile(r"^(S\d{4,})\b")
+MOIS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
 SANS_DATE = "Sans date"
 RE_NUMERO = re.compile(r"\b(?:Photo|Vidéo|Video) (\d{4,})\b", re.I)
 # Fichiers en ligne seulement (iCloud, OneDrive) : les ouvrir les téléchargerait. Attributs Windows.
@@ -331,6 +337,10 @@ def numeroter(p: dict = None) -> int:
             if parties[0] == FORMAT_SOURCE:
                 parties = parties[1:]
             debut = parties[1] if len(parties) >= 3 else chemin.stem
+            m = RE_DOSSIER_REALISATION.match(parties[1]) if len(parties) >= 3 and parties[0] == REALISATIONS else None
+            if m:                                 # déposée à la main dans le dossier d'une réalisation
+                index["photos"][numero]["seance"] = m.group(1)
+                debut = _nom(_seance_infos(m.group(1))[0] or chemin.stem)
             mot = "Vidéo" if genre(chemin) == "video" else "Photo"
             cible = chemin.with_name(f"{debut} - {mot} {numero}{chemin.suffix}")
             if cible.exists():
@@ -492,19 +502,42 @@ def _seance_infos(seance_id: str) -> tuple:
     return (a or {}).get("titre", ""), (a or {}).get("id", "")
 
 
-def _cibles(p: dict, numero: str, genre_: str, ext: str, date_iso: str, ids: list, titre: str) -> list:
-    """[(copie, original HEIC ou None)] pour chaque enfant."""
+def date_longue(iso: str) -> str:
+    """« 14 octobre 2026 » (« 1er » le premier du mois)."""
+    try:
+        d = date.fromisoformat(iso[:10])
+    except ValueError:
+        return iso
+    return f"{'1er' if d.day == 1 else d.day} {MOIS[d.month - 1]} {d.year}"
+
+
+def dossier_realisation(seance_id: str) -> str:
+    """Nom du dossier des photos d'une réalisation sans enfant : « S0012 - Pâte à sel du 14 octobre 2026 »."""
+    a, s = ateliers.seance(seance_id)
+    if not s:
+        raise ValueError("Réalisation introuvable.")
+    return _nom(f"{seance_id} - {a.get('titre', '')} du {date_longue(s.get('date', ''))}")
+
+
+def _cibles(p: dict, numero: str, genre_: str, ext: str, date_iso: str, ids: list, titre: str, seance_id: str = "") -> list:
+    """[(copie, original HEIC ou None)] pour chaque enfant ; sans enfant, une seule dans le dossier de la réalisation."""
     racine = parametres.dossier("photos", p)
     par_id = {e["id"]: e for e in enfants()}
     annee = date_iso[:4] if date_iso else SANS_DATE
     mot = "Vidéo" if genre_ == "video" else "Photo"
-    liste = []
+    places = []
     for i in ids:
         e = par_id.get(i)
         if not e:
             raise ValueError("Fiche enfant introuvable.")
         nom = " - ".join(x for x in (_nom(e["prenom"]), _nom(titre) if titre else "", f"{mot} {numero}") if x)
-        relatif = Path(_nom(e["famille"])) / _nom(e["prenom"]) / annee
+        places.append((Path(_nom(e["famille"])) / _nom(e["prenom"]) / annee, nom))
+    if not ids:
+        if not seance_id:
+            raise ValueError("Choisissez au moins un enfant ou une réalisation.")
+        places.append((Path(REALISATIONS) / dossier_realisation(seance_id), f"{_nom(titre)} - {mot} {numero}"))
+    liste = []
+    for relatif, nom in places:
         if ext in HEIC:
             liste.append((racine / relatif / f"{nom}.jpg", racine / FORMAT_SOURCE / relatif / f"{nom}{ext}"))
         else:
@@ -555,8 +588,8 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
     p = parametres.brut()
     if not p.get("dossier_principal"):
         raise ValueError("Choisissez d'abord le dossier principal dans les Paramètres.")
-    if not ids:
-        raise ValueError("Choisissez au moins un enfant.")
+    if not ids and not seance_id:
+        raise ValueError("Choisissez au moins un enfant ou une réalisation.")
     titre, activite_id = _seance_infos(seance_id)
     faits, erreurs = [], []
     with _verrou:
@@ -588,7 +621,7 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
                     index["compteur"] += 1
                     numero = _numero(index["compteur"])
                 ext = source.suffix.lower()
-                cibles = _cibles(p, numero, genre(source), ext, date_iso, ids, titre)
+                cibles = _cibles(p, numero, genre(source), ext, date_iso, ids, titre, seance_id)
                 meta = {"Photo": numero, "Seance": seance_id, "Activite": activite_id, "Titre": titre}
                 _creer(numero, source, source if ext in HEIC else None, cibles, meta)
                 index["photos"][numero] = {"date": date_iso, "seance": seance_id, "empreinte": e}
@@ -610,10 +643,11 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
 
 
 def modifier(numero: str, ids: list, seance_id: str) -> dict:
-    """Change les enfants ou l'activité d'une photo rangée : copies ajoutées, retirées ou renommées."""
+    """Change les enfants ou la réalisation d'une photo rangée : copies ajoutées, retirées ou renommées. Sans enfant, la
+    photo est dans le dossier de sa réalisation ; dès qu'un enfant est choisi, elle passe dans son dossier."""
     p = parametres.brut()
-    if not ids:
-        raise ValueError("Choisissez au moins un enfant (ou remettez la photo à trier).")
+    if not ids and not seance_id:
+        raise ValueError("Choisissez au moins un enfant ou une réalisation (ou remettez la photo à trier).")
     with _verrou:
         r = rangees(p).get(numero)
         if not r or not r["copies"]:
@@ -623,7 +657,7 @@ def modifier(numero: str, ids: list, seance_id: str) -> dict:
         titre, activite_id = _seance_infos(seance_id)
         source = r["sources"][0] if r["sources"] else None
         ext = source.suffix.lower() if source else r["copies"][0].suffix.lower()
-        cibles = _cibles(p, numero, r["genre"], ext, meta.get("date", ""), ids, titre)
+        cibles = _cibles(p, numero, r["genre"], ext, meta.get("date", ""), ids, titre, seance_id)
         ref = next((c for c in r["copies"] if c.exists()), None)
         _creer(numero, ref, source, cibles, {"Photo": numero, "Seance": seance_id, "Activite": activite_id, "Titre": titre})
         gardes = {str(c) for c, _ in cibles} | {str(o) for _, o in cibles if o}

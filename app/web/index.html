@@ -193,7 +193,7 @@
       <aside class="filtres-photos" id="filtres-photos" aria-label="Filtres">
         <label class="recherche-enfants"><span data-picto="recherche"></span>
           <input type="search" id="recherche-enfants" placeholder="Rechercher" aria-label="Rechercher un enfant ou une famille"></label>
-        <p class="indice-depot">Déposez les photos sur un enfant</p>
+        <p class="indice-depot">Déposez les photos sur un enfant ou une réalisation</p>
         <details class="bloc-filtre" open><summary>Enfants</summary><div id="cases-enfants"></div></details>
         <details class="bloc-filtre" open><summary>Réalisations</summary><div id="filtre-activite"></div></details>
       </aside>
@@ -1315,7 +1315,9 @@
           <li><strong>Rangement</strong> : une copie par enfant dans « Photos et vidéos\Famille\Enfant\Année », nommée
             « Prénom - Activité - Photo 0042 ». Le numéro est unique : toutes les copies d'une même photo le partagent, elle
             n'apparaît donc qu'une fois. La photo est ensuite retirée du dossier d'origine (et donc du téléphone s'il est
-            synchronisé). Une photo déposée à la main dans le rangement reçoit un numéro au prochain affichage.</li>
+            synchronisé). Une photo déposée à la main dans le rangement reçoit un numéro au prochain affichage.
+            Une photo d'une réalisation sans enfant va dans « Photos et vidéos\Réalisations\S0012 - Pâte à sel du 14 octobre
+            2026 » ; dès qu'un enfant lui est associé, elle passe dans son dossier et quitte celui de la réalisation.</li>
           <li><strong>Photos d'iPhone (HEIC)</strong> : converties en JPEG pour l'affichage et l'impression ; l'original est
             gardé dans « Format source », au même endroit et sous le même nom.</li>
           <li><strong>Doublons</strong> : une photo au contenu identique à une photo déjà rangée est signalée « Déjà rangée » ;
