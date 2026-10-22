@@ -858,13 +858,31 @@ async function tuileBulletins() {
     const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1 - i, 1);
     mois.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   }
-  const etats = {};      // famille -> {periode: "present" | "manquant"}
-  Object.entries(dossierLocal?.clients || {}).forEach(([f, periodes]) => periodes.forEach((p) => ((etats[f] ??= {})[p] = "present")));
-  etat.bulletins.forEach((b) => ((etats[b.client] ??= {})[b.periode] = b.present ? "present" : "manquant"));
-  const familles = Object.keys(etats).filter((f) => mois.some((m) => etats[f][m])).sort((a, b) => a.localeCompare(b, "fr")).slice(0, 8);
+  // famille -> {periode: [entrées]} : bulletins de la vérification Pajemploi, sinon fichiers du dossier.
+  const cases = {};
+  Object.entries(dossierLocal?.fichiers || {}).forEach(([f, parMois]) => Object.entries(parMois).forEach(([p, fichiers]) =>
+    ((cases[f] ??= {})[p] = fichiers.map((fichier) => ({ periode: p, local: true, manquant: false, fichier })))));
+  const vus = new Set();
+  etat.bulletins.forEach((b) => {
+    const cle = `${b.client}|${b.periode}`;
+    if (!vus.has(cle)) { vus.add(cle); (cases[b.client] ??= {})[b.periode] = []; }
+    cases[b.client][b.periode].push({ periode: b.periode, manquant: !b.present, fichier: b.present ? b.fichier_existant : null,
+      cible: b.cible, enfant: b.enfant || "" });
+  });
+  const etatCase = (liste) => !liste?.length ? "vide" : liste.some((e) => e.manquant) ? "manquant" : "present";
+  const familles = Object.keys(cases).filter((f) => mois.some((m) => cases[f][m]?.length)).sort((a, b) => a.localeCompare(b, "fr")).slice(0, 8);
   zone.innerHTML = familles.length ? `<span></span>${mois.map((m) => `<span class="nom-mois">${INITIALES_MOIS[+m.slice(5) - 1]}</span>`).join("")}
-    ${familles.map((f) => `<span class="nom-famille">${echapper(f)}</span>${mois.map((m) => `<i class="${etats[f][m] || "vide"}" title="${
-      echapper(f)} : ${INITIALES_MOIS[+m.slice(5) - 1]} ${m.slice(0, 4)} ${etats[f][m] === "manquant" ? "à récupérer" : etats[f][m] ? "rangé" : "aucun bulletin"}"></i>`).join("")}`).join("")}` : "";
+    ${familles.map((f) => `<span class="nom-famille">${echapper(f)}</span>${mois.map((m) => {
+      const e = etatCase(cases[f][m]);
+      const titre = `${echapper(f)} : ${INITIALES_MOIS[+m.slice(5) - 1]} ${m.slice(0, 4)} ${e === "manquant" ? "à récupérer" : e === "present" ? "rangé" : "aucun bulletin"}`;
+      // Case avec un bulletin : même menu que dans le classeur (ouvrir, afficher dans le dossier, récupérer).
+      return e === "vide" ? `<i class="case-mini vide" title="${titre}"></i>`
+        : `<button type="button" class="case-mini ${e}" title="${titre}" aria-label="${titre}" aria-haspopup="menu" data-famille="${echapper(f)}" data-mois="${m}"></button>`;
+    }).join("")}`).join("")}` : "";
+  zone.querySelectorAll("button.case-mini").forEach((b) => b.addEventListener("click", () => {
+    const { famille, mois: m } = b.dataset;
+    menuContextuel(b, choixCase(cases[famille][m], `${famille} – ${INITIALES_MOIS[+m.slice(5) - 1]} ${m.slice(0, 4)}`));
+  }));
   const manquants = etat.bulletins.filter((b) => !b.present).length;
   const nbFamilles = new Set(etat.bulletins.filter((b) => !b.present).map((b) => b.client)).size;
   $("#tuile-bulletins").textContent = !etat.bulletins.length

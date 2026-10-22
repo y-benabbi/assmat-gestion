@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.11.10",
+    "date": "2026-10-22",
+    "titre": "Bulletins : cases cliquables sur le tableau de bord",
+    "nouveautes": [
+      "Sur le tableau de bord, un clic sur un mois de la carte « Bulletins de salaire » propose d'ouvrir le bulletin ou de l'afficher dans son dossier (ou de le récupérer s'il manque), comme dans la rubrique Bulletins de salaire.",
+      "Au survol d'une case qui contient un bulletin, le pointeur devient une main : on voit tout de suite qu'on peut cliquer."
+    ]
+  },
+  {
     "version": "1.11.9",
     "date": "2026-10-22",
     "titre": "Photos rangées en un instant",

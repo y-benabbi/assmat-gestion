@@ -262,6 +262,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `_cmd_telecharger_manquants`) ou tous. Les deux routes n'ouvrent que des fichiers connus (`fichier_connu`).
   Avant toute vérification sur Pajemploi (état vide à chaque lancement), le classeur vient de `/api/dossier` : son
   champ `fichiers` (`bibliotheque.fichiers_dossier`) donne le chemin de chaque bulletin, pour que le menu marche aussi.
+  Même menu sur la carte du tableau de bord (`tuileBulletins` : cases `button.case-mini`). Curseur main sur toute case
+  qui ouvre le menu (`[aria-haspopup]`), jamais sur une case vide.
 - Sites d'activités (module `activites`) : `donnees.sites()` (`donnees\sites.json`, `SITES_DEFAUT` tant qu'il n'existe
   pas ; `enregistrer_sites(None)` les remet), routes `/api/sites`. Tuiles carrées (`tuileSite`) : icône du site servie par
   `/api/icone-site?url=` (seulement pour une adresse de la liste) : `icones.py` la cherche sur le site (plus grande

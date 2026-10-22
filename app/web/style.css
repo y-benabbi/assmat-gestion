@@ -250,7 +250,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 }
 .case-mois.local { background: var(--menthe); color: var(--menthe-encre); }
 button.case-mois { cursor: default; }
-button.case-mois.present, button.case-mois.manquant { cursor: pointer; }
+button.case-mois[aria-haspopup] { cursor: pointer; }  /* toute case qui ouvre le menu */
 .case-mois.manquant:hover { background: #ffc25e; }
 .case-mois[aria-expanded="true"] { outline: 3px solid var(--eucalyptus); outline-offset: 2px; }
 .case-mois .nombre { position: absolute; top: 3px; right: 5px; font-size: 0.7rem; }
@@ -982,9 +982,13 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
 .mini-classeur:empty { display: none; }
 .mini-classeur .nom-mois { text-align: center; }
 .mini-classeur .nom-famille { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 6px; font-weight: 700; color: var(--encre); }
-.mini-classeur i, .legende-mini i { height: 20px; border-radius: 6px; background: var(--menthe); }
-.mini-classeur i.manquant, .legende-mini i.manquant { background: var(--tournesol); }
-.mini-classeur i.vide { background: transparent; box-shadow: inset 0 0 0 1px var(--trait); }
+.mini-classeur .case-mini, .legende-mini i { height: 20px; border-radius: 6px; background: var(--menthe); }
+.mini-classeur .case-mini.manquant, .legende-mini i.manquant { background: var(--tournesol); }
+.mini-classeur button.case-mini { border: 0; padding: 0; min-width: 0; cursor: pointer; }
+.mini-classeur button.case-mini:hover { background: var(--menthe-fonce); }
+.mini-classeur button.case-mini.manquant:hover { background: #ffc25e; }
+.mini-classeur .case-mini[aria-expanded="true"] { outline: 3px solid var(--eucalyptus); outline-offset: 2px; }
+.mini-classeur .case-mini.vide { background: transparent; box-shadow: inset 0 0 0 1px var(--trait); }
 .pied-tuile { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
 .legende-mini { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--encre-douce); }
 .legende-mini i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; }
