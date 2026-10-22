@@ -32,7 +32,7 @@ from pathlib import Path
 import ateliers
 import donnees
 import parametres
-from chemins import DOSSIER_DONNEES, MINIATURES
+from chemins import BASE, DOSSIER_DONNEES, MINIATURES
 from impots import RE_PLAGE
 
 FICHIER_INDEX = DOSSIER_DONNEES / "photos.json"
@@ -744,6 +744,76 @@ def remettre_a_trier(numero: str) -> dict:
         _ecrire_json(FICHIER_INDEX, index)
     _vider_dossiers(parametres.dossier("photos", p))
     return {"chemin": str(cible)}
+
+
+def corbeille(chemins: list) -> None:
+    """Envoie des fichiers dans la Corbeille de Windows (récupérables). Ailleurs (tests) : dossier « corbeille »
+    de l'installation."""
+    chemins = [Path(c) for c in chemins if Path(c).exists()]
+    if not chemins:
+        return
+    if os.name != "nt":
+        dossier = BASE / "corbeille"
+        dossier.mkdir(parents=True, exist_ok=True)
+        for c in chemins:
+            cible = dossier / c.name
+            n = 2
+            while cible.exists():
+                cible = dossier / f"{c.stem} ({n}){c.suffix}"
+                n += 1
+            shutil.move(str(c), str(cible))
+        return
+    import ctypes
+    from ctypes import wintypes
+
+    class SHFILEOPSTRUCTW(ctypes.Structure):
+        _fields_ = [("hwnd", wintypes.HWND), ("wFunc", wintypes.UINT), ("pFrom", ctypes.c_void_p),
+                    ("pTo", wintypes.LPCWSTR), ("fFlags", ctypes.c_uint16), ("fAnyOperationsAborted", wintypes.BOOL),
+                    ("hNameMappings", ctypes.c_void_p), ("lpszProgressTitle", wintypes.LPCWSTR)]
+    # FO_DELETE ; FOF_ALLOWUNDO (Corbeille) | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI.
+    # Liste de chemins séparés par un caractère nul et terminée par deux (tampon pour garder les caractères nuls).
+    tampon = ctypes.create_unicode_buffer("\0".join(str(c.resolve()) for c in chemins) + "\0\0")
+    op = SHFILEOPSTRUCTW(wFunc=3, pFrom=ctypes.addressof(tampon), fFlags=0x40 | 0x10 | 0x4 | 0x400)
+    code = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(op))
+    if code or op.fAnyOperationsAborted:
+        raise OSError(f"la Corbeille a refusé le fichier (code {code})")
+
+
+def supprimer(cles: list = (), numeros: list = ()) -> dict:
+    """Met à la Corbeille des photos à trier (le fichier d'origine, iCloud compris) ou rangées (toutes leurs copies et
+    l'original au format source)."""
+    p = parametres.brut()
+    faites, erreurs = 0, []
+    with _verrou:
+        for cle in cles:
+            chemin = _connus.get(cle)
+            if not chemin:
+                erreurs.append("Photo introuvable : actualisez la page.")
+                continue
+            try:
+                corbeille([chemin])
+                _connus.pop(cle, None)
+                faites += 1
+            except OSError as e:
+                erreurs.append(f"{chemin.name} : {e}")
+        if numeros:
+            toutes = rangees(p)
+            index = _index()
+            for numero in numeros:
+                r = toutes.get(numero)
+                if not r:
+                    erreurs.append(f"Photo {numero} introuvable.")
+                    continue
+                try:
+                    corbeille(r["copies"] + r["sources"])
+                    index["photos"].pop(numero, None)
+                    faites += 1
+                except OSError as e:
+                    erreurs.append(f"Photo {numero} : {e}")
+            _ecrire_json(FICHIER_INDEX, index)
+    if numeros:
+        _vider_dossiers(parametres.dossier("photos", p))
+    return {"supprimees": faites, "erreurs": erreurs}
 
 
 def _vider_dossiers(racine):

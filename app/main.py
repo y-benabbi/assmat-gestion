@@ -535,7 +535,14 @@ def creer_app(port, jeton):
 
     @app.get("/api/photos/image")
     def image_photo():
-        return envoyer_fichier(photos.chemin_range(request.args.get("numero", "")), cache=False)
+        chemin = photos.chemin_a_trier(request.args.get("cle", "")) if request.args.get("cle") \
+            else photos.chemin_range(request.args.get("numero", ""))
+        return envoyer_fichier(chemin, cache=False)
+
+    @app.post("/api/photos/supprimer")
+    def supprimer_photos():
+        d = request.get_json(force=True)
+        return jsonify(photos.supprimer([str(c) for c in d.get("cles") or []], [str(n) for n in d.get("numeros") or []]))
 
     @app.post("/api/photos/ouvrir")
     def ouvrir_photo():

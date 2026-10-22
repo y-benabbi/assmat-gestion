@@ -2,8 +2,9 @@
   {
     "version": "1.11.4",
     "date": "2026-10-22",
-    "titre": "Choisir plusieurs photos d'un geste",
+    "titre": "Menu des photos et sélection en glissant",
     "nouveautes": [
+      "Photos : un clic sur une photo ouvre un petit menu : la voir en grand (flèches pour passer à la suivante), l'afficher dans son dossier, la sélectionner ou la supprimer. Une photo supprimée va dans la Corbeille de Windows, d'où elle peut être récupérée. Pour déplacer une photo, maintenez le clic et glissez-la comme avant.",
       "Photos : maintenez le clic sur le petit rond d'une photo et glissez jusqu'à une autre photo : toutes celles entre les deux sont choisies, sans être déplacées. En partant d'une photo déjà choisie, le même geste les retire de la sélection."
     ]
   },

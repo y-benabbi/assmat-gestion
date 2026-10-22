@@ -864,6 +864,7 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
 .menu-contextuel [role=menuitem]:hover, .menu-contextuel [role=menuitem]:focus-visible { background: var(--brume); outline: none; }
 .menu-contextuel [role=menuitem] .picto { width: 30px; height: 30px; padding: 6px; margin: 0; color: var(--eucalyptus); }
 .menu-contextuel .a-recuperer .picto { color: var(--urgent); }
+.menu-contextuel .danger, .menu-contextuel .danger .picto { color: var(--erreur); }
 
 /* Sites d'activités : raccourcis carrés façon application de téléphone */
 .grille-sites { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 18px 12px; margin-top: 6px; }
@@ -1291,3 +1292,24 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .rangees-photos > .grille-photos { margin-bottom: 6px; }
 .barre-photos .actions-selection { flex: 1; justify-content: flex-end; }
 .barre-photos .actions-selection label { flex: 0 0 auto; }
+
+/* Visionneuse : une photo en grand par-dessus la page. */
+.visionneuse { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 56px 72px 24px;
+  background: rgba(40, 34, 58, 0.88); }
+.visionneuse figure { margin: 0; display: grid; justify-items: center; gap: 12px; max-width: 100%; max-height: 100%; }
+.visionneuse img, .visionneuse video { max-width: calc(100vw - 144px); max-height: calc(100vh - 140px); object-fit: contain;
+  border-radius: 10px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); background: #fff; }
+.visionneuse figcaption { color: #fff; font-size: 0.95rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }
+.visionneuse figcaption .lien { color: #fff; }
+.visionneuse > button { position: absolute; width: 48px; height: 48px; border-radius: 50%; border: 0; display: grid; place-items: center;
+  background: rgba(255, 255, 255, 0.92); color: var(--encre); cursor: pointer; }
+.visionneuse > button .picto { width: 22px; height: 22px; margin: 0; }
+.visionneuse .fermer-visionneuse { top: 14px; right: 14px; }
+.visionneuse .precedente { left: 14px; top: 50%; transform: translateY(-50%) rotate(90deg); }
+.visionneuse .suivante { right: 14px; top: 50%; transform: translateY(-50%) rotate(-90deg); }
+@media (max-width: 600px) {
+  .visionneuse { padding: 56px 8px 16px; }
+  .visionneuse img, .visionneuse video { max-width: calc(100vw - 16px); }
+  .visionneuse .precedente, .visionneuse .suivante { top: auto; bottom: 14px; transform: rotate(90deg); }
+  .visionneuse .suivante { transform: rotate(-90deg); }
+}

@@ -19,6 +19,7 @@ const PICTOS = {
   modifier: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
   pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   ouvrir: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  voir: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   supprimer: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   enfant: '<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
   famille: '<circle cx="8" cy="8" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M2 20a6 6 0 0 1 12 0M13 20a4.5 4.5 0 0 1 9 0"/>',
@@ -337,7 +338,7 @@ function menuContextuel(source, { titre, items }) {
   menu.className = "menu-contextuel";
   menu.setAttribute("role", "menu");
   menu.innerHTML = (titre ? `<p class="titre-menu">${echapper(titre)}</p>` : "") + items.map((it, i) => it.separateur
-    ? `<hr>` : `<button type="button" role="menuitem" data-i="${i}" class="${it.picto === "telecharger" ? "a-recuperer" : ""}">${picto(it.picto)}<span>${echapper(it.texte)}</span></button>`).join("");
+    ? `<hr>` : `<button type="button" role="menuitem" data-i="${i}" class="${it.picto === "telecharger" ? "a-recuperer" : it.danger ? "danger" : ""}">${picto(it.picto)}<span>${echapper(it.texte)}</span></button>`).join("");
   document.body.appendChild(menu);
   const r = source.getBoundingClientRect();
   const largeur = menu.offsetWidth, hauteur = menu.offsetHeight;
@@ -2819,7 +2820,7 @@ function vignette(e, attribut, choisie, etiquette = "") {
     : `<img loading="lazy" alt="" src="${src}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
   const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })
     + (e.date_du_fichier ? " (date du fichier, la photo n'en indique pas)" : "") : "date de prise de vue inconnue";
-  const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Double-clic : ouvrir.`;
+  const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Clic : menu ; double-clic : voir en grand.`;
   return `<button type="button" class="vignette${choisie ? " choisie" : ""}" ${attribut} draggable="true" aria-pressed="${choisie}"
     title="${echapper(titre)}">${media}<span class="coche-vignette" aria-hidden="true">${picto("coche")}</span>${etiquette}</button>`;
 }
@@ -2980,6 +2981,89 @@ function majVignettes(zone, sel, attr) {
   });
 }
 
+// Clic bref sur une photo (hors du rond) : menu Voir / Afficher dans le dossier / Sélectionner / Supprimer.
+// Le bouton maintenu puis glissé reste le glisser-déposer ; le rond, Maj ou Ctrl + clic sélectionnent directement.
+function menuPhoto(v, { cle, numero, liste, sel, choisir }) {
+  const id = cle || numero;
+  const ref = cle ? { cle } : { numero };
+  const plusieurs = sel.has(id) && sel.size > 1;
+  menuContextuel(v, { items: [
+    { picto: "voir", texte: "Voir", action: () => voirPhoto(liste, ref) },
+    { picto: "dossier", texte: "Afficher dans le dossier", action: () => api("photos/ouvrir", { ...ref, montrer: true }).catch((e) => alert(e.message)) },
+    { picto: "coche", texte: sel.has(id) ? "Retirer de la sélection" : "Sélectionner", action: choisir },
+    { separateur: true },
+    { picto: "supprimer", danger: true, texte: plusieurs ? `Supprimer les ${sel.size} photos choisies` : "Supprimer",
+      action: () => supprimerPhotos(plusieurs ? [...sel] : [id], !!cle, sel) },
+  ] });
+}
+
+async function supprimerPhotos(ids, aTrier, sel) {
+  const n = ids.length, une = n === 1;
+  const quoi = une ? "cette photo" : `ces ${n} photos`;
+  const detail = aTrier
+    ? `Le fichier d'origine est retiré de son dossier : s'il vient d'iCloud, ${une ? "il disparaît" : "ils disparaissent"} aussi d'iCloud et du téléphone.`
+    : `Toutes ${une ? "ses copies" : "leurs copies"} (dossier de chaque enfant, format d'origine) sont retirées du rangement.`;
+  if (!confirm(`Mettre ${quoi} à la Corbeille ?\n\n${detail}\n\nVous pourrez ${une ? "la" : "les"} récupérer depuis la Corbeille de Windows.`)) return;
+  const r = await api("photos/supprimer", aTrier ? { cles: ids } : { numeros: ids }).catch((e) => ({ erreurs: [e.message] }));
+  ids.forEach((x) => sel.delete(x));
+  if (r.erreurs?.length) alert(`Certaines photos n'ont pas pu être supprimées :\n${r.erreurs.join("\n")}`);
+  await afficherPhotos();
+}
+
+// Visionneuse : la photo en grand, flèches pour passer à la suivante, Échap pour fermer.
+let visionneuse = null;
+function voirPhoto(liste, ref) {
+  const cleDe = (x) => (x.cle ? `c:${x.cle}` : `n:${x.numero}`);
+  const elements = liste.filter((x) => x.cle || x.numero);
+  let i = Math.max(0, elements.findIndex((x) => cleDe(x) === cleDe(ref)));
+  fermerVisionneuse();
+  const fond = document.createElement("div");
+  fond.className = "visionneuse";
+  fond.setAttribute("role", "dialog");
+  fond.setAttribute("aria-label", "Photo en grand");
+  document.body.appendChild(fond);
+  const afficher = () => {
+    const x = elements[i];
+    const q = x.cle ? `cle=${x.cle}` : `numero=${x.numero}`;
+    const quand = x.date ? new Date(x.date).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" }) : "Date inconnue";
+    const media = x.genre === "video"
+      ? `<video controls autoplay src="/api/photos/image?${q}"></video>`
+      : `<img alt="" src="/api/photos/image?${q}" onerror="this.onerror=null;this.src='/api/photos/miniature?${q}'">`;
+    fond.innerHTML = `<button type="button" class="fermer-visionneuse" title="Fermer (Échap)" aria-label="Fermer">${picto("fermer")}</button>
+      ${elements.length > 1 ? `<button type="button" class="precedente" title="Photo précédente (←)" aria-label="Photo précédente">${picto("chevron")}</button>
+      <button type="button" class="suivante" title="Photo suivante (→)" aria-label="Photo suivante">${picto("chevron")}</button>` : ""}
+      <figure>${media}<figcaption>${echapper(quand)} · ${i + 1} / ${elements.length}
+        <button type="button" class="lien" data-ouvrir-windows>${picto("ouvrir")}Ouvrir avec Windows</button></figcaption></figure>`;
+  };
+  const aller = (d) => { i = (i + d + elements.length) % elements.length; afficher(); };
+  fond.addEventListener("click", (e) => {
+    if (e.target.closest(".precedente")) aller(-1);
+    else if (e.target.closest(".suivante")) aller(1);
+    else if (e.target.closest("[data-ouvrir-windows]")) {
+      const x = elements[i];
+      api("photos/ouvrir", x.cle ? { cle: x.cle } : { numero: x.numero }).catch((err) => alert(err.message));
+    } else if (e.target === fond || e.target.closest(".fermer-visionneuse")) fermerVisionneuse();
+  });
+  const touches = (e) => {
+    if (e.key === "Escape") fermerVisionneuse();
+    else if (e.key === "ArrowLeft" && elements.length > 1) aller(-1);
+    else if (e.key === "ArrowRight" && elements.length > 1) aller(1);
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+  document.addEventListener("keydown", touches, true);
+  visionneuse = { fond, touches };
+  afficher();
+  fond.querySelector(".fermer-visionneuse").focus();
+}
+function fermerVisionneuse() {
+  if (!visionneuse) return;
+  document.removeEventListener("keydown", visionneuse.touches, true);
+  visionneuse.fond.remove();
+  visionneuse = null;
+}
+
 // Clic : choisir / retirer ; Maj + clic : toute la suite depuis le dernier clic.
 function basculer(sel, cle, etendre, ordre) {
   if (etendre && derniereCle && ordre.includes(derniereCle)) {
@@ -3049,6 +3133,15 @@ $("#groupes-a-trier").addEventListener("click", (e) => {
   } else {
     const v = e.target.closest("[data-cle]");
     if (!v) return;
+    if (!e.target.closest(".coche-vignette") && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      return menuPhoto(v, { cle: v.dataset.cle, liste: donneesPhotos.a_trier, sel: selTri, choisir: () => {
+        basculer(selTri, v.dataset.cle, false, []);
+        if (!selTri.size) enfantsTri.clear();
+        viderRangees();
+        majVignettes("#groupes-a-trier", selTri, "data-cle");
+        afficherBarreTri();
+      } });
+    }
     basculer(selTri, v.dataset.cle, e.shiftKey, donneesPhotos.a_trier.map((x) => x.cle));
   }
   if (!selTri.size) enfantsTri.clear();
@@ -3112,7 +3205,7 @@ $("#ignorer").addEventListener("click", async () => {
 });
 $("#groupes-a-trier").addEventListener("dblclick", (e) => {
   const v = e.target.closest("[data-cle]");
-  if (v) api("photos/ouvrir", { cle: v.dataset.cle }).catch((err) => alert(err.message));
+  if (v && !e.target.closest(".coche-vignette")) { fermerMenu(); voirPhoto(donneesPhotos.a_trier, { cle: v.dataset.cle }); }
 });
 
 // Glisser des photos à trier sur un enfant : case de la liste des enfants ou pastille de la barre en bas.
@@ -3328,6 +3421,14 @@ $("#filtre-activite").addEventListener("click", (e) => {
 $("#grille-rangees").addEventListener("click", (e) => {
   const v = e.target.closest("[data-numero]");
   if (!v) return;
+  if (!e.target.closest(".coche-vignette") && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    return menuPhoto(v, { numero: v.dataset.numero, liste: rangeesVisibles(), sel: selRangees, choisir: () => {
+      basculer(selRangees, v.dataset.numero, false, []);
+      viderTri();
+      majVignettes("#grille-rangees", selRangees, "data-numero");
+      afficherBarreRangees();
+    } });
+  }
   basculer(selRangees, v.dataset.numero, e.shiftKey, rangeesVisibles().map((r) => r.numero));
   viderTri();
   majVignettes("#grille-rangees", selRangees, "data-numero");
@@ -3335,7 +3436,7 @@ $("#grille-rangees").addEventListener("click", (e) => {
 });
 $("#grille-rangees").addEventListener("dblclick", (e) => {
   const v = e.target.closest("[data-numero]");
-  if (v) api("photos/ouvrir", { numero: v.dataset.numero }).catch((err) => alert(err.message));
+  if (v && !e.target.closest(".coche-vignette")) { fermerMenu(); voirPhoto(rangeesVisibles(), { numero: v.dataset.numero }); }
 });
 $("#tout-rangees").addEventListener("click", () => {
   const liste = rangeesVisibles();
@@ -3475,13 +3576,21 @@ function afficherMisDeCote() {
     $(grille).addEventListener("click", (e) => {
       const v = e.target.closest("[data-cle]");
       if (!v) return;
-      sel.has(v.dataset.cle) ? sel.delete(v.dataset.cle) : sel.add(v.dataset.cle);
-      majVignettes(grille, sel, "data-cle");
-      $(bouton).disabled = !sel.size;
+      const choisir = () => {
+        sel.has(v.dataset.cle) ? sel.delete(v.dataset.cle) : sel.add(v.dataset.cle);
+        majVignettes(grille, sel, "data-cle");
+        $(bouton).disabled = !sel.size;
+      };
+      if (e.target.closest(".coche-vignette") || e.shiftKey || e.ctrlKey || e.metaKey) return choisir();
+      menuPhoto(v, { cle: v.dataset.cle, liste: grille === "#grille-hors" ? donneesPhotos.hors_horaires : donneesPhotos.ignorees,
+        sel, choisir });
     });
     $(grille).addEventListener("dblclick", (e) => {
       const v = e.target.closest("[data-cle]");
-      if (v) api("photos/ouvrir", { cle: v.dataset.cle }).catch((err) => alert(err.message));
+      if (v && !e.target.closest(".coche-vignette")) {
+        fermerMenu();
+        voirPhoto(grille === "#grille-hors" ? donneesPhotos.hors_horaires : donneesPhotos.ignorees, { cle: v.dataset.cle });
+      }
     });
     $(bouton).addEventListener("click", async () => {
       await api("photos/ignorer", { cles: [...sel], ignorer: false }).catch((e) => alert(e.message));

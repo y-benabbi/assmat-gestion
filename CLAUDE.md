@@ -289,7 +289,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants s'agrandissent en cibles de dépôt. « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
   (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Bouton maintenu sur le rond `.coche-vignette` puis glissé = sélection de la photo de départ à la dernière survolée
-  (`demarrerSelectionGlissee`, retire si la photo de départ était choisie) ; ce geste ne lance jamais le glisser-déposer. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
+  (`demarrerSelectionGlissee`, retire si la photo de départ était choisie) ; ce geste ne lance jamais le glisser-déposer. Clic bref sur la photo (hors du rond, sans Maj/Ctrl) : menu
+  `menuPhoto` (Voir = visionneuse `voirPhoto`, ←/→/Échap ; Afficher dans le dossier ; Sélectionner ; Supprimer = `photos.supprimer`,
+  Corbeille de Windows via `SHFileOperationW`, toutes les copies d'une photo rangée) ; clic maintenu = glisser-déposer. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
   rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`). Des photos à trier glissées sur
   la zone des photos rangées (`#contenu-photos`) sont rangées avec les filtres choisis (enfant, réalisation :
   `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien.

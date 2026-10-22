@@ -2,6 +2,7 @@
 passage au dossier principal (fichiers déplacés), sauvegarde, pré-classement selon les horaires, rangement
 (copies par enfant, numéro unique, HEIC converti + original gardé, XMP), modification, doublons, numérotation des
 fichiers ajoutés à la main, remise à trier, impression, activités et séances."""
+import json
 import os
 import struct
 import sys
@@ -269,4 +270,17 @@ page = photos.page_impression(["0001", "0003", "0004"], 16)
 assert page.count("<img ") == 2 and "repeat(4, 1fr)" in page, "vidéo exclue, 4 × 4"
 assert photos.page_impression(["0001"], 4).count("repeat(2, 1fr)") == 2
 print("dépôt et impression OK")
+
+# Supprimer : à la Corbeille (ici, dossier « corbeille » de l'installation), copies comprises pour une photo rangée.
+corbeille = TEMP / "base" / "corbeille"
+cle = next(e["cle"] for e in photos.lister()["a_trier"] if e["nom"] == "glissee.jpg")
+assert photos.supprimer(cles=[cle]) == {"supprimees": 1, "erreurs": []}
+assert not Path(chemin).exists() and (corbeille / "glissee.jpg").exists()
+r = photos.rangees()["0001"]
+nb = len(r["copies"]) + len(r["sources"])
+assert photos.supprimer(numeros=["0001"])["supprimees"] == 1
+assert "0001" not in photos.rangees() and "0001" not in json.loads((TEMP / "base/donnees/photos.json").read_text(encoding="utf-8"))["photos"]
+assert len([f for f in corbeille.iterdir() if "0001" in f.name]) == nb
+assert photos.supprimer(numeros=["9999"])["erreurs"]
+print("suppression vers la Corbeille")
 print("photos OK")
