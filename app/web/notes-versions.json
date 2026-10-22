@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.3",
+    "date": "2026-10-22",
+    "titre": "L'icône de l'application dans le menu",
+    "nouveautes": [
+      "En haut du menu, à côté de « Assistante Maternelle », on retrouve maintenant la même icône que celle du raccourci sur lequel on clique pour ouvrir l'application. Elle s'affiche aussi dans l'onglet du navigateur."
+    ]
+  },
+  {
     "version": "1.11.2",
     "date": "2026-10-22",
     "titre": "Ordre des photos à trier",

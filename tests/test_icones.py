@@ -87,6 +87,16 @@ def main():
     serveur.shutdown()
     print("OK : icônes des sites d'activités")
 
+    # Icône de l'application : lue dans Windows (ici, hors Windows : aucune), puis gardée en cache.
+    if os.name != "nt":
+        assert icones.icone_application() is None
+        fichier, index = icones.ICONE_RACCOURCI
+        cache = icones.DOSSIER_ICONES / f"application-{fichier.split('.')[0]}-{index}-{icones.TAILLE_ICONE_APPLI}.png"
+        cache.write_bytes(GRANDE)
+    contenu = icones.icone_application()
+    assert contenu and contenu.startswith(b"\x89PNG") and icones.icone_application() == contenu
+    print("OK : icône de l'application")
+
 
 if __name__ == "__main__":
     main()

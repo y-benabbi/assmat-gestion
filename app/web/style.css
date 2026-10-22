@@ -65,6 +65,7 @@ code { font: 0.92em/1 var(--texte); background: var(--eucalyptus-clair); padding
 }
 .marque .logo { width: 30px; height: 30px; flex: none; fill: var(--lavande); stroke: var(--eucalyptus); stroke-width: 2.2; stroke-linejoin: round; }
 .marque .logo .coeur { fill: var(--rose); stroke: #c4607f; }
+.marque img.logo { object-fit: contain; }
 .marque-mobile { display: none; }
 .entete-droite { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .bouton-parametres, .bouton-menu {

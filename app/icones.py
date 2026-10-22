@@ -1,6 +1,8 @@
 """Icônes des sites d'activités : récupérées sur le site lui-même (la plus grande proposée), puis gardées dans
-donnees\\icones\\ pour ne pas les retélécharger. Un site sans icône est noté et réessayé une semaine plus tard."""
+donnees\\icones\\ pour ne pas les retélécharger. Un site sans icône est noté et réessayé une semaine plus tard.
+Aussi l'icône de l'application (celle du raccourci), affichée dans l'en-tête."""
 import hashlib
+import os
 import re
 import time
 import urllib.parse
@@ -94,3 +96,107 @@ def icone(url_site: str):
             return contenu, genre
     absent.write_text(time.strftime("%Y-%m-%d"), encoding="utf-8")
     return None
+
+
+# ------------------------------------------------ icône de l'application
+# Même icône que le raccourci « Assistante Maternelle » (scripts\installer.ps1, IconLocation) : à changer aux deux
+# endroits. C'est une icône de Windows : lue sur le poste au premier affichage, jamais copiée dans le dépôt.
+ICONE_RACCOURCI = ("imageres.dll", 170)
+TAILLE_ICONE_APPLI = 128
+
+
+def _extraire_icone_windows(fichier: str, index: int, taille: int) -> bytes:
+    """PNG de l'icône n° index (comptée à partir de 0) d'un fichier .dll/.exe de Windows."""
+    import ctypes
+    import io
+    from ctypes import wintypes
+
+    from PIL import Image
+
+    user32, gdi32 = ctypes.windll.user32, ctypes.windll.gdi32
+    user32.PrivateExtractIconsW.argtypes = [wintypes.LPCWSTR, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                            ctypes.POINTER(wintypes.HICON), ctypes.POINTER(wintypes.UINT),
+                                            wintypes.UINT, wintypes.UINT]
+    user32.PrivateExtractIconsW.restype = wintypes.UINT
+
+    class ICONINFO(ctypes.Structure):
+        _fields_ = [("fIcon", wintypes.BOOL), ("xHotspot", wintypes.DWORD), ("yHotspot", wintypes.DWORD),
+                    ("hbmMask", wintypes.HBITMAP), ("hbmColor", wintypes.HBITMAP)]
+
+    class BITMAPINFOHEADER(ctypes.Structure):
+        _fields_ = [("biSize", wintypes.DWORD), ("biWidth", wintypes.LONG), ("biHeight", wintypes.LONG),
+                    ("biPlanes", wintypes.WORD), ("biBitCount", wintypes.WORD), ("biCompression", wintypes.DWORD),
+                    ("biSizeImage", wintypes.DWORD), ("biXPelsPerMeter", wintypes.LONG),
+                    ("biYPelsPerMeter", wintypes.LONG), ("biClrUsed", wintypes.DWORD),
+                    ("biClrImportant", wintypes.DWORD)]
+
+    user32.GetIconInfo.argtypes = [wintypes.HICON, ctypes.POINTER(ICONINFO)]
+    user32.DestroyIcon.argtypes = [wintypes.HICON]
+    user32.GetDC.argtypes = [wintypes.HWND]
+    user32.GetDC.restype = wintypes.HDC
+    user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
+    gdi32.GetDIBits.argtypes = [wintypes.HDC, wintypes.HBITMAP, wintypes.UINT, wintypes.UINT, ctypes.c_void_p,
+                                ctypes.POINTER(BITMAPINFOHEADER), wintypes.UINT]
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
+
+    chemin = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", fichier)
+    hicon, ident = wintypes.HICON(), wintypes.UINT()
+    if user32.PrivateExtractIconsW(chemin, index, taille, taille, ctypes.byref(hicon), ctypes.byref(ident), 1, 0) != 1 \
+            or not hicon.value:
+        raise OSError(f"Icône {index} introuvable dans {chemin}")
+    info = ICONINFO()
+    dc = user32.GetDC(None)
+    try:
+        if not user32.GetIconInfo(hicon, ctypes.byref(info)):
+            raise OSError("Icône illisible")
+
+        def pixels(bitmap):
+            entete = BITMAPINFOHEADER(biSize=ctypes.sizeof(BITMAPINFOHEADER), biWidth=taille,
+                                      biHeight=-taille, biPlanes=1, biBitCount=32, biCompression=0)
+            tampon = ctypes.create_string_buffer(taille * taille * 4)
+            if gdi32.GetDIBits(dc, bitmap, 0, taille, tampon, ctypes.byref(entete), 0) != taille:
+                raise OSError("Icône illisible")
+            return tampon.raw
+
+        couleurs = pixels(info.hbmColor)
+        image = Image.frombuffer("RGBA", (taille, taille), couleurs, "raw", "BGRA", 0, 1)
+        if not any(couleurs[3::4]):
+            # Ancienne icône sans transparence progressive : le masque dit quels points sont transparents.
+            masque = Image.frombuffer("RGBA", (taille, taille), pixels(info.hbmMask), "raw", "BGRA", 0, 1)
+            image.putalpha(masque.convert("L").point(lambda v: 0 if v else 255))
+    finally:
+        for bitmap in (info.hbmColor, info.hbmMask):
+            if bitmap:
+                gdi32.DeleteObject(bitmap)
+        user32.ReleaseDC(None, dc)
+        user32.DestroyIcon(hicon)
+    sortie = io.BytesIO()
+    image.save(sortie, "PNG")
+    return sortie.getvalue()
+
+
+def icone_application():
+    """PNG de l'icône du raccourci, ou None (hors Windows, ou lecture impossible : le logo dessiné reste affiché).
+    La lecture se fait dans un programme à part : une erreur de Windows ne peut pas arrêter l'application."""
+    fichier, index = ICONE_RACCOURCI
+    cache = DOSSIER_ICONES / f"application-{fichier.split('.')[0]}-{index}-{TAILLE_ICONE_APPLI}.png"
+    if not cache.exists() and os.name == "nt":
+        import subprocess
+        import sys
+        DOSSIER_ICONES.mkdir(parents=True, exist_ok=True)
+        try:
+            subprocess.run([sys.executable, __file__, str(cache)], timeout=30, capture_output=True,
+                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except (OSError, subprocess.SubprocessError):
+            return None
+    return cache.read_bytes() if cache.exists() else None
+
+
+if __name__ == "__main__":
+    # Appelé par icone_application() : écrit l'icône du raccourci dans le fichier donné.
+    import sys
+    from pathlib import Path
+    cible = Path(sys.argv[1])
+    provisoire = cible.with_suffix(".tmp")
+    provisoire.write_bytes(_extraire_icone_windows(ICONE_RACCOURCI[0], ICONE_RACCOURCI[1], TAILLE_ICONE_APPLI))
+    provisoire.replace(cible)
