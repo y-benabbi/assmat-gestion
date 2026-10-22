@@ -154,7 +154,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `envoyerFichiers(chemin, FormData, message)` (progression de l'envoi) ; boucle de requêtes par `unParUn(liste, message, f)`
   (le rangement des photos part par paquets de 4 pour que la barre avance). Zone qui se remplit :
   `attenteHtml(texte)` ; bouton qui travaille : `boutonOccupe(bouton, texte)` (rend la fonction qui le rétablit). Miniatures :
-  `onload` ajoute `chargee`, sinon reflet animé.
+  `onload` ajoute `chargee`, sinon reflet animé. Écran de démarrage `#demarrage` (logo, jauge, étape en cours) présent dès le
+  HTML (`body.demarrage-en-cours`) : avancement = requêtes finies ÷ max(lancées, `REQUETES_DEMARRAGE`), retiré par
+  `finDemarrage()` quand le tableau de bord est rempli (carte des bulletins comprise), ou au bout de 20 s quoi qu'il arrive.
 - Pictogrammes : `PICTOS` / `picto(nom)` en tête de app.js (trait arrondi, `stroke`, jamais de bibliothèque externe) ;
   dans le HTML, `data-picto="nom"` ajoute le pictogramme au début de l'élément. Pictogrammes par catégorie
   du menu (`pastille(nom, categorie)`, classes `.pic argent|familles|demarches|moi`) : **sans fond coloré** (demande de

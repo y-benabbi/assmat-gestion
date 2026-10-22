@@ -21,7 +21,10 @@ const MESSAGES_CHARGEMENT = [
   [/^photos\/supprimer/, "Suppression des photos…"], [/^photos(\?|$)/, "Lecture des photos…"],
   [/^(courriers\/pdf|contrat-travail|avenant-pdf)/, "Création du PDF…"], [/^courriers/, "Préparation du courrier…"],
   [/^revenus/, "Lecture des bulletins de salaire…"], [/^impots/, "Calcul pour la déclaration de revenus…"],
-  [/^ateliers\/document/, "Ajout des documents…"], [/^(ouvrir|montrer|photos\/ouvrir|ateliers\/ouvrir)/, "Ouverture…"],
+  [/^ateliers\/document/, "Ajout des documents…"], [/^parametres/, "Lecture de vos paramètres…"],
+  [/^dossier/, "Recherche des bulletins dans votre dossier…"], [/^echeances/, "Calcul des échéances…"],
+  [/^(contrats|familles|brouillons)/, "Lecture des fiches des familles et des enfants…"], [/^profil/, "Lecture de votre profil…"],
+  [/^sites/, "Chargement des sites…"], [/^ateliers/, "Lecture des activités…"], [/^(ouvrir|montrer|photos\/ouvrir|ateliers\/ouvrir)/, "Ouverture…"],
 ];
 const messageChargement = (chemin) => (MESSAGES_CHARGEMENT.find(([re]) => re.test(chemin)) || [])[1] || "Chargement…";
 const chargements = new Map();
@@ -32,6 +35,7 @@ let numeroChargement = 0, minuterieChargement = null;
 function debutChargement(message = "Chargement…") {
   const id = ++numeroChargement;
   chargements.set(id, { message, avancement: null });
+  if (demarrage) demarrage.commences++;
   majChargement();
   return {
     avancer(fraction, texte) {
@@ -41,7 +45,11 @@ function debutChargement(message = "Chargement…") {
       if (texte) c.message = texte;
       majChargement();
     },
-    fin() { chargements.delete(id); majChargement(); },
+    fin() {
+      if (!chargements.delete(id)) return;
+      if (demarrage) demarrage.finis++;
+      majChargement();
+    },
   };
 }
 
@@ -52,6 +60,7 @@ function suivreChargement(promesse, message = "Chargement…") {
 }
 
 function majChargement() {
+  if (demarrage) majDemarrage();
   const pastille = document.getElementById("chargement"), barre = document.getElementById("barre-chargement");
   if (!pastille || !barre) return;
   if (!chargements.size) {
@@ -105,6 +114,38 @@ async function unParUn(elements, message, faire) {
     }
   } finally { c.fin(); }
 }
+
+// Écran de démarrage : tant que le tableau de bord n'est pas prêt, logo et barre qui avance. L'avancement = requêtes
+// terminées sur requêtes lancées (la barre ne recule jamais) ; le texte dit ce qui est en cours.
+// Les requêtes partent par vagues : on compte sur au moins REQUETES_DEMARRAGE pour que la barre ne file pas à la fin dès
+// la première réponse.
+const REQUETES_DEMARRAGE = 10;
+let demarrage = { commences: 0, finis: 0, affiche: 0.04 };
+function majDemarrage() {
+  const ecran = document.getElementById("demarrage");
+  if (!ecran) return;
+  const fraction = demarrage.finis / Math.max(demarrage.commences, REQUETES_DEMARRAGE);
+  demarrage.affiche = Math.max(demarrage.affiche, Math.min(0.95, 0.05 + 0.9 * fraction));
+  ecran.querySelector(".jauge-demarrage span").style.width = Math.round(demarrage.affiche * 100) + "%";
+  ecran.querySelector(".jauge-demarrage").setAttribute("aria-valuenow", Math.round(demarrage.affiche * 100));
+  const enCours = [...chargements.values()].at(-1);
+  if (enCours) ecran.querySelector(".texte-demarrage").textContent = enCours.message;
+}
+function finDemarrage() {
+  if (!demarrage) return;
+  demarrage = null;
+  const ecran = document.getElementById("demarrage");
+  ecran.querySelector(".jauge-demarrage span").style.width = "100%";
+  ecran.querySelector(".texte-demarrage").textContent = "C'est prêt !";
+  setTimeout(() => {
+    ecran.classList.add("fini");
+    document.body.classList.remove("demarrage-en-cours");
+    majChargement();          // ce qui se charge encore passe dans la barre habituelle
+    setTimeout(() => ecran.remove(), 400);
+  }, 250);
+}
+// Jamais bloquée : au bout de 20 s, l'application s'ouvre quand même (la barre du haut montre ce qui continue).
+setTimeout(finDemarrage, 20000);
 
 // Texte d'attente à placer dans une zone (liste, résultat) pendant qu'elle se remplit.
 const attenteHtml = (texte = "Chargement…") => `<p class="attente-texte"><span class="rond-chargement" aria-hidden="true"></span>${texte}</p>`;
@@ -920,7 +961,7 @@ async function afficherTableauDeBord() {
 
   salutation(profil);
   statsAccueil(r, ech, contrats);
-  if (modules.bulletins !== false) tuileBulletins();
+  const tuile = modules.bulletins !== false ? tuileBulletins() : null;
   echeancesAccueil = ech;
   afficherAgenda();
   contratsAccueil = contrats;
@@ -937,6 +978,7 @@ async function afficherTableauDeBord() {
       aucunRevenu($("#graphique-accueil"));
     }
   }
+  await tuile;
 }
 
 // « Bonjour Marie » (prénom du profil) et initiale dans l'en-tête.
@@ -4188,7 +4230,7 @@ async function afficherNotesDisponibles(locale, distante) {
   $("#carte-nouvelle-version").classList.remove("cache");
 }
 
-chargerParametres().then(afficherTableauDeBord);
+chargerParametres().then(afficherTableauDeBord).catch((e) => console.error(e)).finally(finDemarrage);
 afficherPrincipal();
 afficherNotes();
 afficherBaremes();
