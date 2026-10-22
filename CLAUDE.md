@@ -244,6 +244,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   défilement le ferment) : case rangée = « Ouvrir » (`/api/ouvrir`) et « Afficher dans le dossier » (`/api/montrer`,
   `explorer /select,`) ; case à récupérer = ce bulletin (`/api/action` avec `cibles` = emplacements prévus, filtre de
   `_cmd_telecharger_manquants`) ou tous. Les deux routes n'ouvrent que des fichiers connus (`fichier_connu`).
+  Avant toute vérification sur Pajemploi (état vide à chaque lancement), le classeur vient de `/api/dossier` : son
+  champ `fichiers` (`bibliotheque.fichiers_dossier`) donne le chemin de chaque bulletin, pour que le menu marche aussi.
 - Sites d'activités (module `activites`) : `donnees.sites()` (`donnees\sites.json`, `SITES_DEFAUT` tant qu'il n'existe
   pas ; `enregistrer_sites(None)` les remet), routes `/api/sites`. Tuiles carrées (`tuileSite`) : icône du site servie par
   `/api/icone-site?url=` (seulement pour une adresse de la liste) : `icones.py` la cherche sur le site (plus grande

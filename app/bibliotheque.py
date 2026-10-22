@@ -212,9 +212,9 @@ def comparer(bulletins: list, params: dict, correspondances: dict) -> list:
     return bulletins
 
 
-def resume_dossier(dossier: str) -> dict:
-    """Vue hors connexion : pour chaque famille (dossier), les mois trouvés.
-    Les dossiers d'année sont traversés : « 2026/Dupont/… » compte pour « Dupont »."""
+def fichiers_dossier(dossier: str) -> dict:
+    """Vue hors connexion : pour chaque famille (dossier), les bulletins trouvés par mois
+    ({famille: {"AAAA-MM": [chemins]}}). Les dossiers d'année sont traversés : « 2026/Dupont/… » compte pour « Dupont »."""
     resultat = {}
     racine = Path(dossier)
     familles = sous_dossiers_clients(dossier)
@@ -226,5 +226,10 @@ def resume_dossier(dossier: str) -> dict:
             # Fichier rangé seulement par année : famille retrouvée d'après le nom du fichier.
             groupe = next((fam for fam in familles if mots(fam) & f["mots"]), None) \
                 or " ".join(sorted(f["mots"])).title() or "(sans nom de famille)"
-        resultat.setdefault(groupe, set()).add(f["periode"])
-    return {k: sorted(v) for k, v in sorted(resultat.items())}
+        resultat.setdefault(groupe, {}).setdefault(f["periode"], []).append(f["chemin"])
+    return {k: {p: sorted(c) for p, c in sorted(v.items())} for k, v in sorted(resultat.items())}
+
+
+def resume_dossier(dossier: str) -> dict:
+    """Pour chaque famille (dossier), les mois trouvés."""
+    return {k: list(v) for k, v in fichiers_dossier(dossier).items()}

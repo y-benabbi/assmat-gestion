@@ -423,7 +423,9 @@ def creer_app(port, jeton):
         d = parametres.charger().get("dossier_bulletins", "")
         if not d or not os.path.isdir(d):
             return jsonify({"configure": False, "clients": {}})
-        return jsonify({"configure": True, "chemin": d, "clients": bibliotheque.resume_dossier(d)})
+        fichiers = bibliotheque.fichiers_dossier(d)
+        return jsonify({"configure": True, "chemin": d, "clients": {k: list(v) for k, v in fichiers.items()},
+                        "fichiers": fichiers})
 
     @app.post("/api/choisir-dossier")
     def choisir_dossier():
