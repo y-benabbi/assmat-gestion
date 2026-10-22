@@ -157,7 +157,7 @@ print("pré-classement : horaires et marge, sans date, vidéo datée, miniatures
 
 # ------------------------------------------------------------------ rangement
 r = photos.ranger([par_nom["IMG_0001.JPG"]["cle"]], [lea["id"], hugo["id"]], seance["id"])
-assert r == {"ranges": ["0001"], "erreurs": []}, r
+assert r == {"ranges": ["0001"], "erreurs": [], "par_cle": {par_nom["IMG_0001.JPG"]["cle"]: "0001"}}, r
 copie_lea = racine / "Photos et vidéos" / "Dupont" / "Léa" / "2026" / "Léa - Peinture des feuilles - Photo 0001.jpg"
 copie_hugo = racine / "Photos et vidéos" / "Martin" / "Hugo" / "2026" / "Hugo - Peinture des feuilles - Photo 0001.jpg"
 assert copie_lea.is_file() and copie_hugo.is_file() and not (icloud / "IMG_0001.JPG").exists()
@@ -221,7 +221,7 @@ dossier_r = racine / "Photos et vidéos" / "Réalisations" / f"{seance['id']} - 
 assert photos.dossier_realisation(seance["id"]) == dossier_r.name
 cle = next(e["cle"] for e in photos.lister()["a_trier"] if e["nom"] == "IMG_0004.JPG")
 r = photos.ranger([cle], [], seance["id"])
-assert r == {"ranges": ["0005"], "erreurs": []}, r
+assert r == {"ranges": ["0005"], "erreurs": [], "par_cle": r["par_cle"]} and list(r["par_cle"].values()) == ["0005"], r
 assert (dossier_r / "Peinture des feuilles - Photo 0005.jpg").is_file()
 assert next(x for x in photos.lister()["rangees"] if x["numero"] == "0005")["enfants"] == []
 try:
@@ -254,7 +254,7 @@ retour = photos.remettre_a_trier("0002")
 assert Path(retour["chemin"]).name == "Photo 0002.heic" and Path(retour["chemin"]).parent == racine / "À trier"
 assert "0002" not in {x["numero"] for x in photos.lister()["rangees"]}
 assert not (racine / "Photos et vidéos" / "Format source").exists()
-assert "Photo 0002.heic" in {e["nom"] for e in photos.lister()["a_trier"]}
+assert retour["cle"] in {e["cle"] for e in photos.lister()["a_trier"] if e["nom"] == "Photo 0002.heic"}, "même clé que la liste"
 print("ignorées, hors horaires remises, photo rangée remise à trier (original HEIC)")
 
 # Dépôt depuis l'Explorateur : copie dans « À trier ».

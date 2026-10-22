@@ -1060,13 +1060,8 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .nom-enfant small { display: none; font-weight: 400; font-size: 0.76rem; color: var(--encre-douce); }
 .case-enfant .compte { font-size: 0.78rem; font-weight: 400; color: var(--encre-douce); }
 .case-enfant.toutes { padding-left: 10px; }
-/* Pendant le tri : les enfants deviennent de grandes cibles où déposer les photos */
-.indice-depot { display: none; margin: 2px 4px 0; font-size: 0.82rem; font-weight: 700; color: var(--eucalyptus-fonce); }
-.tri-ouvert .indice-depot, .glisse .indice-depot { display: block; }
-.tri-ouvert .case-enfant[data-case-enfant], .glisse .case-enfant[data-case-enfant] { padding: 10px; margin: 6px 0;
-  border: 2px dashed var(--menthe-fonce); background: var(--papier); }
-.tri-ouvert .case-enfant .initiale, .glisse .case-enfant .initiale { width: 34px; height: 34px; font-size: 0.95rem; }
-.tri-ouvert .nom-enfant small, .glisse .nom-enfant small { display: block; }
+/* Pendant le tri, les enfants gardent leur taille (on dépose surtout dans la zone des photos) ; un enfant survolé
+   reste une cible possible. */
 .case-enfant.survol { border-style: solid !important; border-color: var(--tournesol) !important; background: var(--tournesol-clair) !important;
   transform: scale(1.03); }
 .contenu-photos { min-width: 0; }
@@ -1370,3 +1365,12 @@ body.demarrage-en-cours { overflow: hidden; }
 
 /* Repère en bas d'une liste de photos : les suivantes sont ajoutées quand il approche de l'écran. */
 .suite-photos { grid-column: 1 / -1; height: 1px; }
+
+/* Photo en cours de déplacement : blanchie, roue au centre ; elle reprend ses couleurs une fois le fichier déplacé. */
+.vignette img, .vignette .icone-video { transition: transform 0.12s, opacity 0.35s, filter 0.35s; }
+.vignette.en-cours { pointer-events: none; background: #fff; }
+.vignette.en-cours img, .vignette.en-cours .icone-video { opacity: 0.4; filter: saturate(0.35); }
+.vignette .roue { position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.95); border-top-color: var(--eucalyptus); box-shadow: 0 0 0 1px rgba(58, 53, 82, 0.08);
+  animation: tourne 0.8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .vignette .roue { animation-duration: 2.4s; } }

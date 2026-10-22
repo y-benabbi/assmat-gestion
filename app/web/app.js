@@ -103,18 +103,6 @@ function envoyerFichiers(chemin, donnees, message) {
   }).finally(c.fin);
 }
 
-// Plusieurs requêtes à la suite (une par photo…) : la barre avance à chaque élément traité.
-async function unParUn(elements, message, faire) {
-  const c = debutChargement(message);
-  c.avancer(0);
-  try {
-    for (let i = 0; i < elements.length; i++) {
-      await faire(elements[i], i);
-      c.avancer((i + 1) / elements.length);
-    }
-  } finally { c.fin(); }
-}
-
 // Écran de démarrage : tant que le tableau de bord n'est pas prêt, logo et barre qui avance. L'avancement = requêtes
 // terminées sur requêtes lancées (la barre ne recule jamais) ; le texte dit ce qui est en cours.
 // Les requêtes partent par vagues : on compte sur au moins REQUETES_DEMARRAGE pour que la barre ne file pas à la fin dès
@@ -2965,15 +2953,62 @@ const enfantPar = (id) => donneesPhotos?.enfants.find((e) => e.id === id);
 const initialeEnfant = (e) => `<span class="initiale ${couleurEnfant(e.prenom)}" aria-hidden="true">${echapper((e.prenom || "?").charAt(0).toUpperCase())}</span>`;
 
 function vignette(e, attribut, choisie, etiquette = "") {
-  const src = e.cle ? `/api/photos/miniature?cle=${e.cle}` : `/api/photos/miniature?numero=${e.numero}`;
+  const src = `/api/photos/miniature?${e.apercu || (e.cle ? `cle=${e.cle}` : `numero=${e.numero}`)}`;
   const media = e.genre === "video" ? `<span class="icone-video">${picto("video")}<small>${heureFr(e.date) || "Vidéo"}</small></span>`
     : `<img loading="lazy" alt="" src="${src}" onload="this.classList.add('chargee')" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
   const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })
     + (e.date_du_fichier ? " (date du fichier, la photo n'en indique pas)" : "") : "date de prise de vue inconnue";
   const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Clic : menu ; double-clic : voir en grand.`;
-  return `<button type="button" class="vignette${choisie ? " choisie" : ""}" ${attribut} draggable="true" aria-pressed="${choisie}"
-    title="${echapper(titre)}">${media}<span class="coche-vignette" aria-hidden="true">${picto("coche")}</span>${etiquette}</button>`;
+  return `<button type="button" class="vignette${choisie ? " choisie" : ""}${e.enCours ? " en-cours" : ""}" ${attribut}
+    draggable="${!e.enCours}" aria-pressed="${choisie}" aria-busy="${!!e.enCours}"
+    title="${echapper(titre)}">${media}<span class="coche-vignette" aria-hidden="true">${picto("coche")}</span>${etiquette}${
+    e.enCours ? `<span class="roue" aria-hidden="true"></span>` : ""}</button>`;
 }
+const vignetteATrier = (e) => vignette(e, `data-cle="${e.cle}"`, selTri.has(e.cle),
+  e.doublon ? `<span class="etiquette" title="Déjà rangée sous le numéro ${e.doublon}">Déjà rangée</span>` : "");
+function vignetteRangee(r) {
+  const realisation = !r.enfants.length && r.seance && realisations().find((x) => x.id === r.seance);
+  const noms = r.enfants.map((i) => enfantPar(i)?.prenom).filter(Boolean).join(", ") || (realisation ? realisation.activite.titre : "");
+  return vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
+    `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || (r.enCours ? "" : r.numero))}</span>`);
+}
+
+// --- déplacements instantanés
+// Ranger, remettre à trier, rattacher, modifier, supprimer : la page change tout de suite (la photo disparaît d'un côté et
+// apparaît de l'autre, blanchie avec une roue tant que le fichier n'est pas déplacé). Les déplacements passent l'un après
+// l'autre ; quand il n'en reste plus, la liste est relue pour tout remettre d'aplomb.
+let enAttentePhotos = 0, filePhotos = Promise.resolve();
+function enFile(travail) {
+  enAttentePhotos++;
+  const tache = filePhotos.then(travail);
+  filePhotos = tache.catch((err) => alert(err.message)).finally(() => { if (--enAttentePhotos === 0) afficherPhotos(); });
+  return tache.catch(() => null);
+}
+// Vignette affichée dont le déplacement est fini : colorée sur place (l'aperçu déjà chargé est gardé).
+function finirVignette(zone, attr, ancien, entree, fabriquer) {
+  entree.enCours = false;
+  const v = $(`${zone} [${attr}="${CSS.escape(ancien)}"]`);
+  if (!v) return;                 // pas encore affichée : la tranche suivante la fabriquera à jour
+  const img = v.querySelector("img");
+  if (!img || (img.complete && img.naturalWidth)) {
+    v.setAttribute(attr, attr === "data-cle" ? entree.cle : entree.numero);
+    v.classList.remove("en-cours");
+    v.setAttribute("aria-busy", "false");
+    v.draggable = true;
+    v.querySelector(".roue")?.remove();
+    const nom = v.querySelector(".numero-photo");
+    if (nom && !nom.textContent) nom.textContent = entree.numero;
+  } else {
+    delete entree.apercu;
+    v.outerHTML = fabriquer(entree);
+  }
+  delete entree.apercu;
+}
+const quandPhoto = (e) => e.date || e.date_fichier || "";
+// Même ordre que le serveur : jours du plus récent au plus ancien, heures croissantes dans un jour.
+const trierATrier = (liste) => liste.sort((a, b) => quandPhoto(b).slice(0, 10).localeCompare(quandPhoto(a).slice(0, 10))
+  || quandPhoto(a).localeCompare(quandPhoto(b)));
+const trierRangees = (liste) => liste.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
 // Photos prises à moins de 10 minutes d'écart, le même jour : un groupe. Les photos sans date à la fin.
 function grouper(liste) {
@@ -2991,6 +3026,7 @@ function grouper(liste) {
 }
 
 async function afficherPhotos() {
+  if (enAttentePhotos) return;          // relue quand les déplacements en cours seront finis
   // Premier affichage : les dossiers de photos sont parcourus (dates, doublons), ce qui peut prendre du temps.
   if (!$("#grille-rangees").children.length) ["#grille-rangees", "#groupes-a-trier"].forEach((z) => ($(z).innerHTML = attenteHtml("Lecture des photos…")));
   const [d, at] = await Promise.all([api("photos").catch((e) => { alert(e.message); return null; }),
@@ -3072,8 +3108,7 @@ function afficherATrier() {
     entete += `<div class="groupe-photos"><button type="button" class="titre-groupe" data-groupe="${i}" title="Choisir tout ce moment">${
       heure ? `<strong>${heure}</strong> · ` : ""}${pluriel(g.elements.length, g.elements.every((e) => e.genre === "video") ? "vidéo" : "élément")}</button>
       <div class="grille-photos"></div></div>`;
-    g.elements.forEach((e, j) => morceaux.push({ debut: j ? "" : entete, html: () => vignette(e, `data-cle="${e.cle}"`, selTri.has(e.cle),
-      e.doublon ? `<span class="etiquette" title="Déjà rangée sous le numéro ${e.doublon}">Déjà rangée</span>` : "") }));
+    g.elements.forEach((e, j) => morceaux.push({ debut: j ? "" : entete, html: () => vignetteATrier(e) }));
   });
   const sources = donneesPhotos.sources.map((s) => `« ${echapper(nomDossier(s))} »`).join(", ");
   rendreParTranches($("#groupes-a-trier"), morceaux, `<p class="vide-photos">${picto("coche")}Aucune photo à trier.
@@ -3198,10 +3233,19 @@ async function supprimerPhotos(ids, aTrier, sel) {
     ? `Le fichier d'origine est retiré de son dossier : s'il vient d'iCloud, ${une ? "il disparaît" : "ils disparaissent"} aussi d'iCloud et du téléphone.`
     : `Toutes ${une ? "ses copies" : "leurs copies"} (dossier de chaque enfant, format d'origine) sont retirées du rangement.`;
   if (!confirm(`Mettre ${quoi} à la Corbeille ?\n\n${detail}\n\nVous pourrez ${une ? "la" : "les"} récupérer depuis la Corbeille de Windows.`)) return;
-  const r = await api("photos/supprimer", aTrier ? { cles: ids } : { numeros: ids }).catch((e) => ({ erreurs: [e.message] }));
+  // Retirées de la page tout de suite ; le passage à la Corbeille suit.
+  const enleve = new Set(ids);
   ids.forEach((x) => sel.delete(x));
-  if (r.erreurs?.length) alert(`Certaines photos n'ont pas pu être supprimées :\n${r.erreurs.join("\n")}`);
-  await afficherPhotos();
+  if (aTrier) ["a_trier", "hors_horaires", "ignorees"].forEach((k) => (donneesPhotos[k] = donneesPhotos[k].filter((e) => !enleve.has(e.cle))));
+  else donneesPhotos.rangees = donneesPhotos.rangees.filter((r) => !enleve.has(r.numero));
+  badgePhotos();
+  afficherATrier();
+  afficherRangees();
+  afficherMisDeCote();
+  enFile(async () => {
+    const r = await api("photos/supprimer", aTrier ? { cles: ids } : { numeros: ids }).catch((e) => ({ erreurs: [e.message] }));
+    if (r.erreurs?.length) alert(`Certaines photos n'ont pas pu être supprimées :\n${r.erreurs.join("\n")}`);
+  });
 }
 
 // Visionneuse : la photo en grand, flèches pour passer à la suivante, Échap pour fermer.
@@ -3338,7 +3382,7 @@ $("#groupes-a-trier").addEventListener("click", (e) => {
         afficherBarreTri();
       } });
     }
-    basculer(selTri, v.dataset.cle, e.shiftKey, donneesPhotos.a_trier.map((x) => x.cle));
+    basculer(selTri, v.dataset.cle, e.shiftKey, donneesPhotos.a_trier.filter((x) => !x.enCours).map((x) => x.cle));
   }
   if (!selTri.size) enfantsTri.clear();
   viderRangees();
@@ -3346,8 +3390,9 @@ $("#groupes-a-trier").addEventListener("click", (e) => {
   afficherBarreTri();
 });
 $("#tout-a-trier").addEventListener("click", () => {
-  const tous = donneesPhotos.a_trier.every((x) => selTri.has(x.cle));
-  donneesPhotos.a_trier.forEach((x) => (tous ? selTri.delete(x.cle) : selTri.add(x.cle)));
+  const prets = donneesPhotos.a_trier.filter((x) => !x.enCours);
+  const tous = prets.every((x) => selTri.has(x.cle));
+  prets.forEach((x) => (tous ? selTri.delete(x.cle) : selTri.add(x.cle)));
   viderRangees();
   majVignettes("#groupes-a-trier", selTri, "data-cle");
   afficherBarreTri();
@@ -3381,23 +3426,38 @@ async function rangerSelection(enfants, seanceImposee) {
     try { seance = await seanceChoisie($("#activite-tri"), jour); } catch (err) { alert(err.message); return; }
     if (seance === null) return;
   }
-  $("#ranger").disabled = true;
-  document.body.classList.add("occupe");
-  try {
-    // Par paquets de 4 photos : la barre de chargement avance pendant le rangement.
-    const paquets = [], erreurs = [];
-    for (let i = 0; i < choisies.length; i += 4) paquets.push(choisies.slice(i, i + 4));
-    await unParUn(paquets, "Rangement des photos…", async (paquet) => {
-      const r = await api("photos/ranger", { cles: paquet.map((e) => e.cle), enfants, seance });
-      erreurs.push(...r.erreurs);
-    });
-    if (erreurs.length) alert([...new Set(erreurs)].join("\n"));
-  } catch (err) { alert(err.message); }
-  document.body.classList.remove("occupe");
+  // Tout de suite : les photos quittent « À trier » et apparaissent, blanchies, parmi les photos rangées.
+  const ids = [...enfants];
+  const attente = choisies.map((e) => ({ numero: `attente-${e.cle}`, cle: e.cle, apercu: `cle=${e.cle}`, nom: e.nom, genre: e.genre,
+    date: quandPhoto(e), enfants: ids, seance: seance || "", copies: 0, dossiers: [], enCours: true }));
+  const partantes = new Set(choisies.map((e) => e.cle));
+  donneesPhotos.a_trier = donneesPhotos.a_trier.filter((e) => !partantes.has(e.cle));
+  donneesPhotos.rangees.push(...attente);
+  trierRangees(donneesPhotos.rangees);
   selTri.clear();
   enfantsTri.clear();
   tousLesEnfants = false;
-  await afficherPhotos();
+  badgePhotos();
+  afficherATrier();
+  afficherRangees();
+  // Puis les fichiers, par paquets de 4 : chaque photo reprend ses couleurs dès qu'elle est rangée.
+  await enFile(async () => {
+    const erreurs = [];
+    for (let i = 0; i < attente.length; i += 4) {
+      const paquet = attente.slice(i, i + 4);
+      const r = await api("photos/ranger", { cles: paquet.map((x) => x.cle), enfants: ids, seance })
+        .catch((err) => ({ erreurs: [err.message], par_cle: {} }));
+      erreurs.push(...(r.erreurs || []));
+      paquet.forEach((x) => {
+        const numero = r.par_cle?.[x.cle], ancien = x.numero;
+        if (!numero) return;           // échec : la photo revient dans « À trier » à la relecture
+        x.numero = numero;
+        delete x.cle;
+        finirVignette("#grille-rangees", "data-numero", ancien, x, vignetteRangee);
+      });
+    }
+    if (erreurs.length) alert([...new Set(erreurs)].join("\n"));
+  });
 }
 $("#ranger").addEventListener("click", () => rangerSelection([...enfantsTri]));
 $("#ignorer").addEventListener("click", async () => {
@@ -3543,7 +3603,6 @@ function afficherRangees() {
   const liste = rangeesVisibles();
   $("#nb-rangees").textContent = pluriel(liste.length, "élément");
   let mois = null;
-  const toutes = realisations();
   const morceaux = liste.map((r) => {
     const m = (r.date || "").slice(0, 7);
     let debut = "";
@@ -3552,10 +3611,7 @@ function afficherRangees() {
       debut = `<h3 class="jour-photos">${m ? new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
         .replace(/^./, (c) => c.toUpperCase()) : "Sans date"}</h3><div class="grille-photos"></div>`;
     }
-    const realisation = !r.enfants.length && toutes.find((x) => x.id === r.seance);
-    const noms = r.enfants.map((i) => enfantPar(i)?.prenom).filter(Boolean).join(", ") || (realisation ? realisation.activite.titre : "");
-    return { debut, html: () => vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
-      `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || r.numero)}</span>`) };
+    return { debut, html: () => vignetteRangee(r) };
   });
   rendreParTranches($("#grille-rangees"), morceaux, `<p class="vide-photos">${d.rangees.length
     ? "Aucune photo pour ce choix." : `Aucune photo rangée. ${d.a_trier.length ? "Ouvrez « À trier », en bas à droite." : ""}`}</p>`);
@@ -3632,7 +3688,7 @@ $("#grille-rangees").addEventListener("click", (e) => {
       afficherBarreRangees();
     } });
   }
-  basculer(selRangees, v.dataset.numero, e.shiftKey, rangeesVisibles().map((r) => r.numero));
+  basculer(selRangees, v.dataset.numero, e.shiftKey, rangeesVisibles().filter((r) => !r.enCours).map((r) => r.numero));
   viderTri();
   majVignettes("#grille-rangees", selRangees, "data-numero");
   afficherBarreRangees();
@@ -3642,7 +3698,7 @@ $("#grille-rangees").addEventListener("dblclick", (e) => {
   if (v && !e.target.closest(".coche-vignette")) { fermerMenu(); voirPhoto(rangeesVisibles(), { numero: v.dataset.numero }); }
 });
 $("#tout-rangees").addEventListener("click", () => {
-  const liste = rangeesVisibles();
+  const liste = rangeesVisibles().filter((r) => !r.enCours);
   const tous = liste.length && liste.every((r) => selRangees.has(r.numero));
   liste.forEach((r) => (tous ? selRangees.delete(r.numero) : selRangees.add(r.numero)));
   viderTri();
@@ -3656,12 +3712,31 @@ $("#imprimer-photos").addEventListener("click", () => {
   window.open(`/api/photos/imprimer?numeros=${ordre.join(",")}&par_page=${$("#par-page").value}`, "_blank");
 });
 // Remettre à trier : les copies rangées pour chaque enfant sont retirées, le fichier retourne dans « À trier ».
-async function remettreRangees(numeros) {
-  document.body.classList.add("occupe");
-  await unParUn(numeros, "Retour des photos dans « À trier »…", (numero) => api("photos/remettre", { numero }).catch((e) => alert(e.message)));
-  document.body.classList.remove("occupe");
+function remettreRangees(numeros) {
+  const retour = new Set(numeros);
+  const parties = donneesPhotos.rangees.filter((r) => retour.has(r.numero) && !r.enCours);
+  if (!parties.length) return;
   numeros.forEach((n) => selRangees.delete(n));
-  afficherPhotos();
+  donneesPhotos.rangees = donneesPhotos.rangees.filter((r) => !parties.includes(r));
+  const attente = parties.map((r) => ({ cle: `attente-${r.numero}`, numero: r.numero, apercu: `numero=${r.numero}`, genre: r.genre,
+    nom: `${r.genre === "video" ? "Vidéo" : "Photo"} ${r.numero}`, date: r.date, date_fichier: r.date, proposes: [], doublon: "",
+    enCours: true }));
+  donneesPhotos.a_trier.push(...attente);
+  trierATrier(donneesPhotos.a_trier);
+  badgePhotos();
+  afficherATrier();
+  afficherRangees();
+  return enFile(async () => {
+    for (const x of attente) {
+      const r = await api("photos/remettre", { numero: x.numero }).catch((err) => ({ erreur: err.message }));
+      if (!r.cle) { alert(r.erreur || `Photo ${x.numero} : retour impossible.`); continue; }
+      const ancien = x.cle;
+      x.cle = r.cle;
+      x.nom = r.chemin.split(/[\\/]/).pop();
+      delete x.numero;
+      finirVignette("#groupes-a-trier", "data-cle", ancien, x, vignetteATrier);
+    }
+  });
 }
 $("#remettre-rangees").addEventListener("click", () => {
   const n = selRangees.size;
@@ -3709,16 +3784,26 @@ document.addEventListener("drop", async (e) => {
     if (c.dataset.caseRealisation) rangerSelection([...enfantsTri], c.dataset.caseRealisation);
     return;
   }
-  await rattacherPhotos(e.dataTransfer.getData(RANGEES_GLISSEES).split(",").filter(Boolean), c.dataset.caseRealisation);
-  afficherPhotos();
+  rattacherPhotos(e.dataTransfer.getData(RANGEES_GLISSEES).split(",").filter(Boolean), c.dataset.caseRealisation);
 });
+// Rattacher (ou détacher) des photos rangées : la page change tout de suite, les fichiers suivent.
 async function rattacherPhotos(numeros, seance) {
-  if (!numeros.length) return null;
-  document.body.classList.add("occupe");
-  const r = await api("photos/rattacher", { numeros, seance }).catch((err) => ({ erreurs: [err.message] }));
-  document.body.classList.remove("occupe");
-  if (r.erreurs?.length) alert(r.erreurs.join("\n"));
-  return r;
+  const liste = donneesPhotos.rangees.filter((r) => numeros.includes(r.numero) && !r.enCours);
+  if (!liste.length) return null;
+  return modifierEnPlace(liste, (r) => (r.seance = seance || ""), async () => {
+    const r = await api("photos/rattacher", { numeros: liste.map((x) => x.numero), seance }).catch((err) => ({ erreurs: [err.message] }));
+    return r.erreurs || [];
+  });
+}
+function modifierEnPlace(liste, changer, appeler) {
+  liste.forEach((r) => { changer(r); r.enCours = true; });
+  afficherRangees();
+  return enFile(async () => {
+    const erreurs = await appeler();
+    liste.forEach((r) => (r.enCours = false));
+    afficherRangees();
+    if (erreurs.length) alert(erreurs.join("\n"));
+  });
 }
 
 // Changer les enfants (et l'activité) des photos rangées choisies.
@@ -3752,12 +3837,15 @@ $("#enregistrer-editeur").addEventListener("click", async () => {
   try { seance = await seanceChoisie($("#activite-editeur"), choisies.map((r) => r.date).filter(Boolean).sort()[0]?.slice(0, 10)); }
   catch (err) { alert(err.message); return; }
   if (seance === null) return;
-  document.body.classList.add("occupe");
-  await unParUn(choisies, "Mise à jour des photos…",
-    (r) => api("photos/modifier", { numero: r.numero, enfants: [...enfantsEditeur], seance }).catch((e) => alert(e.message)));
-  document.body.classList.remove("occupe");
+  const enfantsChoisis = [...enfantsEditeur];
   $("#editeur-rangees").classList.add("cache");
-  afficherPhotos();
+  modifierEnPlace(choisies.filter((r) => !r.enCours), (r) => { r.enfants = enfantsChoisis; r.seance = seance || ""; }, async () => {
+    const erreurs = [];
+    for (const r of choisies) {
+      await api("photos/modifier", { numero: r.numero, enfants: enfantsChoisis, seance }).catch((e) => erreurs.push(`Photo ${r.numero} : ${e.message}`));
+    }
+    return erreurs;
+  });
 });
 
 // --- hors horaires et ignorées

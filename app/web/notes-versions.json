@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.11.9",
+    "date": "2026-10-22",
+    "titre": "Photos rangées en un instant",
+    "nouveautes": [
+      "Photos : quand vous rangez, remettez à trier ou supprimez des photos, elles changent de place tout de suite. Elles restent un peu blanchies avec une roue tant que le fichier se déplace, puis reprennent leurs couleurs.",
+      "Pendant le glissement d'une photo, les enfants de la liste de gauche gardent leur taille : il suffit de déposer les photos dans la zone des photos."
+    ]
+  },
+  {
     "version": "1.11.8",
     "date": "2026-10-22",
     "titre": "Mises à jour vues tout de suite",

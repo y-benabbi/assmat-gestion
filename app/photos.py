@@ -621,7 +621,7 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
     if not ids and not seance_id:
         raise ValueError("Choisissez au moins un enfant ou une réalisation.")
     titre, activite_id = _seance_infos(seance_id)
-    faits, erreurs = [], []
+    faits, erreurs, par_cle = [], [], {}
     with _verrou:
         index = _index()
         cache = _lire_json(FICHIER_ANALYSE, {})
@@ -646,6 +646,7 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
                     index = _index()
                     source.unlink()
                     faits.append(numero)
+                    par_cle[cle] = numero
                     continue
                 if not numero:
                     index["compteur"] += 1
@@ -660,6 +661,7 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
                 source.unlink()
                 cache.pop(str(source), None)
                 faits.append(numero)
+                par_cle[cle] = numero
             except ModuleAbsent as m:
                 erreurs.append(f"{source.name} : module {m} manquant (il s'installe au prochain démarrage).")
             except OSError as err:
@@ -669,7 +671,8 @@ def ranger(cles: list, ids: list, seance_id: str = "") -> dict:
         index["remises"] = [c for c in index["remises"] if Path(c).exists()]
         _ecrire_json(FICHIER_INDEX, index)
         _ecrire_json(FICHIER_ANALYSE, cache)
-    return {"ranges": faits, "erreurs": erreurs}
+    # par_cle : numéro donné à chaque fichier rangé (la page met à jour ses vignettes sans tout relire).
+    return {"ranges": faits, "erreurs": erreurs, "par_cle": par_cle}
 
 
 def modifier(numero: str, ids: list, seance_id: str) -> dict:
@@ -743,7 +746,10 @@ def remettre_a_trier(numero: str) -> dict:
         index["remises"] = sorted(set(index["remises"]) | {str(cible)})
         _ecrire_json(FICHIER_INDEX, index)
     _vider_dossiers(parametres.dossier("photos", p))
-    return {"chemin": str(cible)}
+    # Même clé que dans lister() : la page peut agir tout de suite sur la photo revenue dans « À trier ».
+    cle = hashlib.sha1(str(cible).encode()).hexdigest()[:16]
+    _connus[cle] = cible
+    return {"chemin": str(cible), "cle": cle}
 
 
 def corbeille(chemins: list) -> None:

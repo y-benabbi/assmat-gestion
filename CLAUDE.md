@@ -298,7 +298,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Rubrique Photos (interface, demande de Yannis : **peu de texte**, aides en `title` ou repliées) : barre de filtres
   compacte à gauche (`.filtres-photos` : recherche, enfants en groupes dépliables `photos.enfants()` — « derniers » gardés
   le dernier jour de garde, « mois » ces 31 jours, « autres » —, activités), photos rangées à droite. Pendant le tri
-  (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants s'agrandissent en cibles de dépôt. « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
+  (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants gardent leur taille (demande de Yannis : on dépose surtout dans la zone des photos ; un enfant survolé reste une cible). « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
   (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Bouton maintenu sur le rond `.coche-vignette` puis glissé = sélection de la photo de départ à la dernière survolée
   (`demarrerSelectionGlissee`, retire si la photo de départ était choisie) ; ce geste ne lance jamais le glisser-déposer. Clic bref sur la photo (hors du rond, sans Maj/Ctrl) : menu
@@ -306,7 +306,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   Corbeille de Windows via `SHFileOperationW`, toutes les copies d'une photo rangée) ; clic maintenu = glisser-déposer. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
   rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`). Des photos à trier glissées sur
   la zone des photos rangées (`#contenu-photos`) sont rangées avec les filtres choisis (enfant, réalisation :
-  `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien. Listes de vignettes (à trier, rangées, mises de côté) affichées par tranches
+  `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien. Déplacements instantanés : ranger, remettre à trier, rattacher,
+  modifier et supprimer changent d'abord `donneesPhotos` et la page (photo `enCours` : blanchie, roue `.roue`), puis les fichiers
+  suivent dans une file (`enFile`) ; `finirVignette` colore la vignette (numéro via `par_cle` de `/api/photos/ranger`, clé via
+  `/api/photos/remettre`) ; `afficherPhotos` attend la fin de la file puis relit tout. Listes de vignettes (à trier, rangées, mises de côté) affichées par tranches
   (`rendreParTranches`, `TRANCHE_PHOTOS`, repère `.suite-photos` suivi par un IntersectionObserver) ; les listes de données
   (`donneesPhotos`) restent complètes : « Tout sélectionner », Maj + clic et les actions ne dépendent pas de ce qui est affiché.
 - Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans
