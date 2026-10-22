@@ -148,9 +148,11 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   réservé à ce qui doit attirer l'œil (à récupérer, mise à jour, pastilles, alertes) et orange `--urgent` pour une date
   proche. Pas de vert ni de couleurs vives. Les noms des variables CSS d'origine sont gardés (`--eucalyptus` = lavande
   soutenue des boutons, `--menthe` = lavande douce des mois rangés).
-- Chargements : `api()` passe par `suivreChargement(promesse, message)` : au-delà de 0,4 s, pastille `#chargement` en haut
-  de l'écran, texte selon la route (`MESSAGES_CHARGEMENT`) ; les appels réguliers ou qui ouvrent une fenêtre de Windows sont
-  dans `SANS_INDICATEUR`. Un `fetch` direct (envoi de fichiers) doit aussi passer par `suivreChargement`. Zone qui se remplit :
+- Chargements : `api()` passe par `suivreChargement(promesse, message)` : au-delà de 0,4 s, barre `#barre-chargement` tout en
+  haut (défile sans fin, ou se remplit si l'avancement est connu) et pastille `#chargement`, texte selon la route (`MESSAGES_CHARGEMENT`) ; les appels réguliers ou qui ouvrent une fenêtre de Windows sont
+  dans `SANS_INDICATEUR`. Avancement connu : `debutChargement(message)` → `{avancer(fraction), fin()}` ; envoi de fichiers par
+  `envoyerFichiers(chemin, FormData, message)` (progression de l'envoi) ; boucle de requêtes par `unParUn(liste, message, f)`
+  (le rangement des photos part par paquets de 4 pour que la barre avance). Zone qui se remplit :
   `attenteHtml(texte)` ; bouton qui travaille : `boutonOccupe(bouton, texte)` (rend la fonction qui le rétablit). Miniatures :
   `onload` ajoute `chargee`, sinon reflet animé.
 - Pictogrammes : `PICTOS` / `picto(nom)` en tête de app.js (trait arrondi, `stroke`, jamais de bibliothèque externe) ;

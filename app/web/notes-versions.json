@@ -4,7 +4,7 @@
     "date": "2026-10-22",
     "titre": "On voit quand l'application travaille",
     "nouveautes": [
-      "Quand l'application a besoin d'un moment (lecture des photos, création d'un contrat ou d'un courrier en PDF, lecture des bulletins de salaire…), un petit message apparaît en haut de l'écran avec un cercle qui tourne, par exemple « Lecture des photos… » ou « Création du PDF… ». Il disparaît tout seul une fois terminé.",
+      "Quand l'application a besoin d'un moment (lecture des photos, création d'un contrat ou d'un courrier en PDF, lecture des bulletins de salaire…), une barre de chargement apparaît tout en haut de la fenêtre, avec un petit message comme « Lecture des photos… » ou « Création du PDF… ». Quand on peut savoir où on en est (photos rangées, photos ou documents ajoutés), la barre se remplit et le message indique le pourcentage. Tout disparaît une fois terminé, et on peut continuer à utiliser l'application pendant ce temps.",
       "Photos : en attendant leur aperçu, les photos affichent un reflet qui passe, au lieu d'un carré vide. La page Photos indique aussi « Lecture des photos… » pendant qu'elle parcourt vos dossiers, et un cercle tourne au milieu de l'écran tant qu'une photo ouverte en grand n'est pas arrivée."
     ]
   },

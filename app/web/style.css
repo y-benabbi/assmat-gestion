@@ -1319,6 +1319,14 @@ body.occupe, body.occupe * { cursor: progress !important; }
   box-shadow: 0 6px 22px rgba(58, 53, 82, 0.18), 0 0 0 1px var(--trait); pointer-events: none;
   opacity: 0; transform: translate(-50%, -12px); transition: opacity 0.2s, transform 0.2s; }
 .chargement.visible { opacity: 1; transform: translate(-50%, 0); }
+/* Barre de chargement : fine ligne tout en haut de la fenêtre ; elle se remplit quand l'avancement est connu */
+.barre-chargement { position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 1001; pointer-events: none;
+  background: var(--eucalyptus-clair); opacity: 0; transition: opacity 0.2s; overflow: hidden; }
+.barre-chargement.visible { opacity: 1; }
+.barre-chargement span { display: block; height: 100%; width: 0; border-radius: 0 2px 2px 0;
+  background: linear-gradient(90deg, var(--rose), var(--eucalyptus)); transition: width 0.3s ease-out; }
+.barre-chargement.indeterminee span { width: 35%; animation: defile 1.4s ease-in-out infinite; }
+@keyframes defile { from { transform: translateX(-100%); } to { transform: translateX(290%); } }
 body.en-chargement, body.en-chargement * { cursor: progress; }
 .rond-chargement { display: inline-block; flex: none; width: 1.05em; height: 1.05em; border-radius: 50%; vertical-align: -0.15em;
   border: 2.5px solid var(--menthe); border-top-color: var(--eucalyptus); animation: tourne 0.8s linear infinite; }
@@ -1337,5 +1345,6 @@ button.secondaire.en-cours .rond-chargement, button.lien.en-cours .rond-chargeme
 @keyframes reflet { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) {
   .rond-chargement { animation-duration: 2s; }
+  .barre-chargement.indeterminee span { animation-duration: 3s; }
   .vignette img:not(.chargee), .mini-photo img:not(.chargee) { animation: none; }
 }

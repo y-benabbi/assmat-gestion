@@ -27,32 +27,83 @@ const messageChargement = (chemin) => (MESSAGES_CHARGEMENT.find(([re]) => re.tes
 const chargements = new Map();
 let numeroChargement = 0, minuterieChargement = null;
 
+// Chargement en cours : message, et avancement (0 à 1) quand on le connaît (envoi de fichiers, photos rangées une à une).
+// La barre en haut de l'écran se remplit alors ; sinon elle défile sans fin.
+function debutChargement(message = "Chargement…") {
+  const id = ++numeroChargement;
+  chargements.set(id, { message, avancement: null });
+  majChargement();
+  return {
+    avancer(fraction, texte) {
+      const c = chargements.get(id);
+      if (!c) return;
+      c.avancement = Math.max(0, Math.min(1, fraction));
+      if (texte) c.message = texte;
+      majChargement();
+    },
+    fin() { chargements.delete(id); majChargement(); },
+  };
+}
+
 // Suit une promesse (requête, création de PDF…) : la pastille s'affiche tant qu'elle n'est pas terminée.
 function suivreChargement(promesse, message = "Chargement…") {
-  const id = ++numeroChargement;
-  chargements.set(id, message);
-  majChargement();
-  return Promise.resolve(promesse).finally(() => { chargements.delete(id); majChargement(); });
+  const c = debutChargement(message);
+  return Promise.resolve(promesse).finally(c.fin);
 }
 
 function majChargement() {
-  const pastille = document.getElementById("chargement");
-  if (!pastille) return;
+  const pastille = document.getElementById("chargement"), barre = document.getElementById("barre-chargement");
+  if (!pastille || !barre) return;
   if (!chargements.size) {
     clearTimeout(minuterieChargement);
     minuterieChargement = null;
     pastille.classList.remove("visible");
+    barre.classList.remove("visible");
     document.body.classList.remove("en-chargement");
     return;
   }
-  pastille.querySelector(".texte-chargement").textContent = [...chargements.values()].at(-1);
+  // Le plus récent qui connaît son avancement passe en premier (une boucle de requêtes garde ainsi sa progression).
+  const liste = [...chargements.values()];
+  const c = liste.findLast((x) => x.avancement !== null) || liste.at(-1);
+  const pourcent = c.avancement === null ? null : Math.round(c.avancement * 100);
+  pastille.querySelector(".texte-chargement").textContent = c.message + (pourcent === null ? "" : ` ${pourcent} %`);
+  barre.classList.toggle("indeterminee", pourcent === null);
+  barre.firstElementChild.style.width = pourcent === null ? "" : pourcent + "%";
+  barre.setAttribute("aria-valuenow", pourcent ?? "");
   if (pastille.classList.contains("visible") || minuterieChargement) return;
   minuterieChargement = setTimeout(() => {
     minuterieChargement = null;
     if (!chargements.size) return;
     pastille.classList.add("visible");
+    barre.classList.add("visible");
     document.body.classList.add("en-chargement");
   }, 400);
+}
+
+// Envoi de fichiers (FormData) avec la progression de l'envoi ; rend la réponse JSON.
+function envoyerFichiers(chemin, donnees, message) {
+  const c = debutChargement(message);
+  return new Promise((ok, echec) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/" + chemin);
+    xhr.responseType = "json";
+    xhr.upload.onprogress = (e) => e.lengthComputable && c.avancer(0.95 * (e.loaded / e.total));
+    xhr.onload = () => (xhr.status < 400 ? ok(xhr.response || {}) : echec(new Error(xhr.response?.erreur || xhr.statusText)));
+    xhr.onerror = () => echec(new Error("L'application ne répond pas."));
+    xhr.send(donnees);
+  }).finally(c.fin);
+}
+
+// Plusieurs requêtes à la suite (une par photo…) : la barre avance à chaque élément traité.
+async function unParUn(elements, message, faire) {
+  const c = debutChargement(message);
+  c.avancer(0);
+  try {
+    for (let i = 0; i < elements.length; i++) {
+      await faire(elements[i], i);
+      c.avancer((i + 1) / elements.length);
+    }
+  } finally { c.fin(); }
 }
 
 // Texte d'attente à placer dans une zone (liste, résultat) pendant qu'elle se remplit.
@@ -3249,8 +3300,14 @@ async function rangerSelection(enfants, seanceImposee) {
   $("#ranger").disabled = true;
   document.body.classList.add("occupe");
   try {
-    const r = await api("photos/ranger", { cles: choisies.map((e) => e.cle), enfants, seance });
-    if (r.erreurs.length) alert(r.erreurs.join("\n"));
+    // Par paquets de 4 photos : la barre de chargement avance pendant le rangement.
+    const paquets = [], erreurs = [];
+    for (let i = 0; i < choisies.length; i += 4) paquets.push(choisies.slice(i, i + 4));
+    await unParUn(paquets, "Rangement des photos…", async (paquet) => {
+      const r = await api("photos/ranger", { cles: paquet.map((e) => e.cle), enfants, seance });
+      erreurs.push(...r.erreurs);
+    });
+    if (erreurs.length) alert([...new Set(erreurs)].join("\n"));
   } catch (err) { alert(err.message); }
   document.body.classList.remove("occupe");
   selTri.clear();
@@ -3377,7 +3434,7 @@ async function deposerFichiers(fichiers) {
   [...fichiers].forEach((f) => { donnees.append("fichiers", f, f.name); donnees.append("modifie", f.lastModified); });
   document.body.classList.add("occupe");
   try {
-    const r = await suivreChargement(fetch("/api/photos/deposer", { method: "POST", body: donnees }).then((x) => x.json()), "Ajout des photos…");
+    const r = await envoyerFichiers("photos/deposer", donnees, "Ajout des photos…");
     if (r.erreurs?.length) alert(r.erreurs.join("\n"));
   } catch (err) { alert(err.message); }
   document.body.classList.remove("occupe");
@@ -3516,7 +3573,7 @@ $("#imprimer-photos").addEventListener("click", () => {
 // Remettre à trier : les copies rangées pour chaque enfant sont retirées, le fichier retourne dans « À trier ».
 async function remettreRangees(numeros) {
   document.body.classList.add("occupe");
-  for (const numero of numeros) await api("photos/remettre", { numero }).catch((e) => alert(e.message));
+  await unParUn(numeros, "Retour des photos dans « À trier »…", (numero) => api("photos/remettre", { numero }).catch((e) => alert(e.message)));
   document.body.classList.remove("occupe");
   numeros.forEach((n) => selRangees.delete(n));
   afficherPhotos();
@@ -3611,7 +3668,8 @@ $("#enregistrer-editeur").addEventListener("click", async () => {
   catch (err) { alert(err.message); return; }
   if (seance === null) return;
   document.body.classList.add("occupe");
-  for (const r of choisies) await api("photos/modifier", { numero: r.numero, enfants: [...enfantsEditeur], seance }).catch((e) => alert(e.message));
+  await unParUn(choisies, "Mise à jour des photos…",
+    (r) => api("photos/modifier", { numero: r.numero, enfants: [...enfantsEditeur], seance }).catch((e) => alert(e.message)));
   document.body.classList.remove("occupe");
   $("#editeur-rangees").classList.add("cache");
   afficherPhotos();
@@ -3787,7 +3845,7 @@ async function envoyerDocuments(fichiers, activite = activiteOuverte) {
   const donnees = new FormData();
   donnees.append("activite", activite);
   [...fichiers].forEach((f) => donnees.append("fichiers", f, f.name));
-  const r = await suivreChargement(fetch("/api/ateliers/document", { method: "POST", body: donnees }).then((x) => x.json()), "Ajout des documents…")
+  const r = await envoyerFichiers("ateliers/document", donnees, "Ajout des documents…")
     .catch((e) => ({ erreurs: [e.message] }));
   if (r.erreurs?.length) alert(r.erreurs.join("\n"));
   afficherAteliers();
