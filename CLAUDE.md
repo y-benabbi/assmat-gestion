@@ -131,15 +131,24 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Formats de nom : mots-clés `NOM CLIENT`, `ENFANT`, `YYYY`, `YY`, `MM`, `MOIS`
   (`bibliotheque.appliquer_format`). Plusieurs bulletins d'un même client le même mois : suffixe
   ` - Prénom` de l'enfant ; les fichiers existants qui citent le prénom sont attribués en priorité.
-- Interface : menu latéral par catégories (`data-onglet`), chaque rubrique optionnelle porte `data-module`
-  (masquée si `parametres.modules[nom]` est faux). « Mon profil » et « Paramètres » (onglet `fonctionnalites`, ex
-  « Mes fonctionnalités ») restent en haut à droite : choix de Yannis, ne pas les déplacer dans le menu.
+- Interface : `.cadre` = menu latéral blanc à gauche (`#menu`, titres de catégorie `.categorie` précédés d'un point
+  de couleur, pied : À propos / version, mise à jour, quitter) + `.zone` (en-tête blanc puis `main`). Boutons du menu
+  `data-onglet` ; chaque rubrique optionnelle porte `data-module` (masquée si `parametres.modules[nom]` est faux).
+  Pastille abricot `#badge-bulletins` = nombre de bulletins à récupérer (`badgeBulletins()`). Sur téléphone (≤ 820 px)
+  le menu glisse par-dessus la page (bouton « Menu », clic à côté ou Échap le referment). En-tête : mise à jour
+  disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
+  prénom) en haut à droite : choix de Yannis, ne pas les déplacer dans le menu.
+- Couleurs : douces, « enfance » ; rose poudré et lavande pour l'ensemble, abricot / jaune doux (`--tournesol`)
+  réservé à ce qui doit attirer l'œil (à récupérer, mise à jour, pastilles, alertes) et orange `--urgent` pour une date
+  proche. Pas de vert ni de couleurs vives. Les noms des variables CSS d'origine sont gardés (`--eucalyptus` = lavande
+  soutenue des boutons, `--menthe` = lavande douce des mois rangés).
 - Pictogrammes : `PICTOS` / `picto(nom)` en tête de app.js (trait arrondi, `stroke`, jamais de bibliothèque externe) ;
-  dans le HTML, `data-picto="nom"` ajoute le pictogramme au début de l'élément. Pastilles de couleur par catégorie du
-  menu (`pastille(nom, categorie)`, classes `.pic argent|familles|demarches|moi`) : menthe = Mon argent, lavande =
-  Mes familles, beurre = Mes démarches, rose = Mon profil / Paramètres / tableau de bord. Garder ces couleurs partout
-  où la rubrique apparaît (tableau de bord, échéances, courriers).
-- Étiquettes des champs : « obligatoire » (rose, avec un point) et « facultatif » (menthe), deux couleurs bien
+  dans le HTML, `data-picto="nom"` ajoute le pictogramme au début de l'élément. Pictogrammes par catégorie
+  du menu (`pastille(nom, categorie)`, classes `.pic argent|familles|demarches|moi`) : **sans fond coloré** (demande de
+  Yannis : un fond seulement s'il porte une information), trait de la couleur de la catégorie : rose framboise = Mon
+  argent, lavande = Mes familles, mauve = Mes démarches, prune grisée = Mon profil / Paramètres. Garder ces couleurs
+  partout où la rubrique apparaît (tableau de bord, échéances, courriers).
+- Étiquettes des champs : « obligatoire » (rose, avec un point) et « facultatif » (lavande), deux couleurs bien
   distinctes ; les deux restent affichées (choix de Yannis).
 - Longs formulaires (`form.suivi-modifs` : Mon profil, Paramètres) : dès qu'un champ change, la classe `modifie`
   rend la `.barre-enregistrer` collante en bas de l'écran (Annuler / Enregistrer) ; quitter la rubrique demande
@@ -147,7 +156,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Échéances (`donnees.echeances`) : chaque entrée a un `type` (pictogramme, `PICTO_ECHEANCE`) et `aller` (rubrique où
   agir, lien affiché ; vide = aucun lien). Tableau de bord : version compacte (`ligneEcheance(e, true)`).
 - « À faire » : chaque ligne = pastille + texte + détail + bouton qui dit l'action ; `data-lancer` lance en plus une
-  action Pajemploi (vérifier, récupérer). Tuile bulletins : mini-classeur des 6 derniers mois (`tuileBulletins`).
+  action Pajemploi (vérifier, récupérer).
 - Revenus : le « Total encaissé » est le « Net payé en euros » de chaque bulletin (acompte compris, impôt déduit),
   reconstitué (net + indemnités + rupture + exonération heures complémentaires - impôt) s'il manque.
   Les heures affichées = heures normales + heures complémentaires.
@@ -168,8 +177,14 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
 - Formulaires : `marquerChamps` ajoute « obligatoire » (attribut `required` ou `data-obligatoire`) ou
   « facultatif » à chaque libellé. Recherche instantanée : un `<input data-filtre="sélecteur">` masque les éléments
   qui ne contiennent pas le texte (`appliquerFiltres()` à rappeler après chaque rendu de liste).
-- Tableau de bord : « À faire » ne contient que des actions possibles tout de suite ; les échéances sont dans leur
-  bloc (5 au plus, lien vers la liste complète).
+- Tableau de bord : « Bonjour Prénom ! » + 3 chiffres (`statsAccueil`), « À faire » sur toute la largeur (seulement des
+  actions possibles tout de suite), puis deux colonnes indépendantes (`.colonnes-accueil` > `.colonne`, chaque carte
+  garde sa hauteur) : à gauche Agenda (calendrier du mois, point sous les jours à échéance, `afficherAgenda`) et Mes
+  revenus (graphique compact), à droite la journée (`afficherJour` : aujourd'hui, ou le prochain jour d'accueil quand
+  toutes les plages sont finies ; une ligne par plage, l'enfant revient s'il y a une coupure) et les sites
+  d'activités. Sur téléphone, la journée passe en premier. L'application ne connaît pas les dates des vacances
+  scolaires : si un enfant a des horaires de vacances, une bascule « Période scolaire / Vacances » apparaît (choix
+  gardé pour la journée dans `localStorage`).
 - Fiche enfant, avenants : `avenants` = liste datée ({id, date, motif} + toutes les conditions de
   `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /
   `donnees.contrats(jour)` donnent les conditions applicables à une date : échéances, courriers (date du courrier)

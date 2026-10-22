@@ -10,31 +10,10 @@
 <link rel="stylesheet" href="/web/style.css">
 </head>
 <body>
-<header class="entete">
-  <a class="marque" href="#" data-aller="accueil">Assistante Maternelle</a>
-  <button class="bouton-menu" id="bouton-menu" aria-expanded="false" aria-controls="menu">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu
-  </button>
-  <div class="entete-droite">
-    <button class="bouton-parametres" data-onglet="profil">
-    <span class="pic moi"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
-      Mon profil
-    </button>
-    <button class="bouton-parametres" data-onglet="fonctionnalites">
-    <span class="pic moi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span>
-      Paramètres
-    </button>
-  </div>
-</header>
-
-<div id="bandeau-maj" class="bandeau-maj cache" role="status">
-  <span id="texte-maj"></span>
-  <button id="btn-maj" class="principal">Mettre à jour maintenant</button>
-  <button class="lien" data-aller="a-propos">Voir les nouveautés</button>
-</div>
-
 <div class="cadre">
 <nav class="menu" id="menu" aria-label="Rubriques">
+  <a class="marque" href="#" data-aller="accueil"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15 16 5l12 10v12a1.5 1.5 0 0 1-1.5 1.5h-21A1.5 1.5 0 0 1 4 27z"/><path class="coeur" d="M16 24.5s-5-3-5-6.4a2.6 2.6 0 0 1 5-1 2.6 2.6 0 0 1 5 1c0 3.4-5 6.4-5 6.4z"/></svg>Assistante Maternelle</a>
+
   <button data-onglet="accueil" class="actif">
     <span class="pic moi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span>Tableau de bord</button>
 
@@ -42,7 +21,7 @@
   <button data-onglet="revenus" data-module="revenus">
     <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Revenus</button>
   <button data-onglet="bulletins" data-module="bulletins">
-    <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></span>Bulletins de salaire</button>
+    <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></span>Bulletins de salaire<span class="badge cache" id="badge-bulletins" title="Bulletins à récupérer"></span></button>
   <button data-onglet="impots" data-module="impots">
     <span class="pic argent"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h2M14 11h2M8 15h2M14 15h2"/></svg></span>Impôts</button>
 
@@ -57,16 +36,47 @@
     <span class="pic demarches"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>Échéances</button>
   <button data-onglet="courriers" data-module="courriers">
     <span class="pic demarches"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg></span>Courriers</button>
+
+  <div class="menu-pied">
+    <button class="lien" data-aller="a-propos">À propos, version <span id="version">…</span></button>
+    <button id="btn-verifier-maj" class="lien">Rechercher une mise à jour</button>
+    <button id="quitter" class="lien">Quitter l'application</button>
+  </div>
 </nav>
+
+<div class="zone">
+<header class="entete">
+  <button class="bouton-menu" id="bouton-menu" aria-expanded="false" aria-controls="menu">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu
+  </button>
+  <a class="marque marque-mobile" href="#" data-aller="accueil">Assistante Maternelle</a>
+  <div id="bandeau-maj" class="maj cache" role="status">
+    <span class="point-maj" aria-hidden="true"></span>
+    <span id="texte-maj"></span>
+    <button class="lien" data-aller="a-propos">Nouveautés</button>
+    <button id="btn-maj" class="surligne">Mettre à jour</button>
+  </div>
+  <div class="entete-droite">
+    <button class="bouton-parametres" data-onglet="fonctionnalites" title="Paramètres">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      <span class="libelle-entete">Paramètres</span>
+    </button>
+    <button class="bouton-parametres bouton-profil" data-onglet="profil" title="Mon profil">
+      <span class="avatar" id="avatar" aria-hidden="true"></span>
+      <span class="libelle-entete">Mon profil</span>
+    </button>
+  </div>
+</header>
 
 <main>
   <!-- ======================= TABLEAU DE BORD ======================= -->
   <section id="accueil" class="onglet actif">
-    <div class="titre-page">
+    <div class="bienvenue">
       <div>
-        <h1 class="salutation">Bonjour.</h1>
+        <h1 class="salutation">Bonjour</h1>
         <p class="date-du-jour" id="date-du-jour"></p>
       </div>
+      <ul class="stats" id="stats-accueil"></ul>
     </div>
 
     <div class="panneau a-faire" id="a-faire">
@@ -74,40 +84,50 @@
       <ul id="liste-a-faire" class="liste-a-faire"></ul>
     </div>
 
-    <div data-module="revenus">
-      <div class="titre-bloc">
-        <h2>Mes revenus <span id="annee-accueil"></span></h2>
-        <button class="lien" data-aller="revenus">Voir le détail</button>
-      </div>
-      <div class="chiffres" id="chiffres-accueil"></div>
-      <div class="panneau">
-        <h3 class="titre-graphique">Mois par mois</h3>
-        <div id="graphique-accueil"></div>
-      </div>
-    </div>
-
-    <div class="deux-colonnes">
-      <div class="panneau" data-module="echeances">
-        <div class="titre-bloc"><h2>Prochaines échéances</h2><button class="lien" data-aller="echeances">Tout voir</button></div>
-        <ul class="liste-echeances" id="echeances-accueil"></ul>
-      </div>
-      <div class="panneau tuile-bulletins" data-module="bulletins">
-        <div class="entete-tuile">
-          <span class="pic argent grand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 12h7M9 16h7"/></svg></span>
-          <div><h2>Bulletins de salaire</h2>
-            <span class="petit" id="tuile-bulletins">Récupérer et ranger les bulletins Pajemploi.</span></div>
+    <!-- Deux colonnes indépendantes : chaque bloc garde sa hauteur -->
+    <div class="colonnes-accueil">
+      <div class="colonne">
+        <div class="panneau agenda" data-module="echeances">
+          <div class="titre-bloc">
+            <h2>Agenda</h2>
+            <div class="choix-mois">
+              <button class="icone" id="mois-precedent" aria-label="Mois précédent"></button>
+              <span id="titre-mois"></span>
+              <button class="icone" id="mois-suivant" aria-label="Mois suivant"></button>
+            </div>
+          </div>
+          <div class="calendrier" id="calendrier" aria-label="Échéances du mois"></div>
+          <ul class="liste-echeances" id="echeances-accueil"></ul>
+          <div class="pied-bloc"><button class="lien" data-aller="echeances">Toutes les échéances</button></div>
         </div>
-        <div class="mini-classeur" id="mini-classeur" aria-label="Six derniers mois, par famille"></div>
-        <div class="boutons">
-          <button class="principal cache" id="tuile-recuperer"></button>
-          <button class="lien" data-aller="bulletins">Ouvrir le classeur</button>
+
+        <div class="panneau" data-module="revenus">
+          <div class="titre-bloc">
+            <h2>Mes revenus <span id="annee-accueil"></span></h2>
+            <button class="lien" data-aller="revenus">Voir le détail</button>
+          </div>
+          <div id="chiffres-accueil"></div>
+          <div id="graphique-accueil"></div>
         </div>
       </div>
-    </div>
 
-    <div class="panneau sites-accueil" data-module="activites">
-      <div class="titre-bloc"><h2>Idées d'activités</h2><button class="lien" data-aller="activites">Gérer mes sites</button></div>
-      <div class="grille-sites" id="sites-accueil"></div>
+      <div class="colonne">
+        <div class="panneau" data-module="contrats" id="bloc-jour">
+          <div class="titre-bloc">
+            <h2 id="titre-jour">Aujourd'hui</h2>
+            <div class="choix-periode cache" id="choix-periode" role="radiogroup" aria-label="Horaires utilisés">
+              <label><input type="radio" name="periode-jour" value="scolaire" checked><span>Période scolaire</span></label>
+              <label><input type="radio" name="periode-jour" value="vacances"><span>Vacances</span></label>
+            </div>
+          </div>
+          <div id="enfants-jour"></div>
+        </div>
+
+        <div class="panneau" data-module="activites">
+          <div class="titre-bloc"><h2>Sites favoris pour les activités</h2><button class="lien" data-aller="activites">Gérer</button></div>
+          <div class="grille-sites" id="sites-accueil"></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1091,13 +1111,8 @@
   </section>
 </main>
 </div>
+</div>
 
-<footer class="pied">
-  <span>Version <span id="version">…</span></span>
-  <button id="btn-verifier-maj" class="lien">Rechercher une mise à jour</button>
-  <button class="lien" data-aller="a-propos">À propos et notes de version</button>
-  <button id="quitter" class="lien">Quitter l'application</button>
-</footer>
 <script src="/web/app.js"></script>
 </body>
 </html>

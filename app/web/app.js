@@ -65,8 +65,7 @@ function ouvrirOnglet(nom) {
   }
   $$("[data-onglet]").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
   $$(".onglet").forEach((s) => s.classList.toggle("actif", s.id === nom));
-  $("#menu").classList.remove("ouvert");
-  $("#bouton-menu").setAttribute("aria-expanded", "false");
+  fermerMenuLateral();
   window.scrollTo(0, 0);
   if (nom === "bulletins") afficherListe();
   if (nom === "accueil") afficherTableauDeBord();
@@ -78,15 +77,22 @@ function ouvrirOnglet(nom) {
   if (nom === "profil") chargerProfil();
   if (nom === "activites") afficherSites();
 }
-$("#bouton-menu").addEventListener("click", () => {
+$("#bouton-menu").addEventListener("click", (e) => {
+  e.stopPropagation();
   const ouvert = $("#menu").classList.toggle("ouvert");
   $("#bouton-menu").setAttribute("aria-expanded", String(ouvert));
 });
+// Sur téléphone, le menu glisse par-dessus la page : un clic à côté ou Échap le referme.
+const fermerMenuLateral = () => { $("#menu").classList.remove("ouvert"); $("#bouton-menu").setAttribute("aria-expanded", "false"); };
+document.addEventListener("click", (e) => { if ($("#menu").classList.contains("ouvert") && !$("#menu").contains(e.target)) fermerMenuLateral(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && $("#menu").classList.contains("ouvert")) fermerMenuLateral(); });
 $$("[data-onglet]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.onglet)));
 $$("[data-aller]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); ouvrirOnglet(b.dataset.aller); }));
 
 $("#date-du-jour").textContent = new Date().toLocaleDateString("fr-FR",
   { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
+$("#mois-precedent").innerHTML = picto("monter").replace("m6 15 6-6 6 6", "m15 6-6 6 6 6");
+$("#mois-suivant").innerHTML = picto("monter").replace("m6 15 6-6 6 6", "m9 6 6 6-6 6");
 $$("[data-ouvrir]").forEach((b) => b.addEventListener("click", () =>
   api("ouvrir", { quoi: b.dataset.ouvrir }).catch((e) => alert(e.message))));
 
@@ -106,7 +112,11 @@ async function rafraichir() {
     const changementListe = JSON.stringify(nouvel.bulletins) !== JSON.stringify(etat.bulletins);
     etat = nouvel;
     afficherEtat();
-    if (changementListe) { afficherListe(); tuileBulletins(); }
+    if (changementListe) {
+      afficherListe();
+      badgeBulletins();
+      if ($("#accueil").classList.contains("actif")) afficherTableauDeBord();
+    }
   } catch (e) { /* serveur arrêté */ }
 }
 
@@ -146,12 +156,6 @@ function afficherEtat() {
   btn.classList.toggle("cache", manquants === 0 || telechargement);
   if (!telechargement) interrompre.disabled = false;
 
-  if (etat.bulletins.length) {
-    const familles = new Set(etat.bulletins.filter((b) => !b.present).map((b) => b.client)).size;
-    $("#tuile-bulletins").textContent = manquants
-      ? `${manquants} bulletin${manquants > 1 ? "s" : ""} à récupérer, pour ${familles} famille${familles > 1 ? "s" : ""}.`
-      : "Tous les bulletins sont rangés.";
-  }
   $("#journal").textContent = etat.journal.join("\n");
 }
 
@@ -552,18 +556,19 @@ function chiffresHtml(r) {
     <div class="chiffre total"><span class="libelle-chiffre">Total encaissé</span><span class="valeur">${euros(g.encaisse)}</span><span class="detail">net payé, indemnités comprises</span></div>`;
 }
 
-function graphiqueHtml(r) {
+function graphiqueHtml(r, compact = false) {
   const mois = moisTries(r);
-  const max = Math.max(1, ...mois.map((m) => m.brut + m.indemnites));
-  const h = (v) => Math.round((170 * v) / max);
-  return `<div class="legende-graphique"><span><i class="c-net"></i>Net</span><span><i class="c-cot"></i>Cotisations</span>
+  const max = Math.max(1, ...mois.map((m) => (compact ? m.net : m.brut) + m.indemnites));
+  const haut = compact ? 130 : 170;
+  const h = (v) => Math.round((haut * v) / max);
+  return `<div class="legende-graphique"><span><i class="c-net"></i>Net</span>${compact ? "" : `<span><i class="c-cot"></i>Cotisations</span>`}
       <span><i class="c-ind"></i>Indemnités</span></div>
-    <div class="defilement"><div class="graphique" role="img" aria-label="Revenus mois par mois">
+    <div class="defilement"><div class="graphique${compact ? " compact" : ""}" role="img" aria-label="Revenus mois par mois">
     ${mois.map((m, i) => `<div class="barre-mois" title="${MOIS_COURTS[i]} : brut ${euros(m.brut, 2)}, net ${euros(m.net, 2)}, indemnités ${euros(m.indemnites, 2)}">
-      <span class="montant">${m.bulletins ? euros(m.encaisse) : ""}</span>
+      ${compact ? "" : `<span class="montant">${m.bulletins ? euros(m.encaisse).replace(/\s?€/, "") : ""}</span>`}
       <div class="pile"><div class="c-ind" style="height:${h(m.indemnites)}px"></div>
-        <div class="c-cot" style="height:${h(m.cotisations)}px"></div><div class="c-net" style="height:${h(m.net)}px"></div></div>
-      <span class="mois">${MOIS_COURTS[i]}</span></div>`).join("")}
+        ${compact ? "" : `<div class="c-cot" style="height:${h(m.cotisations)}px"></div>`}<div class="c-net" style="height:${h(m.net)}px"></div></div>
+      <span class="mois">${compact ? MOIS_COURTS[i].charAt(0).toUpperCase() : MOIS_COURTS[i]}</span></div>`).join("")}
     </div></div>`;
 }
 
@@ -572,29 +577,12 @@ function aucunRevenu(zone) {
     seront rangés dans le dossier choisi dans « Paramètres ».</p>`;
 }
 
-// Tuile du tableau de bord : les six derniers mois de chaque famille récente (rangé, à récupérer, rien).
-async function tuileBulletins() {
-  const zone = $("#mini-classeur");
-  if (!zone) return;
-  if (!etat.bulletins.length && !dossierLocal) dossierLocal = await api("dossier").catch(() => null);
-  const mois = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1 - i, 1);
-    mois.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-  }
-  const etats = {};      // famille -> {periode: "present" | "manquant"}
-  Object.entries(dossierLocal?.clients || {}).forEach(([f, periodes]) => periodes.forEach((p) => ((etats[f] ??= {})[p] = "present")));
-  etat.bulletins.forEach((b) => ((etats[b.client] ??= {})[b.periode] = b.present ? "present" : "manquant"));
-  const familles = Object.keys(etats).filter((f) => mois.some((m) => etats[f][m])).sort((a, b) => a.localeCompare(b, "fr")).slice(0, 8);
-  zone.innerHTML = familles.length ? `<span></span>${mois.map((m) => `<span class="nom-mois">${INITIALES_MOIS[+m.slice(5) - 1]}</span>`).join("")}
-    ${familles.map((f) => `<span class="nom-famille">${echapper(f)}</span>${mois.map((m) => `<i class="${etats[f][m] || "vide"}" title="${
-      echapper(f)} : ${INITIALES_MOIS[+m.slice(5) - 1]} ${m.slice(0, 4)} ${etats[f][m] === "manquant" ? "à récupérer" : etats[f][m] ? "rangé" : "aucun bulletin"}"></i>`).join("")}`).join("")}` : "";
+// Pastille du menu « Bulletins de salaire » : nombre de bulletins à récupérer.
+function badgeBulletins() {
   const manquants = etat.bulletins.filter((b) => !b.present).length;
-  const bouton = $("#tuile-recuperer");
-  bouton.classList.toggle("cache", !manquants || etat.phase === "telechargement");
-  bouton.innerHTML = `${picto("telecharger")}Récupérer ${manquants > 1 ? `les ${manquants} bulletins` : "le bulletin"}`;
+  $("#badge-bulletins").textContent = manquants;
+  $("#badge-bulletins").classList.toggle("cache", !manquants);
 }
-$("#tuile-recuperer").addEventListener("click", () => { ouvrirOnglet("bulletins"); action("telecharger_manquants"); });
 
 // « 2 bulletins : Durand (août), Bernard (septembre) » : familles et mois des bulletins à récupérer.
 function detailManquants() {
@@ -608,7 +596,7 @@ function detailManquants() {
 async function afficherTableauDeBord() {
   const modules = parametresActuels.modules || {};
   if (modules.activites !== false) afficherSites();
-  // Chaque ligne : pictogramme et couleur de la rubrique, texte, détail, bouton qui dit l'action.
+  // « À faire » : seulement des actions possibles tout de suite, chacune avec le bouton qui la lance.
   const aFaire = [];
   const manquants = etat.bulletins.filter((b) => !b.present).length;
   if (modules.bulletins !== false && manquants)
@@ -646,34 +634,155 @@ async function afficherTableauDeBord() {
         a.detail ? `<small>${echapper(a.detail)}</small>` : ""}</span>
         <button class="${a.principal ? "principal" : "secondaire"}" data-aller-vers="${a.aller}"${a.lancer ? ` data-lancer="${a.lancer}"` : ""}>${a.principal ? picto(a.picto) : ""}${a.bouton}</button></li>`).join("")
     : nonVerifie
-      ? `<li>${pastille("coche", "argent")}<span class="texte">Rien d'autre à faire pour l'instant.<small>Les bulletins n'ont pas encore été
-        vérifiés sur Pajemploi depuis l'ouverture de l'application.</small></span>
+      ? `<li>${pastille("actualiser", "argent")}<span class="texte">Regarder s'il y a de nouveaux bulletins sur Pajemploi<small>Rien d'autre
+        à faire pour l'instant.</small></span>
         <button class="secondaire" data-aller-vers="bulletins" data-lancer="connecter_et_analyser">${picto("actualiser")}Vérifier sur Pajemploi</button></li>`
       : `<li>${pastille("coche", "argent")}<span class="texte">Rien d'urgent : tout est à jour.</span></li>`;
   $$("#liste-a-faire [data-aller-vers]").forEach((b) => b.addEventListener("click", () => {
     ouvrirOnglet(b.dataset.allerVers);
     if (b.dataset.lancer) action(b.dataset.lancer);
   }));
-  tuileBulletins();
+
+  salutation(profil);
+  statsAccueil(r, ech, contrats);
+  echeancesAccueil = ech;
+  afficherAgenda();
+  contratsAccueil = contrats;
+  afficherJour();
 
   if (r) {
     $("#annee-accueil").textContent = r.general.bulletins ? `en ${r.annee}` : "";
     if (r.general.bulletins) {
-      $("#chiffres-accueil").innerHTML = chiffresHtml(r);
-      $("#graphique-accueil").innerHTML = graphiqueHtml(r);
+      $("#chiffres-accueil").innerHTML = `<p class="montant-cle"><span class="valeur">${euros(r.general.encaisse)}</span>
+        <span>encaissés (${periodeCouverte(r)}), dont ${euros(r.general.indemnites)} d'indemnités</span></p>`;
+      $("#graphique-accueil").innerHTML = graphiqueHtml(r, true);
     } else {
       $("#chiffres-accueil").innerHTML = "";
       aucunRevenu($("#graphique-accueil"));
     }
   }
-  // Principales échéances : les plus proches ; le reste est dans la rubrique Échéances.
-  const MAX_ACCUEIL = 5;
-  $("#echeances-accueil").innerHTML = ech.length ? ech.slice(0, MAX_ACCUEIL).map((e) => ligneEcheance(e, true)).join("")
-      + (ech.length > MAX_ACCUEIL ? `<li class="plus"><button class="lien" data-aller-vers="echeances">${ech.length - MAX_ACCUEIL > 1
-        ? `Voir les ${ech.length - MAX_ACCUEIL} autres échéances` : "Voir l'autre échéance"}</button></li>` : "")
-    : `<li class="petit">Aucune échéance connue : complétez Mon profil et les contrats.</li>`;
+}
+
+// « Bonjour Marie » (prénom du profil) et initiale dans l'en-tête.
+function salutation(profil) {
+  const prenom = (profil.prenom || "").trim();
+  $(".salutation").textContent = prenom ? `Bonjour ${prenom} !` : "Bonjour !";
+  $("#avatar").textContent = (prenom || profil.nom || "?").trim().charAt(0).toUpperCase();
+}
+
+// Trois repères sous le bonjour : enfants accueillis, bulletins rangés, prochaine échéance.
+function statsAccueil(r, ech, contrats) {
+  const jour = new Date().toISOString().slice(0, 10);
+  const accueillis = contrats.filter((c) => (!c.debut || c.debut <= jour) && !(c.fin && c.fin < jour)).length;
+  const stats = [
+    ["famille", "familles", "Enfants accueillis", accueillis],
+    r && r.general.bulletins ? ["bulletin", "argent", `Bulletins rangés en ${r.annee}`, r.general.bulletins] : null,
+    ech[0] ? ["calendrier", "demarches", "Prochaine échéance", dateCourte(ech[0].date)] : null,
+  ].filter(Boolean);
+  $("#stats-accueil").innerHTML = stats.map(([nom, cat, libelle, valeur]) =>
+    `<li><span class="pic ${cat} grand">${picto(nom)}</span><span><span class="libelle-stat">${libelle}</span>
+      <span class="valeur-stat">${valeur}</span></span></li>`).join("");
+}
+
+// ------------------------------------------------------------- agenda du tableau de bord
+let echeancesAccueil = [];
+let moisAgenda = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+const isoJour = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function afficherAgenda() {
+  const premier = moisAgenda;
+  const cle = isoJour(premier).slice(0, 7);
+  $("#titre-mois").textContent = premier.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
+  const parJour = {};
+  echeancesAccueil.forEach((e) => (parJour[e.date] ??= []).push(e));
+  const debut = new Date(premier);
+  debut.setDate(1 - ((premier.getDay() + 6) % 7));        // lundi de la première semaine
+  const aujourdhui = isoJour(new Date());
+  const cases = [];
+  for (let d = new Date(debut); cases.length < 42; d.setDate(d.getDate() + 1)) {
+    const iso = isoJour(d);
+    if (cases.length % 7 === 0 && cases.length >= 35 && iso.slice(0, 7) !== cle) break;
+    const ech = parJour[iso] || [];
+    cases.push(`<span class="jour${iso.slice(0, 7) !== cle ? " hors-mois" : ""}${iso === aujourdhui ? " aujourdhui" : ""}${
+      ech.length ? (ech.some((e) => e.urgent) ? " a-echeance urgent" : " a-echeance") : ""}"${
+      ech.length ? ` title="${echapper(ech.map((e) => e.titre).join(", "))}"` : ""}><span>${d.getDate()}</span></span>`);
+  }
+  $("#calendrier").innerHTML = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."].map((j) => `<span class="nom-jour">${j}</span>`).join("")
+    + cases.join("");
+  // Mois en cours : les 3 prochaines échéances, même au-delà du mois (une échéance du 1er du mois suivant ne doit
+  // pas disparaître derrière « aucune échéance ») ; autre mois : celles de ce mois.
+  const liste = cle === aujourdhui.slice(0, 7)
+    ? echeancesAccueil.filter((e) => e.date >= aujourdhui).slice(0, 3)
+    : echeancesAccueil.filter((e) => e.date.startsWith(cle));
+  $("#echeances-accueil").innerHTML = liste.length ? liste.map((e) => ligneEcheance(e, true)).join("")
+    : `<li class="petit">Aucune échéance ${cle === aujourdhui.slice(0, 7) ? "à venir" : "ce mois-ci"}.</li>`;
   $$("#echeances-accueil [data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
 }
+$("#mois-precedent").addEventListener("click", () => { moisAgenda = new Date(moisAgenda.getFullYear(), moisAgenda.getMonth() - 1, 1); afficherAgenda(); });
+$("#mois-suivant").addEventListener("click", () => { moisAgenda = new Date(moisAgenda.getFullYear(), moisAgenda.getMonth() + 1, 1); afficherAgenda(); });
+
+// ------------------------------------------------------------- horaires du jour
+// Le jour affiché : aujourd'hui tant qu'un enfant est encore là ou attendu, sinon le prochain jour d'accueil.
+// Une ligne par plage d'accueil (un enfant avec une coupure apparaît deux fois), dans l'ordre d'arrivée.
+// L'application ne connaît pas le calendrier des vacances scolaires : on choisit les horaires à utiliser.
+let contratsAccueil = [];
+
+function periodeChoisie(iso) {
+  try {
+    const p = JSON.parse(localStorage.getItem("periode-jour") || "{}");
+    if (p.jour === iso) return p.valeur;
+  } catch (e) { /* stockage indisponible */ }
+  return "scolaire";
+}
+
+function plagesDuJour(d, periode) {
+  const iso = isoJour(d);
+  const nomJour = JOURS[(d.getDay() + 6) % 7];
+  const lignes = [];
+  contratsAccueil.filter((c) => (!c.debut || c.debut <= iso) && !(c.fin && c.fin < iso)).forEach((c) => {
+    const v = enVigueur(c, iso);
+    const vacances = Object.values(v.horaires_vacances || {}).some(Boolean);
+    const horaires = periode === "vacances" && vacances ? v.horaires_vacances : v.horaires_scolaire;
+    lirePlages((horaires || {})[nomJour]).forEach(([debut, fin]) => lignes.push({ c, debut, fin }));
+  });
+  return lignes.sort((a, b) => a.debut.localeCompare(b.debut) || a.fin.localeCompare(b.fin));
+}
+
+function afficherJour() {
+  const zone = $("#enfants-jour");
+  if (!zone) return;
+  const maintenant = new Date();
+  const heure = `${String(maintenant.getHours()).padStart(2, "0")}:${String(maintenant.getMinutes()).padStart(2, "0")}`;
+  let jour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
+  let lignes = plagesDuJour(jour, periodeChoisie(isoJour(jour)));
+  if (!lignes.some((l) => l.fin > heure)) {
+    lignes = [];
+    for (let i = 1; i <= 14 && !lignes.length; i++) {
+      jour = new Date(jour.getFullYear(), jour.getMonth(), jour.getDate() + 1);
+      lignes = plagesDuJour(jour, periodeChoisie(isoJour(jour)));
+    }
+  }
+  const iso = isoJour(jour);
+  const ecart = Math.round((jour - new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate())) / 86400000);
+  const date = jour.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  $("#titre-jour").textContent = ecart === 0 ? `Aujourd'hui, ${date}` : ecart === 1 ? `Demain, ${date}` : date.replace(/^./, (c) => c.toUpperCase());
+  const aVacances = contratsAccueil.some((c) => Object.values(enVigueur(c, iso).horaires_vacances || {}).some(Boolean));
+  $("#choix-periode").classList.toggle("cache", !aVacances);
+  $("#choix-periode").dataset.jour = iso;
+  $$("#choix-periode input").forEach((i) => (i.checked = i.value === periodeChoisie(iso)));
+  zone.innerHTML = lignes.length ? `<table class="tableau-jour">
+      <thead><tr><th scope="col">Enfant</th><th scope="col">Arrivée</th><th scope="col">Départ</th></tr></thead>
+      <tbody>${lignes.map((l) => `<tr><th scope="row"><span class="initiale ${couleurEnfant(l.c.enfant_prenom)}" aria-hidden="true">${
+        echapper((l.c.enfant_prenom || "?").trim().charAt(0).toUpperCase())}</span>${echapper(l.c.enfant_prenom || "")}</th>
+        <td>${versTexte(l.debut)}</td><td class="depart">${versTexte(l.fin)}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="petit">${contratsAccueil.length ? "Aucun accueil prévu dans les deux prochaines semaines d'après les emplois du temps des fiches enfants."
+      : "Ajoutez les fiches enfants (Familles et contrats) pour voir ici les horaires du jour."}</p>`;
+}
+$("#choix-periode").addEventListener("change", (e) => {
+  try { localStorage.setItem("periode-jour", JSON.stringify({ jour: $("#choix-periode").dataset.jour, valeur: e.target.value })); }
+  catch (err) { /* stockage indisponible : le choix vaut jusqu'au prochain affichage */ }
+  afficherJour();
+});
 
 async function afficherRevenus(annee) {
   const r = await chargerRevenus(annee);
@@ -2177,7 +2286,7 @@ formContrat.addEventListener("submit", async (e) => {
 // lui-même, /api/icone-site), sinon l'initiale sur une couleur pastel (une couleur différente pour chaque site voisin).
 let sites = [];
 let siteEdite = -1;
-const COULEURS_SITES = ["#f6c9d4", "#a6dcc5", "#ffd978", "#d9cff3", "#bfe0f2", "#f8d2b4"];
+const COULEURS_SITES = ["#f7d3de", "#ddd4f6", "#ffe2b0", "#ecd6f2", "#fbe0e8", "#e6e0f8"];
 const domaine = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
 function tuileSite(site, i) {
   const couleur = COULEURS_SITES[i % COULEURS_SITES.length];
@@ -2445,7 +2554,7 @@ async function verifierVersion(manuel = false) {
   $("#version").textContent = v.locale;
   $("#apropos-version").textContent = v.locale;
   if (v.mise_a_jour) {
-    $("#texte-maj").textContent = `Une nouvelle version (${v.distante}) est disponible.`;
+    $("#texte-maj").textContent = `Version ${v.distante} disponible`;
     $("#bandeau-maj").classList.remove("cache");
     afficherNotesDisponibles(v.locale, v.distante);
     if (manuel) lancerMiseAJour(v.distante);
