@@ -1256,6 +1256,13 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .puce-realisation > .picto { width: 13px; height: 13px; margin: 0 4px 0 0; vertical-align: -2px; }
 .carte-realisation .entete-seance .pic { margin-right: 2px; }
 .ligne-filtre.avec-icone { align-items: flex-start; }
+/* Glisser des photos à trier sur la zone des photos : rangées avec les filtres choisis */
+.contenu-photos { border-radius: 16px; transition: background 0.15s; }
+.depot-filtres { position: sticky; top: 12px; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+  margin-bottom: 10px; border: 2px dashed var(--menthe-fonce); border-radius: 14px; background: var(--papier); color: var(--eucalyptus-fonce); }
+.depot-filtres .picto { width: 22px; height: 22px; flex: none; }
+.contenu-photos.survol-depot { background: var(--tournesol-clair); outline: 3px dashed var(--tournesol); outline-offset: 4px; }
+.contenu-photos.survol-depot .depot-filtres { border-style: solid; border-color: var(--tournesol); }
 .date-realisation { display: block; font-size: 0.78rem; font-weight: 400; color: var(--encre-douce); }
 .ligne-filtre.avec-icone .picto { width: 16px; height: 16px; margin-top: 2px; color: var(--c-familles-encre); }
 /* Photos rangées glissées : les réalisations du filtre deviennent des cibles */

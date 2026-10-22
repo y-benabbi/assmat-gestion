@@ -282,7 +282,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants s'agrandissent en cibles de dépôt. « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
   (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
-  rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`).
+  rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`). Des photos à trier glissées sur
+  la zone des photos rangées (`#contenu-photos`) sont rangées avec les filtres choisis (enfant, réalisation :
+  `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien.
 - Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans
   `Activités\<Titre>`, ajoutables dès la création — gardés dans `documentsEnAttente` puis envoyés après l'enregistrement)
   et la **réalisation** (une activité à une date ; appelée « séance » dans les données et le code : `seances`, `S0001`),

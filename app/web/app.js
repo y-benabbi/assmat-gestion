@@ -3021,13 +3021,15 @@ function majBoutonRanger() {
 }
 $("#activite-tri").addEventListener("change", majBoutonRanger);
 
-// seanceImposee : réalisation sur laquelle les photos ont été glissées (sinon, celle choisie dans la barre).
-async function rangerSelection(enfants, seanceImposee = "") {
+// seanceImposee : réalisation imposée par l'endroit où les photos ont été glissées ("" = aucune) ; sinon (undefined),
+// celle choisie dans la barre.
+async function rangerSelection(enfants, seanceImposee) {
   const choisies = donneesPhotos.a_trier.filter((e) => selTri.has(e.cle));
-  if (!choisies.length || (!enfants.length && !seanceImposee && !$("#activite-tri").value)) return;
+  const avecRealisation = seanceImposee === undefined ? !!$("#activite-tri").value : !!seanceImposee;
+  if (!choisies.length || (!enfants.length && !avecRealisation)) return;
   const jour = choisies.map((e) => e.date).filter(Boolean).sort()[0]?.slice(0, 10);
   let seance = seanceImposee;
-  if (!seance) {
+  if (seance === undefined) {
     try { seance = await seanceChoisie($("#activite-tri"), jour); } catch (err) { alert(err.message); return; }
     if (seance === null) return;
   }
@@ -3067,6 +3069,7 @@ $("#groupes-a-trier").addEventListener("dragstart", (e) => {
     afficherBarreTri();
   }
   $("#tri-photos").classList.add("glisse");
+  afficherDepotFiltres(true);
   e.dataTransfer.setData(PHOTOS_GLISSEES, [...selTri].join(","));
   e.dataTransfer.effectAllowed = "copyMove";
 });
@@ -3091,6 +3094,44 @@ document.addEventListener("drop", (e) => {
 document.addEventListener("dragend", () => {
   $$("#photos .survol, #photos .depot-actif").forEach((x) => x.classList.remove("survol", "depot-actif"));
   $("#tri-photos").classList.remove("glisse", "glisse-rangees");
+  afficherDepotFiltres(false);
+});
+
+// Photos à trier glissées sur la zone des photos rangées : rangées avec les filtres choisis (enfant, réalisation).
+// Sans filtre, la zone n'accepte rien.
+function filtresDepot() {
+  const seance = filtreActivite.startsWith("s:") ? filtreActivite.slice(2) : "";
+  const realisation = seance && realisations().find((s) => s.id === seance);
+  const enfant = filtreEnfant && enfantPar(filtreEnfant);
+  if (!enfant && !realisation) return null;
+  return { enfants: enfant ? [enfant.id] : [], seance,
+    texte: [enfant?.prenom, realisation && nomRealisation(realisation.activite.titre, realisation.date)].filter(Boolean).join(" · ") };
+}
+function afficherDepotFiltres(oui) {
+  const f = oui && filtresDepot();
+  $("#depot-filtres").classList.toggle("cache", !f);
+  $("#contenu-photos").classList.remove("survol-depot");
+  if (!f) return;
+  $("#depot-filtres").innerHTML = `${picto("telecharger")}<span>Déposez ici pour ranger avec <strong>${echapper(f.texte)}</strong></span>`;
+  // Le panneau « À trier » couvre la droite de la page : le bandeau reste dans la partie visible.
+  const panneau = $("#colonne-a-trier").getBoundingClientRect(), zone = $("#contenu-photos").getBoundingClientRect();
+  $("#depot-filtres").style.maxWidth = $("#tri-photos").classList.contains("tri-ouvert") && panneau.left > zone.left
+    ? `${panneau.left - zone.left - 16}px` : "";
+}
+$("#contenu-photos").addEventListener("dragover", (e) => {
+  if (!e.dataTransfer?.types.includes(PHOTOS_GLISSEES) || !filtresDepot()) return;
+  e.preventDefault();
+  $("#contenu-photos").classList.add("survol-depot");
+});
+$("#contenu-photos").addEventListener("dragleave", (e) => {
+  if (!$("#contenu-photos").contains(e.relatedTarget)) $("#contenu-photos").classList.remove("survol-depot");
+});
+$("#contenu-photos").addEventListener("drop", (e) => {
+  const f = filtresDepot();
+  if (!e.dataTransfer?.types.includes(PHOTOS_GLISSEES) || !f) return;
+  e.preventDefault();
+  afficherDepotFiltres(false);
+  rangerSelection(f.enfants, f.seance);
 });
 
 // Sur le bouton ou le panneau « À trier » : photos rangées glissées (remises à trier), fichiers de l'Explorateur (copiés).
