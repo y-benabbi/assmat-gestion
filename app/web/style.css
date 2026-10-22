@@ -1031,35 +1031,51 @@ body.occupe, body.occupe * { cursor: progress !important; }
 /* ---------------------------------------------------------------- photos : rangées sur toute la largeur ;
    « À trier » = bouton fixe en bas à droite qui ouvre un grand panneau ; sélection = barre fixe en bas */
 #photos { padding-bottom: 150px; }                 /* la barre de sélection ne cache jamais la dernière ligne */
-.rangees-plein { margin: 0; }
-.tri-ouvert .rangees-plein { max-width: calc(100vw - 288px - min(560px, 42vw) - 48px); }
-.rangees-plein .titre-bloc { gap: 12px; }
-.rangees-plein .titre-bloc #tout-rangees { margin-left: auto; }
-.filtres-photos { display: grid; gap: 10px; margin: 6px 0 12px; }
-.libelle-filtre { font-weight: 700; color: var(--encre); }
-.filtre-enfants { border: 1px solid var(--trait); border-radius: 14px; background: var(--papier); }
-.filtre-enfants > summary { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; list-style: none; }
-.filtre-enfants > summary::-webkit-details-marker { display: none; }
-.resume-filtre { padding: 2px 10px; border-radius: 999px; background: var(--eucalyptus-clair); color: var(--eucalyptus-fonce);
-  font-size: 0.86rem; font-weight: 700; }
-.chevron-filtre { margin-left: auto; display: inline-flex; color: var(--encre-douce); transition: transform 0.15s; }
-.filtre-enfants[open] .chevron-filtre { transform: rotate(180deg); }
-.recherche-enfants { display: flex; align-items: center; gap: 8px; margin: 0 14px; padding: 0 12px; border-radius: 999px;
-  background: var(--brume); color: var(--encre-douce); max-width: 380px; }
-.recherche-enfants input { border: 0; background: transparent; margin: 0; padding: 8px 0; box-shadow: none; }
+.tri-photos { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 22px; align-items: start; }
+.tri-photos.tri-ouvert { grid-template-columns: 250px minmax(0, 1fr); }
+.filtres-photos { position: sticky; top: 16px; display: grid; gap: 6px; max-height: calc(100vh - 32px); overflow-y: auto;
+  padding: 10px; border-radius: 16px; background: var(--papier); }
+.recherche-enfants { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0 10px; border-radius: 999px;
+  background: var(--brume); color: var(--encre-douce); }
+.recherche-enfants .picto { width: 16px; height: 16px; }
+.recherche-enfants input { border: 0; background: transparent; margin: 0; padding: 7px 0; box-shadow: none; font-size: 0.9rem; min-width: 0; }
 .recherche-enfants input:focus { outline: none; }
 .recherche-enfants:focus-within { box-shadow: 0 0 0 2px var(--eucalyptus); }
-.groupe-enfants { padding: 10px 14px 0; }
-.groupe-enfants:last-child { padding-bottom: 14px; }
-.groupe-enfants h3 { margin: 0 0 6px; font: 700 0.78rem/1.2 var(--texte); letter-spacing: 0.04em; text-transform: uppercase;
+.bloc-filtre > summary, .groupe-enfants > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }
+.bloc-filtre > summary::-webkit-details-marker, .groupe-enfants > summary::-webkit-details-marker { display: none; }
+.bloc-filtre > summary::after, .groupe-enfants > summary::after { content: ""; width: 6px; height: 6px; margin-left: auto;
+  border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); opacity: 0.6; transition: transform 0.15s; }
+.bloc-filtre[open] > summary::after, .groupe-enfants[open] > summary::after { transform: rotate(-135deg); }
+.bloc-filtre > summary { padding: 8px 6px 4px; font-weight: 700; color: var(--encre); }
+.groupe-enfants > summary { padding: 6px 6px 2px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
   color: var(--encre-douce); }
-.filtre-activites { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 0 4px; }
-.puces-filtre { display: flex; flex-wrap: wrap; gap: 6px; }
-.puce-filtre { padding: 5px 12px; border: 1px solid var(--trait); border-radius: 999px; background: var(--papier); color: var(--encre);
-  font-size: 0.88rem; }
-.puce-filtre:hover { border-color: var(--menthe-fonce); }
-.puce-filtre[aria-pressed="true"] { border-color: var(--eucalyptus); background: var(--eucalyptus); color: #fff; }
-.aide-photos { margin: 0 0 10px; }
+.case-enfant, .ligne-filtre { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 0; padding: 5px 8px; margin: 1px 0;
+  border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--encre); font-weight: 600; font-size: 0.92rem;
+  text-align: left; transition: padding 0.15s, background 0.15s; }
+.case-enfant:hover, .ligne-filtre:hover { background: var(--brume); }
+.case-enfant[aria-pressed="true"], .ligne-filtre[aria-pressed="true"] { background: var(--eucalyptus-clair); color: var(--eucalyptus-fonce); }
+.case-enfant .initiale { width: 24px; height: 24px; font-size: 0.75rem; flex: none; }
+.nom-enfant { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nom-enfant small { display: none; font-weight: 400; font-size: 0.76rem; color: var(--encre-douce); }
+.case-enfant .compte { font-size: 0.78rem; font-weight: 400; color: var(--encre-douce); }
+.case-enfant.toutes { padding-left: 10px; }
+/* Pendant le tri : les enfants deviennent de grandes cibles où déposer les photos */
+.indice-depot { display: none; margin: 2px 4px 0; font-size: 0.82rem; font-weight: 700; color: var(--eucalyptus-fonce); }
+.tri-ouvert .indice-depot, .glisse .indice-depot { display: block; }
+.tri-ouvert .case-enfant[data-case-enfant], .glisse .case-enfant[data-case-enfant] { padding: 10px; margin: 6px 0;
+  border: 2px dashed var(--menthe-fonce); background: var(--papier); }
+.tri-ouvert .case-enfant .initiale, .glisse .case-enfant .initiale { width: 34px; height: 34px; font-size: 0.95rem; }
+.tri-ouvert .nom-enfant small, .glisse .nom-enfant small { display: block; }
+.case-enfant.survol { border-style: solid !important; border-color: var(--tournesol) !important; background: var(--tournesol-clair) !important;
+  transform: scale(1.03); }
+.contenu-photos { min-width: 0; }
+.tete-rangees { display: flex; align-items: center; gap: 12px; margin: 0 0 4px; color: var(--encre-douce); font-size: 0.9rem; }
+.tete-rangees #tout-rangees { margin-left: auto; }
+.contenu-photos .jour-photos:first-of-type { margin-top: 6px; }
+@media (max-width: 820px) {
+  .tri-photos, .tri-photos.tri-ouvert { grid-template-columns: 1fr; }
+  .filtres-photos { position: static; max-height: none; }
+}
 
 /* Barre de la sélection en cours */
 .barre-photos { position: fixed; z-index: 30; left: 288px; right: 190px; bottom: 18px; max-width: 1116px;
@@ -1086,14 +1102,13 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .panneau-a-trier { position: fixed; z-index: 32; right: 24px; top: 24px; bottom: 18px; width: min(560px, 42vw);
   display: flex; flex-direction: column; border-radius: 18px; background: var(--papier); border: 1px solid var(--trait);
   box-shadow: 0 20px 50px -18px rgba(58, 53, 82, 0.5); }
-.tete-a-trier { display: flex; align-items: center; gap: 12px; padding: 16px 18px 0; }
+.tete-a-trier { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; }
 .tete-a-trier h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
 .tete-a-trier h2 .badge { margin: 0; }
 .tete-a-trier #tout-a-trier { margin-left: auto; }
 .fermer-panneau { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
   background: var(--brume); color: var(--encre); }
 .fermer-panneau:hover { background: var(--eucalyptus-clair); }
-.consigne-panneau { margin: 6px 18px 10px; }
 .corps-a-trier { flex: 1; min-height: 0; overflow-y: auto; padding: 0 18px 18px; }
 .corps-a-trier .jour-photos:first-child { margin-top: 4px; }
 .avertissement { background: var(--tournesol-clair); padding: 10px 14px; border-radius: 10px; }
@@ -1129,21 +1144,11 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .pastille-enfant { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px;
   border: 2px solid var(--trait); background: var(--papier); color: var(--encre); font-weight: 700; text-align: left; }
 .pastille-enfant small { display: block; font-weight: 400; font-size: 0.75rem; color: var(--encre-douce); line-height: 1.1; }
-.pastille-enfant .initiale, .case-enfant .initiale { width: 32px; height: 32px; font-size: 0.95rem; grid-row: auto; }
+.pastille-enfant .initiale { width: 32px; height: 32px; font-size: 0.95rem; grid-row: auto; }
 .pastille-enfant[aria-pressed="true"] { border-color: var(--eucalyptus); background: var(--eucalyptus-clair); }
 .pastille-enfant.survol { border-color: var(--tournesol); background: var(--tournesol-clair); }
 .pastille-enfant .picto { color: var(--eucalyptus); }
 .autres-enfants { align-self: center; }
-.cases-enfants { margin: 0; }
-.cases-enfants .grille-enfants { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
-.case-enfant { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 14px; border: 2px dashed var(--trait);
-  background: var(--papier); color: var(--encre); font-weight: 700; text-align: left; min-height: 60px; }
-.case-enfant small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--encre-douce); }
-.case-enfant:hover { border-color: var(--menthe-fonce); }
-.case-enfant[aria-pressed="true"] { border-style: solid; border-color: var(--eucalyptus); background: var(--eucalyptus-clair); }
-.case-enfant.survol { border-style: solid; border-color: var(--tournesol); background: var(--tournesol-clair); transform: scale(1.02); }
-.case-enfant.termine { opacity: 0.65; }
-.case-enfant.toutes .initiale .picto { width: 18px; height: 18px; }
 .actions-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .actions-selection .principal, .actions-selection .secondaire { padding: 8px 14px; }
 .mise-en-page { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 0.9rem; }
@@ -1158,7 +1163,6 @@ body.occupe, body.occupe * { cursor: progress !important; }
 @media (max-width: 820px) {
   .barre-photos, .tri-ouvert .barre-photos { left: 10px; right: 10px; bottom: 76px; }
   .panneau-a-trier { inset: 10px; width: auto; }
-  .tri-ouvert .rangees-plein { max-width: none; }
   .bouton-a-trier { right: 12px; bottom: 12px; }
 }
 

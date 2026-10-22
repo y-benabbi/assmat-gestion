@@ -274,9 +274,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   SHA-1. Fichiers iCloud non téléchargés (attributs Windows « cloud ») jamais ouverts. Miniatures dans
   `%LOCALAPPDATA%\assmat-gestion\miniatures`. Impression : page HTML (1, 4 ou 16 par page A4), aucun PDF enregistré.
   Reconnaissance des visages : reportée, et jamais par une application ou un service extérieur.
-- Rubrique Photos (interface) : les rangées occupent la page (filtre enfants dépliable avec recherche, groupes
-  `photos.enfants()` : « derniers » gardés le dernier jour de garde, « mois » ces 31 jours, « autres » ; filtre activité en
-  puces). « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
+- Rubrique Photos (interface, demande de Yannis : **peu de texte**, aides en `title` ou repliées) : barre de filtres
+  compacte à gauche (`.filtres-photos` : recherche, enfants en groupes dépliables `photos.enfants()` — « derniers » gardés
+  le dernier jour de garde, « mois » ces 31 jours, « autres » —, activités), photos rangées à droite. Pendant le tri
+  (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants s'agrandissent en cibles de dépôt. « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
   (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
   rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`).

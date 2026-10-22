@@ -2796,8 +2796,8 @@ function afficherATrier() {
   });
   const sources = donneesPhotos.sources.map((s) => `« ${echapper(nomDossier(s))} »`).join(", ");
   $("#groupes-a-trier").innerHTML = html || `<p class="vide-photos">${picto("coche")}Aucune photo à trier.
-    <span class="petit">Dossiers lus : ${sources || "aucun"}. Ajoutez le dossier où arrivent vos photos dans les
-    <button class="lien" data-aller-photos="fonctionnalites">Paramètres</button>.</span></p>`;
+    <span class="petit" title="Dossiers lus : ${echapper(sources || "aucun")}">Dossiers de photos :
+    <button class="lien" data-aller-photos="fonctionnalites">Paramètres</button></span></p>`;
   $$("[data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
   afficherBarreTri();
 }
@@ -2978,6 +2978,7 @@ $("#groupes-a-trier").addEventListener("dragstart", (e) => {
     majVignettes("#groupes-a-trier", selTri, "data-cle");
     afficherBarreTri();
   }
+  $("#tri-photos").classList.add("glisse");
   e.dataTransfer.setData(PHOTOS_GLISSEES, [...selTri].join(","));
   e.dataTransfer.effectAllowed = "copyMove";
 });
@@ -2999,7 +3000,10 @@ document.addEventListener("drop", (e) => {
     afficherBarreTri();
   } else rangerSelection([c.dataset.caseEnfant]);
 });
-document.addEventListener("dragend", () => $$("#photos .survol, #photos .depot-actif").forEach((x) => x.classList.remove("survol", "depot-actif")));
+document.addEventListener("dragend", () => {
+  $$("#photos .survol, #photos .depot-actif").forEach((x) => x.classList.remove("survol", "depot-actif"));
+  $("#tri-photos").classList.remove("glisse");
+});
 
 // Sur le bouton ou le panneau « À trier » : photos rangées glissées (remises à trier), fichiers de l'Explorateur (copiés).
 const RANGEES_GLISSEES = "application/x-assmat-rangees";
@@ -3044,10 +3048,10 @@ function afficherRangees() {
   const avecSeance = activitesConnues.filter((a) => a.seances.some((s) => s.photos?.length));
   if (filtreActivite.startsWith("a:") && !avecSeance.some((a) => `a:${a.id}` === filtreActivite)) filtreActivite = "";
   $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans activité"], ...avecSeance.map((a) => [`a:${a.id}`, a.titre])]
-    .map(([v, t]) => `<button type="button" class="puce-filtre" data-filtre-activite="${v}" aria-pressed="${filtreActivite === v}">${
+    .map(([v, t]) => `<button type="button" class="ligne-filtre" data-filtre-activite="${v}" aria-pressed="${filtreActivite === v}">${
       echapper(t)}</button>`).join("");
   const liste = rangeesVisibles();
-  $("#nb-rangees").textContent = pluriel(d.rangees.length, "élément");
+  $("#nb-rangees").textContent = pluriel(liste.length, "élément");
   let html = "", mois = null;
   liste.forEach((r) => {
     const m = (r.date || "").slice(0, 7);
@@ -3061,39 +3065,39 @@ function afficherRangees() {
     html += vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
       `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || r.numero)}</span>`);
   });
-  $("#grille-rangees").innerHTML = liste.length ? html + "</div>" : `<p class="petit">${d.rangees.length
-    ? "Aucune photo pour ce choix." : "Les photos rangées apparaîtront ici, par enfant."}</p>`;
+  $("#grille-rangees").innerHTML = liste.length ? html + "</div>" : `<p class="vide-photos">${d.rangees.length
+    ? "Aucune photo pour ce choix." : `Aucune photo rangée. ${d.a_trier.length ? "Ouvrez « À trier », en bas à droite." : ""}`}</p>`;
   afficherBarreRangees();
 }
 
-// Liste des enfants (filtre et cibles du glisser) : derniers gardés, gardés dans le mois, autres ; recherche par prénom ou famille.
-const GROUPES_ENFANTS = [["derniers", "Derniers gardés"], ["mois", "Gardés ce mois-ci"], ["autres", "Autres enfants"]];
+// Barre de filtres à gauche : enfants (derniers gardés, gardés ce mois-ci, autres ; recherche par prénom ou famille),
+// puis activités. Pendant le tri (panneau ouvert), les lignes des enfants s'agrandissent : on y dépose les photos.
+const GROUPES_ENFANTS = [["derniers", "Derniers gardés", true], ["mois", "Ce mois-ci", true], ["autres", "Autres", false]];
+const groupesOuverts = {};
 function afficherCasesEnfants() {
   const d = donneesPhotos;
   const compte = (id) => d.rangees.filter((r) => r.enfants.includes(id)).length;
-  const aujourdhui = isoJour(new Date());
-  const cherche = sansAccents(rechercheEnfant.trim().toLowerCase());
-  const trouves = d.enfants.filter((e) => !cherche || sansAccents(`${e.prenom} ${e.famille}`.toLowerCase()).includes(cherche));
-  const caseEnfant = (e) => `<button type="button" class="case-enfant${e.fin && e.fin < aujourdhui ? " termine" : ""}" data-case-enfant="${e.id}"
-    data-filtre-enfant="${e.id}" aria-pressed="${filtreEnfant === e.id}">${initialeEnfant(e)}<span>${echapper(e.prenom)}<small>${
-    echapper(e.famille)} · ${compte(e.id)}</small></span></button>`;
-  const toutes = `<button type="button" class="case-enfant toutes" data-filtre-enfant="" aria-pressed="${!filtreEnfant}">
-    <span class="initiale moi" aria-hidden="true">${picto("appareil")}</span><span>Tous les enfants<small>${
-    pluriel(d.rangees.length, "élément")}</small></span></button>`;
-  let premier = !cherche;           // « Tous les enfants » en tête du premier groupe affiché
-  const groupes = GROUPES_ENFANTS.map(([cle, titre]) => {
+  const cherche = sansAccents(rechercheEnfant.trim());
+  const trouves = d.enfants.filter((e) => !cherche || sansAccents(`${e.prenom} ${e.famille}`).includes(cherche));
+  const ligne = (e) => `<button type="button" class="case-enfant" data-case-enfant="${e.id}" data-filtre-enfant="${e.id}"
+    aria-pressed="${filtreEnfant === e.id}" title="${echapper(e.prenom)} (${echapper(e.famille)})">${initialeEnfant(e)}<span class="nom-enfant">${
+    echapper(e.prenom)}<small>${echapper(e.famille)}</small></span><span class="compte">${compte(e.id)}</span></button>`;
+  const tous = `<button type="button" class="case-enfant toutes" data-filtre-enfant="" aria-pressed="${!filtreEnfant}">
+    <span class="nom-enfant">Tous</span><span class="compte">${d.rangees.length}</span></button>`;
+  const groupes = GROUPES_ENFANTS.map(([cle, titre, ouvert]) => {
     const liste = trouves.filter((e) => (e.groupe || "autres") === cle);
     if (!liste.length) return "";
-    const debut = premier ? toutes : "";
-    premier = false;
-    return `<div class="groupe-enfants"><h3>${titre}</h3><div class="grille-enfants">${debut + liste.map(caseEnfant).join("")}</div></div>`;
+    const ouvre = cherche || (groupesOuverts[cle] ?? ouvert) || liste.some((e) => e.id === filtreEnfant);
+    return `<details class="groupe-enfants" data-groupe-enfants="${cle}"${ouvre ? " open" : ""}><summary>${titre}</summary>${
+      liste.map(ligne).join("")}</details>`;
   }).join("");
   $("#cases-enfants").innerHTML = !d.enfants.length
-    ? `<div class="groupe-enfants"><p class="petit">Ajoutez d'abord les fiches enfants dans <button class="lien" data-aller-photos="contrats">Familles et contrats</button>.</p></div>`
-    : groupes || `<div class="groupe-enfants"><p class="petit">Aucun enfant ne correspond à « ${echapper(rechercheEnfant)} ».</p></div>`;
+    ? `<p class="petit">Aucune fiche enfant. <button class="lien" data-aller-photos="contrats">Ajouter</button></p>`
+    : (cherche ? "" : tous) + (groupes || `<p class="petit">Aucun résultat.</p>`);
   $$("#cases-enfants [data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
-  const choisi = enfantPar(filtreEnfant);
-  $("#resume-enfants").textContent = choisi ? `${choisi.prenom} (${choisi.famille})` : "Tous";
+  $$("#cases-enfants [data-groupe-enfants]").forEach((g) => g.addEventListener("toggle", () => {
+    if (!cherche) groupesOuverts[g.dataset.groupeEnfants] = g.open;
+  }));
 }
 $("#recherche-enfants").addEventListener("input", (e) => { rechercheEnfant = e.target.value; afficherCasesEnfants(); });
 
