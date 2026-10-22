@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.11.5",
+    "date": "2026-10-22",
+    "titre": "La maison au cœur devient l'icône de l'application",
+    "nouveautes": [
+      "Le raccourci sur lequel on clique pour ouvrir l'application a maintenant la même icône que celle du menu : la petite maison avec un cœur. Elle s'affiche aussi dans l'onglet du navigateur.",
+      "En haut du menu, la maison au cœur revient à la place de l'icône de Windows."
+    ]
+  },
+  {
     "version": "1.11.4",
     "date": "2026-10-22",
     "titre": "Menu des photos et sélection en glissant",

@@ -41,6 +41,7 @@ distribution/        ce que l'on copie dans le dossier « Programme » de l'util
 Lancer.bat           lanceur ciblé par le raccourci « Assistante Maternelle.lnk »
 VERSION              numéro de version comparé à celui de la branche stable (bandeau de mise à jour)
 tests/               scripts de test autonomes (pas de pytest)
+outils/              creer_icone.py (icône du raccourci tirée du logo)
 ```
 
 Sur le poste de l'utilisatrice, tout est dans `%LOCALAPPDATA%\assmat-gestion\` : `application\` (code,
@@ -258,9 +259,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   plus petite : centrée ; dès qu'une icône s'affiche, l'initiale est masquée (`.avec-image`) et le fond (transparence
   comprise) est un blanc teinté de la couleur principale du logo (`couleurPrincipale` sur un canvas, `fondTeinte`) ;
   aucune : initiale sur un pastel. Sur le tableau de bord et dans la rubrique.
-- Icône de l'application (en-tête du menu et onglet du navigateur) = celle du raccourci (`icones.ICONE_RACCOURCI`, à
-  garder identique à `IconLocation` dans installer.ps1) : icône de Windows, lue sur le poste par `/api/icone-application`
-  dans un programme à part (ctypes), gardée dans `donnees\icones\`, jamais copiée dans le dépôt ; sinon logo dessiné.
+- Icône de l'application : le logo du menu (maison au cœur, `svg.logo` d'index.html) est aussi l'icône du raccourci
+  (`app\web\icone.ico`, `IconLocation` dans installer.ps1) et de l'onglet (`app\web\icone.svg`). Si le logo change,
+  modifier `icone.svg` puis recréer l'.ico avec `outils/creer_icone.py`.
 - Sites d'activités = rubrique « Accès rapide » (onglet `acces-rapide`), mais la clé de module reste `activites`
   (paramètres existants). La rubrique « Activités » (ateliers) a l'onglet et la clé de module `ateliers`, les photos `photos`.
 - Dossier principal (`parametres.dossier_principal`, `parametres.SOUS_DOSSIERS`, `parametres.dossier(nom)`) : tout y

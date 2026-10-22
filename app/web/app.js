@@ -4068,17 +4068,7 @@ async function afficherNotesDisponibles(locale, distante) {
   $("#carte-nouvelle-version").classList.remove("cache");
 }
 
-// Icône du raccourci à la place du logo dessiné (gardé si Windows ne la donne pas).
-function afficherIconeApplication() {
-  const image = new Image();
-  image.className = "logo";
-  image.alt = "";
-  image.onload = () => $$(".marque svg.logo").forEach((svg) => svg.replaceWith(image.cloneNode()));
-  image.src = "/api/icone-application";
-}
-
 chargerParametres().then(afficherTableauDeBord);
-afficherIconeApplication();
 afficherPrincipal();
 afficherNotes();
 afficherBaremes();

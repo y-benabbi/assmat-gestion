@@ -688,16 +688,6 @@ def creer_app(port, jeton):
         reponse.headers["Cache-Control"] = "private, max-age=86400"
         return reponse
 
-    @app.get("/api/icone-application")
-    def icone_application():
-        """Icône du raccourci (lue dans Windows), pour l'en-tête et l'onglet du navigateur."""
-        contenu = icones.icone_application()
-        if not contenu:
-            return jsonify({"erreur": "Pas d'icône"}), 404
-        reponse = app.response_class(contenu, mimetype="image/png")
-        reponse.headers["Cache-Control"] = "private, max-age=86400"
-        return reponse
-
     @app.post("/api/sites")
     def enregistrer_sites():
         try:

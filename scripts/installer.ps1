@@ -75,7 +75,7 @@ try {
         $lnk.TargetPath = $Lanceur
         $lnk.WorkingDirectory = $Racine
         $lnk.WindowStyle = 7   # réduit : la fenêtre noire reste discrète
-        $lnk.IconLocation = "$env:SystemRoot\System32\imageres.dll,170"   # même icône dans l'en-tête : icones.ICONE_RACCOURCI
+        $lnk.IconLocation = "$(Join-Path $Racine "app\web\icone.ico"),0"   # logo du menu (outils\creer_icone.py)
         $lnk.Description = "Ouvrir l'application Assistante Maternelle"
         $lnk.Save()
         Ecrire-Ok "Raccourci : $(Join-Path $DossierProgramme $NomRaccourci)"
