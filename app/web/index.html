@@ -28,8 +28,12 @@
   <p class="categorie" data-categorie="familles">Mes familles</p>
   <button data-onglet="contrats" data-module="contrats">
     <span class="pic familles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="10" r="2.5"/><path d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M15 15.2c2.8-.4 5 1.3 6 4.8"/></svg></span>Familles et contrats</button>
-  <button data-onglet="activites" data-module="activites">
-    <span class="pic familles"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.6-1.2-2.8 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/></svg></span>Sites d'activités</button>
+  <button data-onglet="photos" data-module="photos">
+    <span class="pic familles"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg></span>Photos<span class="badge cache" id="badge-photos" title="Photos à trier"></span></button>
+  <button data-onglet="ateliers" data-module="ateliers">
+    <span class="pic familles"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.6-1.2-2.8 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/></svg></span>Activités</button>
+  <button data-onglet="acces-rapide" data-module="activites">
+    <span class="pic familles"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><path d="M16.75 13.5v6.5M13.5 16.75H20"/></svg></span>Accès rapide</button>
 
   <p class="categorie" data-categorie="demarches">Mes démarches</p>
   <button data-onglet="echeances" data-module="echeances">
@@ -50,7 +54,7 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu
   </button>
   <a class="marque marque-mobile" href="#" data-aller="accueil">Assistante Maternelle</a>
-  <nav class="sites-entete" id="sites-entete" data-module="activites" aria-label="Sites d'activités"></nav>
+  <nav class="sites-entete" id="sites-entete" data-module="activites" aria-label="Accès rapide"></nav>
   <div id="bandeau-maj" class="maj cache" role="status">
     <span class="point-maj" aria-hidden="true"></span>
     <span id="texte-maj"></span>
@@ -135,18 +139,19 @@
         </div>
 
         <div class="panneau" data-module="activites">
-          <div class="titre-bloc"><h2>Sites favoris pour les activités</h2><button class="lien" data-aller="activites">Gérer</button></div>
+          <div class="titre-bloc"><h2>Accès rapide</h2><button class="lien" data-aller="acces-rapide">Gérer</button></div>
           <div class="grille-sites" id="sites-accueil"></div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ======================= SITES D'ACTIVITÉS ======================= -->
-  <section id="activites" class="onglet">
-    <div class="titre-page"><h1>Sites d'activités</h1></div>
-    <p class="petit">Vos sites préférés pour préparer les activités des enfants : bricolages, recettes, coloriages,
-      comptines… Ils s'affichent aussi sur le tableau de bord. Un clic ouvre le site dans un nouvel onglet.</p>
+  <!-- ======================= ACCÈS RAPIDE (sites) ======================= -->
+  <section id="acces-rapide" class="onglet">
+    <div class="titre-page"><h1>Accès rapide</h1></div>
+    <p class="petit">Vos sites préférés, à portée de clic : idées d'activités, bricolages, recettes, coloriages,
+      comptines… Ils s'affichent aussi sur le tableau de bord et en haut de la page. Un clic ouvre le site dans un
+      nouvel onglet.</p>
     <div class="grille-sites grande" id="sites-grille"></div>
 
     <div class="panneau gestion-sites">
@@ -165,6 +170,110 @@
           <button type="button" class="lien" id="sites-defaut">Remettre les sites proposés</button>
         </div>
       </form>
+    </div>
+  </section>
+
+  <!-- ======================= PHOTOS ======================= -->
+  <section id="photos" class="onglet">
+    <div class="titre-page">
+      <h1>Photos</h1>
+      <div class="boutons-titre">
+        <button class="secondaire" id="actualiser-photos" data-picto="actualiser">Actualiser</button>
+        <button class="secondaire" data-ouvrir="photos" data-picto="dossier">Ouvrir le dossier</button>
+      </div>
+    </div>
+    <div class="panneau alerte cache" id="photos-sans-dossier">
+      <p>Choisissez d'abord le <strong>dossier principal</strong> : les photos y seront rangées, par famille puis par enfant.</p>
+      <button class="principal" data-aller="fonctionnalites">Ouvrir les Paramètres</button>
+    </div>
+    <p class="petit avertissement cache" id="photos-module"></p>
+
+    <div class="tri-photos" id="tri-photos">
+      <!-- À gauche : les photos rangées -->
+      <div class="panneau colonne-rangees">
+        <div class="titre-bloc"><h2>Rangées</h2><span class="petit" id="nb-rangees"></span></div>
+        <p class="petit">Glissez des photos sur un enfant pour les ranger. Avec <kbd>Ctrl</kbd>, l'enfant est
+          seulement ajouté à la sélection, pour répartir une photo entre plusieurs enfants.</p>
+        <div class="cases-enfants" id="cases-enfants"></div>
+        <div class="filtres-rangees">
+          <label>Activité <select id="filtre-activite"></select></label>
+          <button class="lien" id="tout-rangees">Tout sélectionner</button>
+        </div>
+        <div class="barre-selection cache" id="barre-rangees">
+          <span id="texte-rangees"></span>
+          <span class="actions-selection">
+            <label class="mise-en-page">Imprimer <select id="par-page">
+              <option value="16">16 par page (4 × 4)</option><option value="4">4 par page</option><option value="1">1 par page</option>
+            </select></label>
+            <button class="principal" id="imprimer-photos" data-picto="impression">Imprimer</button>
+            <button class="secondaire" id="modifier-rangees" data-picto="modifier">Changer les enfants</button>
+            <button class="secondaire" id="remettre-rangees" data-picto="annuler">Remettre à trier</button>
+            <button class="lien" id="deselectionner-rangees">Désélectionner</button>
+          </span>
+        </div>
+        <div class="editeur-rangees cache" id="editeur-rangees">
+          <p class="libelle">Qui est sur <span id="titre-editeur"></span> ?</p>
+          <div class="pastilles-enfants" id="pastilles-editeur"></div>
+          <label>Activité <select id="activite-editeur"></select></label>
+          <div class="boutons">
+            <button class="principal" id="enregistrer-editeur" data-picto="coche">Enregistrer</button>
+            <button class="secondaire" id="annuler-editeur">Annuler</button>
+          </div>
+        </div>
+        <div class="rangees-photos" id="grille-rangees"></div>
+      </div>
+
+      <!-- À droite : les photos à trier -->
+      <div class="panneau colonne-a-trier" id="colonne-a-trier">
+        <div class="titre-bloc"><h2>À trier <span class="badge cache" id="nb-a-trier"></span></h2>
+          <button class="lien" id="tout-a-trier">Tout sélectionner</button></div>
+        <div class="barre-tri" id="barre-tri">
+          <p class="consigne" id="consigne-tri">Cliquez sur des photos (ou sur l'heure d'un groupe), puis sur les enfants présents.</p>
+          <div class="pastilles-enfants" id="pastilles-tri"></div>
+          <div class="ligne-tri">
+            <label>Activité <select id="activite-tri"></select></label>
+            <span class="boutons">
+              <button class="principal" id="ranger" data-picto="coche" disabled>Ranger</button>
+              <button class="secondaire" id="ignorer" disabled>Ignorer</button>
+            </span>
+          </div>
+        </div>
+        <div id="groupes-a-trier" class="groupes-a-trier"></div>
+        <p class="zone-depot" id="zone-depot">Vous pouvez aussi glisser ici des photos depuis l'Explorateur : elles sont
+          copiées dans « À trier » (l'original reste où il est). Pour qu'elles soient déplacées, déposez-les plutôt
+          directement dans le dossier <button class="lien" data-ouvrir="a_trier">À trier</button>.</p>
+        <details class="mis-de-cote" id="bloc-hors">
+          <summary>Hors horaires <span id="nb-hors"></span></summary>
+          <p class="petit">Prises en dehors des horaires d'accueil (marge réglable dans les Paramètres). Elles restent où elles sont.</p>
+          <div class="grille-photos petite" id="grille-hors"></div>
+          <button class="secondaire" id="remettre-hors" disabled>Remettre à trier</button>
+        </details>
+        <details class="mis-de-cote" id="bloc-ignorees">
+          <summary>Ignorées <span id="nb-ignorees"></span></summary>
+          <p class="petit">Mises de côté avec « Ignorer ». Elles restent où elles sont.</p>
+          <div class="grille-photos petite" id="grille-ignorees"></div>
+          <button class="secondaire" id="remettre-ignorees" disabled>Remettre à trier</button>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================= ACTIVITÉS ======================= -->
+  <section id="ateliers" class="onglet">
+    <div class="titre-page">
+      <h1>Activités</h1>
+      <button class="principal" id="nouvelle-activite" data-picto="plus">Nouvelle activité</button>
+    </div>
+    <p class="petit">Vos activités, réutilisables d'une année à l'autre : ce qu'il faut préparer, les documents utiles
+      (modèles, coloriages…) et chaque séance réalisée. Les photos rangées avec une activité s'y retrouvent.</p>
+    <div class="panneau alerte cache" id="ateliers-sans-dossier">
+      <p>Les documents des activités sont rangés dans le <strong>dossier principal</strong> : choisissez-le d'abord.</p>
+      <button class="principal" data-aller="fonctionnalites">Ouvrir les Paramètres</button>
+    </div>
+    <input type="search" class="recherche" data-filtre="#liste-activites > li" placeholder="Rechercher une activité…">
+    <div class="ateliers">
+      <ul class="liste-activites" id="liste-activites"></ul>
+      <div class="panneau fiche-activite cache" id="fiche-activite"></div>
     </div>
   </section>
 
@@ -834,12 +943,34 @@
   <section id="fonctionnalites" class="onglet">
     <div class="titre-page"><h1>Paramètres</h1></div>
     <nav class="sommaire" aria-label="Sections des réglages">
+      <a href="#reglages-dossier">Dossier principal</a>
       <a href="#reglages-rubriques">Rubriques</a>
       <a href="#reglages-bulletins">Bulletins de salaire</a>
+      <a href="#reglages-photos">Photos</a>
       <a href="#reglages-revenus">Revenus et impôts</a>
       <a href="#reglages-courriers">Courriers</a>
       <a href="#reglages-avance">Avancé</a>
     </nav>
+    <div class="formulaire">
+      <fieldset id="reglages-dossier" class="dossier-principal">
+        <legend>Dossier principal</legend>
+        <p class="petit">L'application y crée et y range tout : bulletins de salaire, courriers, photos et vidéos,
+          activités, une sauvegarde de vos fiches et un dossier « À trier ». Choisissez un dossier de vos Documents
+          (pas dans OneDrive si possible).</p>
+        <p class="chemin-principal" id="chemin-principal"></p>
+        <ul class="arbre" id="arbre-principal"></ul>
+        <div class="boutons">
+          <button type="button" class="principal" id="choisir-principal" data-picto="dossier">Choisir le dossier principal</button>
+          <button type="button" class="secondaire cache" data-ouvrir="principal" data-picto="ouvrir">Ouvrir le dossier</button>
+        </div>
+        <div class="deplacement cache" id="deplacement" role="status">
+          <p id="texte-deplacement"></p>
+          <div class="progression"><div id="barre-deplacement"></div></div>
+          <p class="petit" id="fichier-deplacement"></p>
+          <ul class="petit danger" id="erreurs-deplacement"></ul>
+        </div>
+      </fieldset>
+    </div>
     <form id="form-parametres" class="formulaire suivi-modifs">
       <fieldset id="reglages-rubriques">
         <legend>Rubriques affichées</legend>
@@ -857,8 +988,12 @@
             <small>Demande de dérogation et autres lettres en PDF</small></span></label>
           <label class="interrupteur"><input type="checkbox" name="modules.impots"><span><strong>Impôts</strong>
             <small>Revenu à déclarer avec l'abattement, comparé au régime classique</small></span></label>
-          <label class="interrupteur"><input type="checkbox" name="modules.activites"><span><strong>Sites d'activités</strong>
-            <small>Vos sites d'idées d'activités, en raccourcis sur le tableau de bord</small></span></label>
+          <label class="interrupteur"><input type="checkbox" name="modules.photos"><span><strong>Photos</strong>
+            <small>Tri des photos et vidéos par enfant, impression pour le cahier d'activités</small></span></label>
+          <label class="interrupteur"><input type="checkbox" name="modules.ateliers"><span><strong>Activités</strong>
+            <small>Vos activités, ce qu'il faut préparer, leurs documents et les séances réalisées</small></span></label>
+          <label class="interrupteur"><input type="checkbox" name="modules.activites"><span><strong>Accès rapide</strong>
+            <small>Vos sites préférés, en raccourcis sur le tableau de bord et en haut de la page</small></span></label>
           <label class="interrupteur bientot"><input type="checkbox" disabled><span><strong>Suivi du mois, congés payés</strong>
             <small>Bientôt</small></span></label>
         </div>
@@ -876,12 +1011,7 @@
         <p class="petit" id="info-mdp"></p>
 
         <h3 class="sous-titre">Rangement</h3>
-        <label>Dossier des bulletins de salaire
-          <span class="ligne">
-            <input name="dossier_bulletins" placeholder="Choisissez un dossier…">
-            <button type="button" id="choisir-dossier" class="secondaire">Parcourir…</button>
-          </span>
-        </label>
+        <p class="petit">Les bulletins sont rangés dans le dossier « Bulletins de salaire » du dossier principal.</p>
         <div class="organisation" role="radiogroup" aria-labelledby="titre-organisation">
           <p id="titre-organisation" class="libelle">Classer les bulletins</p>
           <div class="choix-organisation">
@@ -912,6 +1042,25 @@
         <textarea name="correspondances" rows="4" placeholder="M. DUPONT JEAN = Dupont"></textarea>
       </fieldset>
 
+      <fieldset id="reglages-photos">
+        <legend>Photos</legend>
+        <h3 class="sous-titre">Où arrivent vos photos</h3>
+        <p class="petit">Dossiers où se trouvent les photos à trier, par exemple « iCloud Photos » ou le dossier où
+          le téléphone copie ses photos. Une photo rangée est <strong>déplacée</strong> : elle disparaît de ce dossier
+          (et du téléphone s'il est synchronisé). Le dossier « À trier » du dossier principal est toujours lu.</p>
+        <ul class="liste-dossiers" id="dossiers-photos"></ul>
+        <button type="button" class="secondaire" id="ajouter-dossier-photos" data-picto="plus">Ajouter un dossier</button>
+        <h3 class="sous-titre">Photos prises en dehors des horaires</h3>
+        <p class="petit">Une photo prise en dehors des horaires d'accueil des contrats est mise de côté (« Hors
+          horaires ») : elle ne s'affiche pas dans les photos à trier. La marge ajoute un peu de temps avant
+          l'arrivée et après le départ.</p>
+        <div class="ligne marge">
+          <label>Marge <input type="number" id="marge-valeur" min="0" max="24" step="1" inputmode="numeric"></label>
+          <label>Unité <select id="marge-unite"><option value="1">minutes</option><option value="60">heures</option></select></label>
+          <input type="hidden" name="marge_photos">
+        </div>
+      </fieldset>
+
       <fieldset id="reglages-revenus">
         <legend>Revenus et impôts</legend>
         <div class="choix-organisation" role="radiogroup" aria-label="Déclaration de revenus">
@@ -928,10 +1077,8 @@
 
       <fieldset id="reglages-courriers">
         <legend>Courriers</legend>
-        <label>Dossier où ranger les courriers créés
-          <input name="dossier_courriers" placeholder="Par défaut : dossier « Courriers » à côté des bulletins">
-        </label>
-        <p class="petit">Les champs utilisés par les courriers (nom, adresse, agrément…) se remplissent dans
+        <p class="petit">Les courriers et contrats créés sont rangés dans le dossier « Courriers » du dossier principal.
+          Les champs utilisés par les courriers (nom, adresse, agrément…) se remplissent dans
           <button type="button" class="lien" data-aller="profil">Mon profil</button>.</p>
       </fieldset>
 
@@ -978,7 +1125,7 @@
         <summary><span class="numero">D'où viennent les chiffres ?</span></summary>
         <ul>
           <li><strong>Salaires, cotisations, indemnités, heures et jours</strong> : ils sont lus dans les bulletins de
-            salaire PDF rangés dans votre dossier des bulletins. Ce sont donc les montants que les familles ont déclarés
+            salaire PDF rangés dans le dossier « Bulletins de salaire ». Ce sont donc les montants que les familles ont déclarés
             sur Pajemploi, recopiés tels quels.</li>
           <li><strong>Quand sont-ils mis à jour ?</strong> Pas en temps réel depuis Pajemploi : à chaque ouverture du
             tableau de bord, des revenus ou des impôts, l'application regarde le dossier et lit les bulletins nouveaux ou
@@ -1107,6 +1254,34 @@
         <p class="petit">Ces calculs aident à préparer les démarches ; ils ne remplacent pas les notices officielles
           (impots.gouv.fr, Pajemploi). En cas de doute, le relais petite enfance ou le centre des impôts peuvent vous
           renseigner.</p>
+      </details>
+      <details class="note-version">
+        <summary><span class="numero">Où sont rangés vos fichiers ? Comment sont triées les photos ?</span></summary>
+        <ul>
+          <li><strong>Dossier principal</strong> : choisi dans les Paramètres, il contient tout ce que l'application crée
+            ou range : « Bulletins de salaire », « Courriers », « Photos et vidéos », « Activités », « À trier » et
+            « Sauvegarde ». En le choisissant (ou en en changeant), les fichiers des anciens dossiers y sont déplacés un
+            par un ; un fichier n'est retiré de l'ancien emplacement qu'une fois sa copie vérifiée.</li>
+          <li><strong>Sauvegarde</strong> : une fois par jour, vos fiches (profil, familles, contrats, activités…) sont
+            copiées dans « Sauvegarde », dans un dossier à la date du jour. Les 30 dernières copies sont gardées.</li>
+          <li><strong>Photos à trier</strong> : celles des dossiers choisis dans les Paramètres (par exemple iCloud Photos)
+            et du dossier « À trier ». La date de prise de vue est lue dans la photo (ou dans l'en-tête de la vidéo).</li>
+          <li><strong>Hors horaires</strong> : une photo prise un jour et à une heure où aucun enfant n'est accueilli d'après
+            les emplois du temps des contrats (avenants compris, horaires scolaires ou de vacances), marge comprise, est mise
+            de côté. Les enfants proposés pour une photo sont ceux accueillis à ce moment-là ; sans date, ceux dont le
+            contrat est en cours.</li>
+          <li><strong>Moments</strong> : les photos prises à moins de 10 minutes d'écart, le même jour, sont regroupées.</li>
+          <li><strong>Rangement</strong> : une copie par enfant dans « Photos et vidéos\Famille\Enfant\Année », nommée
+            « Prénom - Activité - Photo 0042 ». Le numéro est unique : toutes les copies d'une même photo le partagent, elle
+            n'apparaît donc qu'une fois. La photo est ensuite retirée du dossier d'origine (et donc du téléphone s'il est
+            synchronisé). Une photo déposée à la main dans le rangement reçoit un numéro au prochain affichage.</li>
+          <li><strong>Photos d'iPhone (HEIC)</strong> : converties en JPEG pour l'affichage et l'impression ; l'original est
+            gardé dans « Format source », au même endroit et sous le même nom.</li>
+          <li><strong>Doublons</strong> : une photo au contenu identique à une photo déjà rangée est signalée « Déjà rangée » ;
+            la ranger complète simplement la photo existante.</li>
+          <li><strong>Métadonnées</strong> : le numéro, l'activité et la séance sont aussi écrits dans les informations
+            (XMP) des photos JPEG, sans toucher à l'image.</li>
+        </ul>
       </details>
       <details class="note-version">
         <summary><span class="numero">Barèmes utilisés</span></summary>

@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.11.0",
+    "date": "2026-10-22",
+    "titre": "Photos, activités et un dossier principal",
+    "nouveautes": [
+      "Un seul dossier pour tout : choisissez votre « dossier principal » dans les Paramètres. L'application y crée Bulletins de salaire, Courriers, Photos et vidéos, Activités, À trier et Sauvegarde, et y déplace vos bulletins et courriers déjà rangés (une barre montre l'avancement).",
+      "Nouvelle rubrique « Photos » : les photos et vidéos de vos dossiers (par exemple iCloud) arrivent à droite, regroupées par moment. Cliquez sur le prénom d'un enfant, ou glissez les photos sur son nom, pour les ranger dans Famille > Enfant > Année. Ctrl en glissant ajoute un enfant de plus : la photo est rangée pour chacun.",
+      "Les enfants proposés sont ceux présents à l'heure de la photo d'après leur contrat. Les photos prises en dehors des horaires d'accueil sont mises de côté (marge réglable dans les Paramètres), et celles qui ne concernent personne peuvent être ignorées.",
+      "Chaque photo rangée porte un numéro dans son nom (« LÉA - Peinture - Photo 0012 »). Les photos de l'iPhone (HEIC) sont enregistrées en JPEG ; l'original est gardé dans un dossier « Format source ». Les doublons sont reconnus.",
+      "Vous pouvez aussi déposer des photos depuis l'Explorateur sur la page : elles sont copiées, l'original reste en place.",
+      "Impression : choisissez des photos rangées et imprimez-les en grand, 4 ou 16 par page A4.",
+      "Nouvelle rubrique « Activités » : une fiche par activité (description, choses à préparer, documents utiles), et chaque séance datée apparaît dans l'agenda avec ce qu'il reste à préparer. Les photos rangées avec une activité y sont rattachées.",
+      "L'ancienne rubrique des sites d'activités s'appelle maintenant « Accès rapide ».",
+      "Une copie de vos fiches est faite chaque jour dans le dossier « Sauvegarde » (les 30 dernières sont gardées)."
+    ]
+  },
+  {
     "version": "1.10.0",
     "date": "2026-10-22",
     "titre": "Une nouvelle présentation, plus douce",

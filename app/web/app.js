@@ -48,6 +48,11 @@ const PICTOS = {
   maison: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/>',
   telephone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   courriel: '<path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/>',
+  appareil: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+  video: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',
+  impression: '<path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+  annuler: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
+  activite: '<path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.6-1.2-2.8 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/>',
 };
 const picto = (nom) => `<svg class="picto" viewBox="0 0 24 24" aria-hidden="true">${PICTOS[nom]}</svg>`;
 // Pastille colorée selon la catégorie du menu : argent (menthe), familles (lavande), demarches (beurre), moi (rose).
@@ -75,7 +80,10 @@ function ouvrirOnglet(nom) {
   if (nom === "echeances") afficherEcheances();
   if (nom === "courriers") preparerCourriers();
   if (nom === "profil") chargerProfil();
-  if (nom === "activites") afficherSites();
+  if (nom === "acces-rapide") afficherSites();
+  if (nom === "photos") afficherPhotos();
+  if (nom === "ateliers") afficherAteliers();
+  if (nom === "fonctionnalites") afficherPrincipal();
 }
 $("#bouton-menu").addEventListener("click", (e) => {
   e.stopPropagation();
@@ -450,10 +458,16 @@ async function chargerParametres() {
   $("#info-mdp").textContent = p.mot_de_passe_enregistre
     ? "Mot de passe enregistré de façon sécurisée dans Windows. Laissez vide pour le conserver."
     : "Le mot de passe sera rangé dans le Gestionnaire d'identifiants de Windows (jamais dans un fichier).";
+  dossiersPhotos = [...(p.dossiers_photos || [])];
+  afficherDossiersPhotos();
+  const marge = Number(p.marge_photos ?? 30);
+  $("#marge-unite").value = marge && marge % 60 === 0 ? "60" : "1";
+  $("#marge-valeur").value = marge / Number($("#marge-unite").value);
+  form.elements.marge_photos.value = marge;
+  parametresActuels = p;
   apercu();
   sansModifs(form);
-  parametresActuels = p;
-  if (p.modules?.bulletins !== false && (!p.identifiant || !p.dossier_bulletins)) ouvrirOnglet("fonctionnalites");
+  if (!p.dossier_principal || (p.modules?.bulletins !== false && !p.identifiant)) ouvrirOnglet("fonctionnalites");
 }
 
 // Arborescence d'exemple : [["Dupont", "2025", "Bulletin….pdf"], …] -> listes imbriquées.
@@ -474,20 +488,45 @@ function arbreHtml(fichiers) {
 
 async function apercu() {
   const r = await api("apercu-nom", {
-    dossier_bulletins: form.elements.dossier_bulletins.value,
+    dossier_bulletins: parametresActuels.dossier_bulletins || "Bulletins de salaire",
     format_fichier: form.elements.format_fichier.value,
     organisation: form.elements.organisation.value || "client",
   }).catch(() => null);
   if (r) $("#apercu").innerHTML = `<li class="dossier"><span>${echapper(r.racine)}</span><ul>${arbreHtml(r.fichiers)}</ul></li>`;
 }
-form.elements.dossier_bulletins.addEventListener("input", apercu);
 form.elements.format_fichier.addEventListener("input", apercu);
 $$("input[name=organisation]").forEach((r) => r.addEventListener("change", apercu));
 
-$("#choisir-dossier").addEventListener("click", async () => {
-  const r = await api("choisir-dossier", {});
-  if (r.chemin) { form.elements.dossier_bulletins.value = r.chemin; form.classList.add("modifie"); apercu(); }
+// Dossiers où arrivent les photos (iCloud…) : liste modifiée ici, enregistrée avec les autres réglages.
+let dossiersPhotos = [];
+function afficherDossiersPhotos() {
+  $("#dossiers-photos").innerHTML = dossiersPhotos.length ? dossiersPhotos.map((d, i) => `<li>${picto("dossier")}<span>${echapper(d)}</span>
+    <button type="button" class="action danger" data-retirer-dossier="${i}">${picto("supprimer")}Retirer</button></li>`).join("")
+    : `<li class="petit">Aucun dossier pour l'instant : seul « À trier » est lu.</li>`;
+}
+$("#dossiers-photos").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-retirer-dossier]");
+  if (!b) return;
+  dossiersPhotos.splice(+b.dataset.retirerDossier, 1);
+  afficherDossiersPhotos();
+  form.classList.add("modifie");
 });
+$("#ajouter-dossier-photos").addEventListener("click", async () => {
+  const r = await api("choisir-dossier", { titre: "Dossier où arrivent vos photos" })
+    .catch(() => ({ chemin: prompt("Chemin complet du dossier où arrivent vos photos :") }));
+  if (r?.chemin && !dossiersPhotos.includes(r.chemin)) {
+    dossiersPhotos.push(r.chemin);
+    afficherDossiersPhotos();
+    form.classList.add("modifie");
+  }
+});
+const lireMarge = () => {
+  const unite = Number($("#marge-unite").value);
+  $("#marge-valeur").max = unite === 60 ? 24 : 600;
+  form.elements.marge_photos.value = Math.max(0, Math.round(nombreFr($("#marge-valeur").value) * unite));
+};
+$("#marge-valeur").addEventListener("input", lireMarge);
+$("#marge-unite").addEventListener("change", lireMarge);
 form.querySelector(".annuler-modifs").addEventListener("click", () => chargerParametres());
 
 form.addEventListener("submit", async (e) => {
@@ -500,6 +539,8 @@ form.addEventListener("submit", async (e) => {
     else d[champ.name] = valeur;
   }
   if (!d.mot_de_passe) delete d.mot_de_passe;
+  d.dossiers_photos = dossiersPhotos;
+  d.marge_photos = Number(d.marge_photos || 0);
   try {
     await api("parametres", d);
     $("#enregistre").textContent = "Réglages enregistrés.";
@@ -651,6 +692,14 @@ async function afficherTableauDeBord() {
       aFaire.push({ picto: "impots", categorie: "argent", aller: "impots", bouton: imp.a_confirmer ? "Confirmer les jours" : "Voir le montant",
         texte: imp.a_confirmer ? `Déclaration des revenus ${imp.annee} : ${imp.a_confirmer} mois de garde à confirmer`
           : `Déclaration des revenus ${imp.annee} : montant à déclarer prêt (${euros(imp.total[imp.total.meilleur])})` });
+  }
+  if (!parametresActuels.dossier_principal)
+    aFaire.push({ picto: "dossier", categorie: "moi", aller: "fonctionnalites", bouton: "Choisir le dossier",
+      texte: "Choisissez le dossier principal", detail: "Bulletins, courriers, photos et activités y seront rangés." });
+  if (modules.photos !== false && parametresActuels.dossier_principal) {
+    const n = await compterPhotos();
+    if (n) aFaire.push({ picto: "appareil", categorie: "familles", aller: "photos", bouton: "Trier les photos",
+      texte: `${n} photo${n > 1 ? "s" : ""} à trier`, detail: "Indiquez quels enfants sont sur chaque photo : l'application les range." });
   }
   if (!profil.nom || !profil.agrement_numero)
     aFaire.push({ picto: "profil", categorie: "moi", aller: "profil", bouton: "Compléter mon profil",
@@ -991,8 +1040,9 @@ async function afficherBaremes() {
 // Pictogramme (et couleur de catégorie) de chaque type d'échéance, et libellé du lien vers la rubrique où agir.
 const PICTO_ECHEANCE = { bulletins: ["bulletin", "argent"], impots: ["impots", "argent"], agrement: ["agrement", "demarches"],
   assurance: ["assurance", "demarches"], conges: ["calendrier", "familles"], contrat: ["contrat", "familles"],
-  anniversaire: ["anniversaire", "familles"] };
-const ACTION_ECHEANCE = { bulletins: "Bulletins", profil: "Mon profil", impots: "Impôts", contrats: "Familles", courriers: "Courriers" };
+  anniversaire: ["anniversaire", "familles"], activite: ["activite", "familles"] };
+const ACTION_ECHEANCE = { bulletins: "Bulletins", profil: "Mon profil", impots: "Impôts", contrats: "Familles", courriers: "Courriers",
+  ateliers: "Activités" };
 
 function dateCourte(iso) {
   const d = new Date(iso + "T12:00:00");
@@ -2381,7 +2431,7 @@ async function afficherSites() {
     $(sel).innerHTML = sites.map(tuileSite).join("") + ajout;
     surveillerIcones($(sel));
     $(sel).querySelector("[data-ajouter-site]").addEventListener("click", () => {
-      ouvrirOnglet("activites");
+      ouvrirOnglet("acces-rapide");
       editerSite(-1);
       $("#form-site").scrollIntoView({ behavior: "smooth", block: "center" });
     });
@@ -2577,6 +2627,672 @@ formTexte.addEventListener("submit", async (e) => {
   bouton.disabled = false; bouton.textContent = "Créer le PDF";
 });
 
+// ------------------------------------------------------------- dossier principal
+// Un seul dossier choisi par l'utilisatrice : l'application y crée Bulletins de salaire, Courriers, Photos et vidéos,
+// Activités, À trier et Sauvegarde. En le choisissant, les anciens dossiers y sont déplacés (barre de progression).
+let suiviDeplacement = null;
+const nomDossier = (chemin) => String(chemin || "").split(/[\\/]/).filter(Boolean).pop() || chemin;
+
+async function afficherPrincipal() {
+  const r = await api("principal").catch(() => null);
+  if (!r) return;
+  const choisi = !!r.principal;
+  $("#chemin-principal").innerHTML = choisi ? `${picto("dossier")}<strong>${echapper(r.principal)}</strong>`
+    : `Pas encore choisi.${r.anciens.length ? ` Vos fichiers actuels (${r.anciens.map(echapper).join(", ")}) y seront déplacés.` : ""}`;
+  $("#arbre-principal").innerHTML = choisi ? `<li class="dossier"><span>${echapper(nomDossier(r.principal))}</span><ul>${
+    r.sous_dossiers.map((d) => `<li class="dossier"><span>${echapper(d)}</span></li>`).join("")}</ul></li>` : "";
+  $("#choisir-principal").lastChild.textContent = choisi ? "Changer de dossier" : "Choisir le dossier principal";
+  $("#choisir-principal").className = choisi ? "secondaire" : "principal";
+  $('#reglages-dossier [data-ouvrir="principal"]').classList.toggle("cache", !choisi);
+  afficherDeplacement(r.deplacement);
+  if (r.deplacement.en_cours) suivreDeplacement();
+}
+
+function afficherDeplacement(d) {
+  const visible = d.en_cours || d.termine;
+  $("#deplacement").classList.toggle("cache", !visible);
+  $("#choisir-principal").disabled = !!d.en_cours;
+  if (!visible) return;
+  $("#texte-deplacement").textContent = d.en_cours && d.total ? `Déplacement des fichiers : ${d.fait} sur ${d.total}` : d.message;
+  $("#barre-deplacement").style.width = `${d.total ? (100 * d.fait) / d.total : d.en_cours ? 5 : 100}%`;
+  $("#fichier-deplacement").textContent = d.en_cours ? d.fichier : "";
+  $("#erreurs-deplacement").innerHTML = (d.erreurs || []).map((e) => `<li>${echapper(e)}</li>`).join("");
+}
+
+function suivreDeplacement() {
+  clearInterval(suiviDeplacement);
+  suiviDeplacement = setInterval(async () => {
+    const d = (await api("principal").catch(() => null))?.deplacement;
+    if (!d) return;
+    afficherDeplacement(d);
+    if (!d.en_cours) {
+      clearInterval(suiviDeplacement);
+      dossierLocal = null;
+      await chargerParametres();
+      afficherPrincipal();
+    }
+  }, 600);
+}
+
+$("#choisir-principal").addEventListener("click", async () => {
+  const info = await api("principal").catch(() => null);
+  // Sans fenêtre de choix (tkinter absent), le chemin se saisit à la main.
+  const r = await api("choisir-dossier", { titre: "Dossier principal de l'application" })
+    .catch(() => ({ chemin: prompt("Chemin complet du dossier principal (par exemple C:\\Users\\…\\Documents\\Assistante maternelle) :", info?.proposition || "") }));
+  if (!info || !r?.chemin || r.chemin === info.principal) return;
+  const deplaces = info.principal ? [info.principal] : info.anciens;
+  if (!confirm(`Tout ranger dans « ${r.chemin} » ?` + (deplaces.length
+    ? `\n\nLes fichiers rangés dans ${deplaces.join(", ")} (bulletins, courriers…) y seront déplacés. Cela peut prendre quelques minutes.` : ""))) return;
+  try {
+    afficherDeplacement(await api("principal", { chemin: r.chemin }));
+    suivreDeplacement();
+  } catch (e) { alert(e.message); }
+});
+
+// ------------------------------------------------------------- photos
+// À droite les photos à trier (groupées par moment), à gauche les photos rangées (une case par enfant). On choisit des
+// photos, puis les enfants présents (proposés d'après les horaires des contrats) et éventuellement une activité.
+// Glisser des photos sur un enfant les range pour lui seul ; avec Ctrl, l'enfant est ajouté au choix pour répartir.
+let donneesPhotos = null;
+let activitesConnues = [];
+let groupesCourants = [];
+const selTri = new Set();          // clés des photos à trier choisies
+const selRangees = new Set();      // numéros des photos rangées choisies
+const selHors = new Set(), selIgnorees = new Set();
+const enfantsTri = new Set();      // enfants choisis pour « Ranger »
+let tousLesEnfants = false;        // « Autre enfant… » : toutes les fiches sont proposées
+let filtreEnfant = "", filtreActivite = "";
+let derniereCle = null;
+const ECART_GROUPE = 10 * 60000;   // photos prises à moins de 10 minutes d'écart : un même moment
+
+const heureFr = (iso) => (iso ? new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "");
+const jourLong = (jour) => new Date(jour + "T12:00:00").toLocaleDateString("fr-FR",
+  { weekday: "long", day: "numeric", month: "long", year: "numeric" }).replace(/^./, (c) => c.toUpperCase());
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+
+function badgePhotos() {
+  const n = donneesPhotos?.a_trier.length || 0;
+  $("#badge-photos").textContent = n;
+  $("#badge-photos").classList.toggle("cache", !n);
+}
+
+async function compterPhotos() {
+  const d = await api("photos").catch(() => null);
+  if (d) { donneesPhotos = d; badgePhotos(); }
+  return d?.a_trier.length || 0;
+}
+
+const enfantPar = (id) => donneesPhotos?.enfants.find((e) => e.id === id);
+const initialeEnfant = (e) => `<span class="initiale ${couleurEnfant(e.prenom)}" aria-hidden="true">${echapper((e.prenom || "?").charAt(0).toUpperCase())}</span>`;
+
+function vignette(e, attribut, choisie, etiquette = "") {
+  const src = e.cle ? `/api/photos/miniature?cle=${e.cle}` : `/api/photos/miniature?numero=${e.numero}`;
+  const media = e.genre === "video" ? `<span class="icone-video">${picto("video")}<small>${heureFr(e.date) || "Vidéo"}</small></span>`
+    : `<img loading="lazy" alt="" src="${src}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
+  const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "date de prise de vue inconnue";
+  const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Double-clic : ouvrir.`;
+  return `<button type="button" class="vignette${choisie ? " choisie" : ""}" ${attribut} draggable="true" aria-pressed="${choisie}"
+    title="${echapper(titre)}">${media}<span class="coche-vignette" aria-hidden="true">${picto("coche")}</span>${etiquette}</button>`;
+}
+
+// Photos prises à moins de 10 minutes d'écart, le même jour : un groupe. Les photos sans date à la fin.
+function grouper(liste) {
+  const res = [];
+  let courant = null, precedent = 0;
+  liste.filter((e) => e.date).forEach((e) => {
+    const t = new Date(e.date).getTime();
+    if (!courant || t - precedent > ECART_GROUPE || e.date.slice(0, 10) !== courant.jour) res.push(courant = { jour: e.date.slice(0, 10), elements: [] });
+    courant.elements.push(e);
+    precedent = t;
+  });
+  const sans = liste.filter((e) => !e.date);
+  if (sans.length) res.push({ jour: "", elements: sans });
+  return res;
+}
+
+async function afficherPhotos() {
+  const [d, at] = await Promise.all([api("photos").catch((e) => { alert(e.message); return null; }),
+    api("ateliers").catch(() => ({ activites: [] }))]);
+  if (!d) return;
+  donneesPhotos = d;
+  activitesConnues = at.activites || [];
+  const cles = new Set([...d.a_trier, ...d.hors_horaires, ...d.ignorees].map((e) => e.cle));
+  [selTri, selHors, selIgnorees].forEach((sel) => [...sel].forEach((c) => cles.has(c) || sel.delete(c)));
+  const numeros = new Set(d.rangees.map((r) => r.numero));
+  [...selRangees].forEach((n) => numeros.has(n) || selRangees.delete(n));
+  $("#photos-sans-dossier").classList.toggle("cache", d.configure);
+  $("#tri-photos").classList.toggle("cache", !d.configure);
+  $("#photos-module").classList.toggle("cache", !d.module_absent);
+  $("#photos-module").textContent = d.module_absent ? `Le module ${d.module_absent} est en cours d'installation : les dates et les
+    aperçus des photos seront disponibles au prochain démarrage de l'application.` : "";
+  badgePhotos();
+  afficherATrier();
+  afficherRangees();
+  afficherMisDeCote();
+}
+
+function afficherATrier() {
+  const liste = donneesPhotos.a_trier;
+  $("#nb-a-trier").textContent = liste.length;
+  $("#nb-a-trier").classList.toggle("cache", !liste.length);
+  groupesCourants = grouper(liste);
+  let html = "", jour = null;
+  groupesCourants.forEach((g, i) => {
+    if (g.jour !== jour) {
+      jour = g.jour;
+      html += `<h3 class="jour-photos">${g.jour ? jourLong(g.jour) : "Sans date de prise de vue"}</h3>`;
+    }
+    const debut = heureFr(g.elements[0].date), fin = heureFr(g.elements.at(-1).date);
+    const heure = g.jour ? (fin !== debut ? `${debut} – ${fin}` : debut) : "";
+    html += `<div class="groupe-photos"><button type="button" class="titre-groupe" data-groupe="${i}" title="Choisir tout ce moment">${
+      heure ? `<strong>${heure}</strong> · ` : ""}${pluriel(g.elements.length, g.elements.every((e) => e.genre === "video") ? "vidéo" : "élément")}</button>
+      <div class="grille-photos">${g.elements.map((e) => vignette(e, `data-cle="${e.cle}"`, selTri.has(e.cle),
+        e.doublon ? `<span class="etiquette" title="Déjà rangée sous le numéro ${e.doublon}">Déjà rangée</span>` : "")).join("")}</div></div>`;
+  });
+  const sources = donneesPhotos.sources.map((s) => `« ${echapper(nomDossier(s))} »`).join(", ");
+  $("#groupes-a-trier").innerHTML = html || `<p class="vide-photos">${picto("coche")}Aucune photo à trier.
+    <span class="petit">Dossiers lus : ${sources || "aucun"}. Ajoutez le dossier où arrivent vos photos dans les
+    <button class="lien" data-aller-photos="fonctionnalites">Paramètres</button>.</span></p>`;
+  $$("[data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
+  afficherBarreTri();
+}
+
+const pastilleEnfant = (e, choisi) => `<button type="button" class="pastille-enfant" data-enfant="${e.id}" aria-pressed="${choisi}">
+  ${initialeEnfant(e)}<span>${echapper(e.prenom)}<small>${echapper(e.famille)}</small></span>${choisi ? picto("coche") : ""}</button>`;
+
+function afficherBarreTri() {
+  const choisies = donneesPhotos.a_trier.filter((e) => selTri.has(e.cle));
+  const proposes = new Set([...choisies.flatMap((e) => e.proposes), ...enfantsTri]);
+  const tous = donneesPhotos.enfants;
+  const visibles = tousLesEnfants ? tous : tous.filter((e) => proposes.has(e.id));
+  $("#pastilles-tri").innerHTML = choisies.length || enfantsTri.size ? visibles.map((e) => pastilleEnfant(e, enfantsTri.has(e.id))).join("")
+    + (visibles.length < tous.length ? `<button type="button" class="lien autres-enfants" data-autres-enfants>Autre enfant…</button>` : "") : "";
+  $("#consigne-tri").innerHTML = choisies.length
+    ? `<strong>${pluriel(choisies.length, "élément")} choisi${choisies.length > 1 ? "s" : ""}</strong> : qui est dessus ?`
+    : "Cliquez sur des photos (ou sur l'heure d'un groupe), puis sur les enfants présents.";
+  $("#ranger").disabled = !choisies.length || !enfantsTri.size;
+  $("#ignorer").disabled = !choisies.length;
+  $("#ranger").lastChild.textContent = enfantsTri.size > 1 ? `Ranger pour ${enfantsTri.size} enfants` : "Ranger";
+  remplirActivites($("#activite-tri"), choisies.map((e) => (e.date || "").slice(0, 10)).filter(Boolean));
+  $("#barre-tri").classList.toggle("active", choisies.length > 0);
+}
+
+// Liste des activités : séances des jours concernés, puis toutes les activités (une séance est créée à cette date).
+function remplirActivites(select, jours, toutesSeances = false, valeur = select.value) {
+  const seances = activitesConnues.flatMap((a) => a.seances.map((s) => ({ ...s, titre: a.titre })));
+  const utiles = seances.filter((s) => toutesSeances || jours.includes(s.date));
+  select.innerHTML = `<option value="">Aucune activité</option>`
+    + (utiles.length ? `<optgroup label="${toutesSeances ? "Séances" : "Séances de ce jour"}">${utiles.map((s) =>
+      `<option value="s:${s.id}">${echapper(s.titre)} (${dateCourte(s.date)})</option>`).join("")}</optgroup>` : "")
+    + (activitesConnues.length ? `<optgroup label="Activités">${activitesConnues.map((a) =>
+      `<option value="a:${a.id}">${echapper(a.titre)}</option>`).join("")}</optgroup>` : "")
+    + `<option value="nouvelle">Nouvelle activité…</option>`;
+  select.value = [...select.options].some((o) => o.value === valeur) ? valeur : "";
+}
+
+// Séance correspondant au choix (créée si besoin à la date de la photo) ; null si on renonce.
+async function seanceChoisie(select, jour) {
+  const v = select.value;
+  if (!v) return "";
+  if (v.startsWith("s:")) return v.slice(2);
+  let activite = v.slice(2);
+  if (v === "nouvelle") {
+    const titre = prompt("Titre de la nouvelle activité (vous pourrez la compléter dans la rubrique Activités) :");
+    if (!titre?.trim()) { select.value = ""; return null; }
+    activite = (await api("ateliers", { titre: titre.trim() })).id;
+  }
+  const s = await api("ateliers/seance", { activite, date: jour || isoJour(new Date()) });
+  activitesConnues = (await api("ateliers")).activites;
+  // La nouvelle activité reste choisie pour les photos suivantes.
+  remplirActivites(select, [], select.id === "activite-editeur", `a:${activite}`);
+  return s.id;
+}
+
+function majVignettes(zone, sel, attr) {
+  $$(`${zone} [${attr}]`).forEach((v) => {
+    const oui = sel.has(v.getAttribute(attr));
+    v.classList.toggle("choisie", oui);
+    v.setAttribute("aria-pressed", String(oui));
+  });
+}
+
+// Clic : choisir / retirer ; Maj + clic : toute la suite depuis le dernier clic.
+function basculer(sel, cle, etendre, ordre) {
+  if (etendre && derniereCle && ordre.includes(derniereCle)) {
+    const [a, b] = [ordre.indexOf(derniereCle), ordre.indexOf(cle)].sort((x, y) => x - y);
+    ordre.slice(a, b + 1).forEach((c) => sel.add(c));
+  } else if (sel.has(cle)) sel.delete(cle);
+  else sel.add(cle);
+  derniereCle = cle;
+}
+
+$("#groupes-a-trier").addEventListener("click", (e) => {
+  const g = e.target.closest("[data-groupe]");
+  if (g) {
+    const els = groupesCourants[+g.dataset.groupe].elements;
+    const tous = els.every((x) => selTri.has(x.cle));
+    els.forEach((x) => (tous ? selTri.delete(x.cle) : selTri.add(x.cle)));
+  } else {
+    const v = e.target.closest("[data-cle]");
+    if (!v) return;
+    basculer(selTri, v.dataset.cle, e.shiftKey, donneesPhotos.a_trier.map((x) => x.cle));
+  }
+  majVignettes("#groupes-a-trier", selTri, "data-cle");
+  afficherBarreTri();
+});
+$("#tout-a-trier").addEventListener("click", () => {
+  const tous = donneesPhotos.a_trier.every((x) => selTri.has(x.cle));
+  donneesPhotos.a_trier.forEach((x) => (tous ? selTri.delete(x.cle) : selTri.add(x.cle)));
+  majVignettes("#groupes-a-trier", selTri, "data-cle");
+  afficherBarreTri();
+});
+$("#pastilles-tri").addEventListener("click", (e) => {
+  if (e.target.closest("[data-autres-enfants]")) { tousLesEnfants = true; afficherBarreTri(); return; }
+  const b = e.target.closest("[data-enfant]");
+  if (!b) return;
+  enfantsTri.has(b.dataset.enfant) ? enfantsTri.delete(b.dataset.enfant) : enfantsTri.add(b.dataset.enfant);
+  afficherBarreTri();
+});
+
+async function rangerSelection(enfants) {
+  const choisies = donneesPhotos.a_trier.filter((e) => selTri.has(e.cle));
+  if (!choisies.length || !enfants.length) return;
+  const jour = choisies.map((e) => e.date).filter(Boolean).sort()[0]?.slice(0, 10);
+  let seance;
+  try { seance = await seanceChoisie($("#activite-tri"), jour); } catch (err) { alert(err.message); return; }
+  if (seance === null) return;
+  $("#ranger").disabled = true;
+  document.body.classList.add("occupe");
+  try {
+    const r = await api("photos/ranger", { cles: choisies.map((e) => e.cle), enfants, seance });
+    if (r.erreurs.length) alert(r.erreurs.join("\n"));
+  } catch (err) { alert(err.message); }
+  document.body.classList.remove("occupe");
+  selTri.clear();
+  enfantsTri.clear();
+  tousLesEnfants = false;
+  await afficherPhotos();
+}
+$("#ranger").addEventListener("click", () => rangerSelection([...enfantsTri]));
+$("#ignorer").addEventListener("click", async () => {
+  await api("photos/ignorer", { cles: [...selTri], ignorer: true }).catch((e) => alert(e.message));
+  selTri.clear();
+  afficherPhotos();
+});
+$("#groupes-a-trier").addEventListener("dblclick", (e) => {
+  const v = e.target.closest("[data-cle]");
+  if (v) api("photos/ouvrir", { cle: v.dataset.cle }).catch((err) => alert(err.message));
+});
+
+// Glisser des photos à trier sur la case d'un enfant (à gauche).
+$("#groupes-a-trier").addEventListener("dragstart", (e) => {
+  const v = e.target.closest("[data-cle]");
+  if (!v) return;
+  if (!selTri.has(v.dataset.cle)) {
+    selTri.clear();
+    selTri.add(v.dataset.cle);
+    majVignettes("#groupes-a-trier", selTri, "data-cle");
+    afficherBarreTri();
+  }
+  e.dataTransfer.setData("application/x-assmat-photos", [...selTri].join(","));
+  e.dataTransfer.effectAllowed = "copyMove";
+});
+const caseCible = (e) => e.dataTransfer?.types.includes("application/x-assmat-photos") && e.target.closest("[data-case-enfant]");
+$("#cases-enfants").addEventListener("dragover", (e) => {
+  const c = caseCible(e);
+  if (!c) return;
+  e.preventDefault();
+  $$(".case-enfant.survol").forEach((x) => x !== c && x.classList.remove("survol"));
+  c.classList.add("survol");
+});
+$("#cases-enfants").addEventListener("dragleave", (e) => e.target.closest?.("[data-case-enfant]")?.classList.remove("survol"));
+$("#cases-enfants").addEventListener("drop", (e) => {
+  const c = caseCible(e);
+  if (!c) return;
+  e.preventDefault();
+  c.classList.remove("survol");
+  if (e.ctrlKey) {               // répartir : l'enfant rejoint le choix, on range ensuite avec « Ranger »
+    enfantsTri.add(c.dataset.caseEnfant);
+    afficherBarreTri();
+    $("#barre-tri").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } else rangerSelection([c.dataset.caseEnfant]);
+});
+
+// Fichiers glissés depuis l'Explorateur : copiés dans « À trier ».
+$("#colonne-a-trier").addEventListener("dragover", (e) => {
+  if (!e.dataTransfer?.types.includes("Files")) return;
+  e.preventDefault();
+  $("#colonne-a-trier").classList.add("depot-actif");
+});
+$("#colonne-a-trier").addEventListener("dragleave", (e) => {
+  if (!$("#colonne-a-trier").contains(e.relatedTarget)) $("#colonne-a-trier").classList.remove("depot-actif");
+});
+$("#colonne-a-trier").addEventListener("drop", async (e) => {
+  if (!e.dataTransfer?.files.length) return;
+  e.preventDefault();
+  $("#colonne-a-trier").classList.remove("depot-actif");
+  const donnees = new FormData();
+  [...e.dataTransfer.files].forEach((f) => { donnees.append("fichiers", f, f.name); donnees.append("modifie", f.lastModified); });
+  document.body.classList.add("occupe");
+  try {
+    const r = await fetch("/api/photos/deposer", { method: "POST", body: donnees }).then((x) => x.json());
+    if (r.erreurs?.length) alert(r.erreurs.join("\n"));
+  } catch (err) { alert(err.message); }
+  document.body.classList.remove("occupe");
+  afficherPhotos();
+});
+
+// --- photos rangées
+function afficherRangees() {
+  const d = donneesPhotos;
+  const compte = (id) => d.rangees.filter((r) => r.enfants.includes(id)).length;
+  const aujourdhui = isoJour(new Date());
+  const enfants = [...d.enfants].sort((a, b) => ((b.fin && b.fin < aujourdhui) ? -1 : 0) - ((a.fin && a.fin < aujourdhui) ? -1 : 0)
+    || a.prenom.localeCompare(b.prenom, "fr"));
+  $("#cases-enfants").innerHTML = `<button type="button" class="case-enfant toutes" data-filtre-enfant="" aria-pressed="${!filtreEnfant}">
+      <span class="initiale moi" aria-hidden="true">${picto("appareil")}</span><span>Toutes<small>${pluriel(d.rangees.length, "élément")}</small></span></button>`
+    + enfants.map((e) => `<button type="button" class="case-enfant${e.fin && e.fin < aujourdhui ? " termine" : ""}" data-case-enfant="${e.id}"
+      data-filtre-enfant="${e.id}" aria-pressed="${filtreEnfant === e.id}">${initialeEnfant(e)}<span>${echapper(e.prenom)}<small>${
+      echapper(e.famille)} · ${compte(e.id)}</small></span></button>`).join("")
+    + (enfants.length ? "" : `<p class="petit">Ajoutez d'abord les fiches enfants dans <button class="lien" data-aller-photos="contrats">Familles et contrats</button>.</p>`);
+  $$("#cases-enfants [data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
+  const avecSeance = activitesConnues.filter((a) => a.seances.some((s) => s.photos?.length));
+  $("#filtre-activite").innerHTML = `<option value="">Toutes</option><option value="aucune">Sans activité</option>${
+    avecSeance.map((a) => `<option value="a:${a.id}">${echapper(a.titre)}</option>`).join("")}`;
+  $("#filtre-activite").value = [...$("#filtre-activite").options].some((o) => o.value === filtreActivite) ? filtreActivite : "";
+  const liste = rangeesVisibles();
+  $("#nb-rangees").textContent = pluriel(d.rangees.length, "élément");
+  let html = "", mois = null;
+  liste.forEach((r) => {
+    const m = (r.date || "").slice(0, 7);
+    if (m !== mois) {
+      if (mois !== null) html += "</div>";
+      mois = m;
+      html += `<h3 class="jour-photos">${m ? new Date(m + "-15").toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
+        .replace(/^./, (c) => c.toUpperCase()) : "Sans date"}</h3><div class="grille-photos">`;
+    }
+    const noms = r.enfants.map((i) => enfantPar(i)?.prenom).filter(Boolean).join(", ");
+    html += vignette(r, `data-numero="${r.numero}"`, selRangees.has(r.numero),
+      `<span class="numero-photo" title="${echapper(noms)}">${echapper(noms || r.numero)}</span>`);
+  });
+  $("#grille-rangees").innerHTML = liste.length ? html + "</div>" : `<p class="petit">${d.rangees.length
+    ? "Aucune photo pour ce choix." : "Les photos rangées apparaîtront ici, par enfant."}</p>`;
+  afficherBarreRangees();
+}
+
+function rangeesVisibles() {
+  const seancesDe = (id) => new Set(activitesConnues.find((a) => a.id === id)?.seances.map((s) => s.id) || []);
+  const seances = filtreActivite.startsWith("a:") ? seancesDe(filtreActivite.slice(2)) : null;
+  return donneesPhotos.rangees.filter((r) => (!filtreEnfant || r.enfants.includes(filtreEnfant))
+    && (!filtreActivite || (filtreActivite === "aucune" ? !r.seance : seances?.has(r.seance))));
+}
+
+function afficherBarreRangees() {
+  const n = selRangees.size;
+  $("#barre-rangees").classList.toggle("cache", !n);
+  $("#texte-rangees").textContent = `${pluriel(n, "élément")} choisi${n > 1 ? "s" : ""}`;
+  const photosSeules = [...selRangees].filter((x) => donneesPhotos.rangees.find((r) => r.numero === x)?.genre === "photo").length;
+  $("#imprimer-photos").disabled = !photosSeules;
+  if (!n) $("#editeur-rangees").classList.add("cache");
+}
+
+$("#cases-enfants").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-filtre-enfant]");
+  if (!b) return;
+  filtreEnfant = filtreEnfant === b.dataset.filtreEnfant ? "" : b.dataset.filtreEnfant;
+  afficherRangees();
+});
+$("#filtre-activite").addEventListener("change", (e) => { filtreActivite = e.target.value; afficherRangees(); });
+$("#grille-rangees").addEventListener("click", (e) => {
+  const v = e.target.closest("[data-numero]");
+  if (!v) return;
+  basculer(selRangees, v.dataset.numero, e.shiftKey, rangeesVisibles().map((r) => r.numero));
+  majVignettes("#grille-rangees", selRangees, "data-numero");
+  afficherBarreRangees();
+});
+$("#grille-rangees").addEventListener("dblclick", (e) => {
+  const v = e.target.closest("[data-numero]");
+  if (v) api("photos/ouvrir", { numero: v.dataset.numero }).catch((err) => alert(err.message));
+});
+$("#tout-rangees").addEventListener("click", () => {
+  const liste = rangeesVisibles();
+  const tous = liste.length && liste.every((r) => selRangees.has(r.numero));
+  liste.forEach((r) => (tous ? selRangees.delete(r.numero) : selRangees.add(r.numero)));
+  majVignettes("#grille-rangees", selRangees, "data-numero");
+  afficherBarreRangees();
+});
+$("#deselectionner-rangees").addEventListener("click", () => { selRangees.clear(); afficherRangees(); });
+$("#imprimer-photos").addEventListener("click", () => {
+  const ordre = donneesPhotos.rangees.filter((r) => selRangees.has(r.numero) && r.genre === "photo")
+    .sort((a, b) => (a.date || "").localeCompare(b.date || "")).map((r) => r.numero);
+  window.open(`/api/photos/imprimer?numeros=${ordre.join(",")}&par_page=${$("#par-page").value}`, "_blank");
+});
+$("#remettre-rangees").addEventListener("click", async () => {
+  const n = selRangees.size;
+  if (!confirm(`Remettre ${n > 1 ? `ces ${n} éléments` : "cet élément"} à trier ? Les copies rangées pour chaque enfant sont retirées ;
+le fichier retourne dans le dossier « À trier ».`)) return;
+  for (const numero of selRangees) await api("photos/remettre", { numero }).catch((e) => alert(e.message));
+  selRangees.clear();
+  afficherPhotos();
+});
+
+// Changer les enfants (et l'activité) des photos rangées choisies.
+const enfantsEditeur = new Set();
+$("#modifier-rangees").addEventListener("click", () => {
+  const choisies = donneesPhotos.rangees.filter((r) => selRangees.has(r.numero));
+  enfantsEditeur.clear();
+  choisies.forEach((r) => r.enfants.forEach((i) => enfantsEditeur.add(i)));
+  const seances = new Set(choisies.map((r) => r.seance));
+  remplirActivites($("#activite-editeur"), [], true, seances.size === 1 && choisies[0].seance ? `s:${choisies[0].seance}` : "");
+  $("#titre-editeur").textContent = choisies.length > 1 ? `ces ${choisies.length} éléments` : "cette photo";
+  afficherEditeur();
+  $("#editeur-rangees").classList.remove("cache");
+});
+function afficherEditeur() {
+  $("#pastilles-editeur").innerHTML = donneesPhotos.enfants.map((e) => pastilleEnfant(e, enfantsEditeur.has(e.id))).join("");
+}
+$("#pastilles-editeur").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-enfant]");
+  if (!b) return;
+  enfantsEditeur.has(b.dataset.enfant) ? enfantsEditeur.delete(b.dataset.enfant) : enfantsEditeur.add(b.dataset.enfant);
+  afficherEditeur();
+});
+$("#annuler-editeur").addEventListener("click", () => $("#editeur-rangees").classList.add("cache"));
+$("#enregistrer-editeur").addEventListener("click", async () => {
+  if (!enfantsEditeur.size) { alert("Choisissez au moins un enfant (ou utilisez « Remettre à trier »)."); return; }
+  const choisies = donneesPhotos.rangees.filter((r) => selRangees.has(r.numero));
+  let seance;
+  try { seance = await seanceChoisie($("#activite-editeur"), choisies.map((r) => r.date).filter(Boolean).sort()[0]?.slice(0, 10)); }
+  catch (err) { alert(err.message); return; }
+  if (seance === null) return;
+  document.body.classList.add("occupe");
+  for (const r of choisies) await api("photos/modifier", { numero: r.numero, enfants: [...enfantsEditeur], seance }).catch((e) => alert(e.message));
+  document.body.classList.remove("occupe");
+  $("#editeur-rangees").classList.add("cache");
+  afficherPhotos();
+});
+
+// --- hors horaires et ignorées
+function afficherMisDeCote() {
+  [["hors_horaires", "#grille-hors", "#nb-hors", "#remettre-hors", selHors, "#bloc-hors"],
+    ["ignorees", "#grille-ignorees", "#nb-ignorees", "#remettre-ignorees", selIgnorees, "#bloc-ignorees"]]
+    .forEach(([cle, grille, nb, bouton, sel, bloc]) => {
+      const liste = donneesPhotos[cle];
+      $(nb).textContent = `(${liste.length})`;
+      $(bloc).classList.toggle("cache", !liste.length);
+      // Les aperçus ne sont chargés qu'à l'ouverture du bloc (il peut y avoir beaucoup de photos personnelles).
+      $(grille).innerHTML = $(bloc).open ? liste.slice(0, 300).map((e) => vignette(e, `data-cle="${e.cle}"`, sel.has(e.cle))).join("")
+        + (liste.length > 300 ? `<p class="petit">… et ${liste.length - 300} autres.</p>` : "") : "";
+      $(bouton).disabled = !sel.size;
+    });
+}
+[["#bloc-hors", "#grille-hors", selHors, "#remettre-hors"], ["#bloc-ignorees", "#grille-ignorees", selIgnorees, "#remettre-ignorees"]]
+  .forEach(([bloc, grille, sel, bouton]) => {
+    $(bloc).addEventListener("toggle", () => donneesPhotos && afficherMisDeCote());
+    $(grille).addEventListener("click", (e) => {
+      const v = e.target.closest("[data-cle]");
+      if (!v) return;
+      sel.has(v.dataset.cle) ? sel.delete(v.dataset.cle) : sel.add(v.dataset.cle);
+      majVignettes(grille, sel, "data-cle");
+      $(bouton).disabled = !sel.size;
+    });
+    $(grille).addEventListener("dblclick", (e) => {
+      const v = e.target.closest("[data-cle]");
+      if (v) api("photos/ouvrir", { cle: v.dataset.cle }).catch((err) => alert(err.message));
+    });
+    $(bouton).addEventListener("click", async () => {
+      await api("photos/ignorer", { cles: [...sel], ignorer: false }).catch((e) => alert(e.message));
+      sel.clear();
+      afficherPhotos();
+    });
+  });
+$("#actualiser-photos").addEventListener("click", () => afficherPhotos());
+
+// ------------------------------------------------------------- activités (modèles réutilisables et séances)
+let activiteOuverte = "";          // identifiant, « nouvelle » ou vide
+
+async function afficherAteliers() {
+  const r = await api("ateliers").catch((e) => { alert(e.message); return null; });
+  if (!r) return;
+  activitesConnues = r.activites;
+  $("#ateliers-sans-dossier").classList.toggle("cache", r.configure);
+  const aujourdhui = isoJour(new Date());
+  $("#liste-activites").innerHTML = r.activites.length ? r.activites.map((a) => {
+    const passees = a.seances.filter((s) => s.date <= aujourdhui), venir = a.seances.filter((s) => s.date > aujourdhui);
+    const detail = [venir.length ? `prochaine le ${dateCourte(venir.at(-1).date)}` : "",
+      passees.length ? `${pluriel(passees.length, "séance")}, la dernière le ${dateCourte(passees[0].date)}` : "jamais réalisée"]
+      .filter(Boolean).join(" · ");
+    return `<li><button type="button" class="carte-activite" data-activite="${a.id}" aria-pressed="${activiteOuverte === a.id}">
+      ${pastille("activite", "familles")}<span><span class="nom">${echapper(a.titre)}</span><span class="petit">${detail}</span></span></button></li>`;
+  }).join("") : `<li class="petit">Aucune activité pour l'instant : créez la première avec « Nouvelle activité ».</li>`;
+  appliquerFiltres();
+  afficherFicheActivite();
+}
+
+function afficherFicheActivite() {
+  const fiche = $("#fiche-activite");
+  const a = activitesConnues.find((x) => x.id === activiteOuverte);
+  if (!a && activiteOuverte !== "nouvelle") { fiche.classList.add("cache"); return; }
+  fiche.classList.remove("cache");
+  const aujourdhui = isoJour(new Date());
+  const seances = a ? a.seances.map((s) => {
+    const prepare = new Set(s.prepare || []);
+    const liste = (a.a_preparer || []).length ? `<ul class="a-preparer">${a.a_preparer.map((x) => `<li><label class="case-a-cocher">
+      <input type="checkbox" data-prepare="${s.id}" value="${echapper(x)}" ${prepare.has(x) ? "checked" : ""}>${echapper(x)}</label></li>`).join("")}</ul>` : "";
+    const nb = s.photos?.length || 0;
+    return `<li class="${s.date > aujourdhui ? "a-venir-seance" : ""}"><div class="entete-seance"><strong>${dateFr(s.date)}</strong>
+      <span class="petit">${s.date > aujourdhui ? "à venir" : s.date === aujourdhui ? "aujourd'hui" : "réalisée"}</span>
+      <span class="actions-seance">${nb ? `<button type="button" class="action" data-voir-photos="${a.id}">${picto("appareil")}${pluriel(nb, "photo")}</button>` : ""}
+      <button type="button" class="action danger" data-supprimer-seance="${s.id}">${picto("supprimer")}Retirer</button></span></div>
+      ${s.date >= aujourdhui ? liste : ""}</li>`;
+  }).join("") : "";
+  fiche.innerHTML = `<form id="form-activite" class="formulaire-activite">
+      <h2>${a ? echapper(a.titre) : "Nouvelle activité"}</h2>
+      <label>Titre <input name="titre" required maxlength="120" value="${echapper(a?.titre || "")}" placeholder="Peinture d'automne"></label>
+      <label>Description <textarea name="description" rows="3" placeholder="Déroulement, âges, durée…">${echapper(a?.description || "")}</textarea></label>
+      <label>À préparer, acheter ou rassembler <textarea name="a_preparer" rows="4"
+        placeholder="Une ligne par élément : gouache, pinceaux, feuilles ramassées…">${echapper((a?.a_preparer || []).join("\n"))}</textarea></label>
+      <div class="boutons">
+        <button class="principal" data-picto-js="coche">Enregistrer</button>
+        <button type="button" class="secondaire" data-fermer-activite>Fermer</button>
+        ${a ? `<button type="button" class="action danger" data-supprimer-activite>${picto("supprimer")}Supprimer l'activité</button>` : ""}
+      </div>
+    </form>
+    ${a ? `<h3 class="sous-titre">Séances</h3>
+      <div class="ligne nouvelle-seance"><label>Date <input type="date" id="date-seance" value="${aujourdhui}"></label>
+        <button type="button" class="secondaire" id="ajouter-seance">${picto("plus")}Faire cette activité</button></div>
+      <p class="petit">Une séance par date. Cochez ce qui est prêt pour chaque séance à venir.</p>
+      <ul class="liste-seances">${seances || `<li class="petit">Aucune séance pour l'instant.</li>`}</ul>
+      <h3 class="sous-titre">Documents</h3>
+      <ul class="documents-activite">${(a.documents || []).map((d) => `<li>${picto("pdf")}<button type="button" class="lien" data-ouvrir-document="${
+        echapper(d.nom)}">${echapper(d.nom)}</button></li>`).join("") || `<li class="petit">Aucun document.</li>`}</ul>
+      <div class="zone-depot" id="depot-activite">Glissez ici des documents (modèles, coloriages, images…) ou
+        <button type="button" class="lien" id="choisir-documents">choisissez des fichiers</button>.
+        Ils sont copiés dans le dossier « Activités\\${echapper(a.dossier || a.titre)} ».
+        <input type="file" id="fichiers-activite" class="cache" multiple></div>
+      <div class="boutons"><button type="button" class="secondaire" data-ouvrir-dossier-activite>${picto("dossier")}Ouvrir le dossier de l'activité</button></div>` : ""}`;
+  fiche.querySelector("[data-picto-js]")?.insertAdjacentHTML("afterbegin", picto("coche"));
+  marquerChamps($("#form-activite"));
+}
+
+async function envoyerDocuments(fichiers) {
+  if (!fichiers.length) return;
+  const donnees = new FormData();
+  donnees.append("activite", activiteOuverte);
+  [...fichiers].forEach((f) => donnees.append("fichiers", f, f.name));
+  const r = await fetch("/api/ateliers/document", { method: "POST", body: donnees }).then((x) => x.json()).catch((e) => ({ erreurs: [e.message] }));
+  if (r.erreurs?.length) alert(r.erreurs.join("\n"));
+  afficherAteliers();
+}
+
+$("#nouvelle-activite").addEventListener("click", () => {
+  activiteOuverte = "nouvelle";
+  afficherAteliers();
+  $("#fiche-activite").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+$("#liste-activites").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-activite]");
+  if (!b) return;
+  activiteOuverte = activiteOuverte === b.dataset.activite ? "" : b.dataset.activite;
+  afficherAteliers();
+});
+$("#fiche-activite").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    const a = await api("ateliers", { id: activiteOuverte === "nouvelle" ? "" : activiteOuverte, titre: f.elements.titre.value,
+      description: f.elements.description.value, a_preparer: f.elements.a_preparer.value });
+    activiteOuverte = a.id;
+  } catch (err) { alert(err.message); return; }
+  afficherAteliers();
+});
+$("#fiche-activite").addEventListener("click", async (e) => {
+  const cible = e.target.closest("button");
+  if (!cible) return;
+  if (cible.matches("[data-fermer-activite]")) { activiteOuverte = ""; afficherAteliers(); }
+  else if (cible.matches("[data-supprimer-activite]")) {
+    if (!confirm("Supprimer cette activité ? Son dossier de documents et les photos rangées restent en place.")) return;
+    await api("ateliers/supprimer", { id: activiteOuverte }).catch((err) => alert(err.message));
+    activiteOuverte = "";
+    afficherAteliers();
+  } else if (cible.id === "ajouter-seance") {
+    try { await api("ateliers/seance", { activite: activiteOuverte, date: $("#date-seance").value }); }
+    catch (err) { alert(err.message); return; }
+    afficherAteliers();
+  } else if (cible.dataset.supprimerSeance) {
+    if (!confirm("Retirer cette séance ? Les photos rangées restent en place.")) return;
+    await api("ateliers/seance/supprimer", { id: cible.dataset.supprimerSeance }).catch((err) => alert(err.message));
+    afficherAteliers();
+  } else if (cible.dataset.voirPhotos) {
+    filtreActivite = `a:${cible.dataset.voirPhotos}`;
+    filtreEnfant = "";
+    ouvrirOnglet("photos");
+  } else if (cible.dataset.ouvrirDocument) {
+    api("ateliers/ouvrir", { activite: activiteOuverte, nom: cible.dataset.ouvrirDocument }).catch((err) => alert(err.message));
+  } else if (cible.matches("[data-ouvrir-dossier-activite]")) {
+    api("ateliers/ouvrir", { activite: activiteOuverte }).catch((err) => alert(err.message));
+  } else if (cible.id === "choisir-documents") $("#fichiers-activite").click();
+});
+$("#fiche-activite").addEventListener("change", async (e) => {
+  if (e.target.id === "fichiers-activite") { envoyerDocuments(e.target.files); return; }
+  const seance = e.target.dataset.prepare;
+  if (!seance) return;
+  const prepare = $$(`[data-prepare="${seance}"]`).filter((c) => c.checked).map((c) => c.value);
+  await api("ateliers/seance/modifier", { id: seance, prepare }).catch((err) => alert(err.message));
+});
+$("#fiche-activite").addEventListener("dragover", (e) => {
+  const zone = e.target.closest?.("#depot-activite");
+  if (zone && e.dataTransfer?.types.includes("Files")) { e.preventDefault(); zone.classList.add("survol"); }
+});
+$("#fiche-activite").addEventListener("dragleave", (e) => e.target.closest?.("#depot-activite")?.classList.remove("survol"));
+$("#fiche-activite").addEventListener("drop", (e) => {
+  const zone = e.target.closest?.("#depot-activite");
+  if (!zone || !e.dataTransfer?.files.length) return;
+  e.preventDefault();
+  zone.classList.remove("survol");
+  envoyerDocuments(e.dataTransfer.files);
+});
+
 // ------------------------------------------------------------- mises à jour
 async function verifierVersion(manuel = false) {
   const bouton = $("#btn-verifier-maj");
@@ -2681,6 +3397,7 @@ async function afficherNotesDisponibles(locale, distante) {
 }
 
 chargerParametres().then(afficherTableauDeBord);
+afficherPrincipal();
 afficherNotes();
 afficherBaremes();
 verifierVersion();

@@ -365,7 +365,7 @@ def renommer_documents(deplaces: dict) -> None:
         _ecrire(FICHIER_DOCUMENTS, liste)
 
 
-# Sites utiles pour préparer les activités des enfants (tableau de bord, rubrique « Sites d'activités »).
+# Sites utiles pour préparer les activités des enfants (tableau de bord, rubrique « Accès rapide »).
 # Proposés tant que l'utilisatrice n'a pas enregistré sa propre liste.
 SITES_DEFAUT = [
     {"nom": "Pinterest", "url": "https://www.pinterest.fr/", "description": "Idées de bricolages et d'activités"},
