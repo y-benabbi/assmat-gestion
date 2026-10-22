@@ -58,6 +58,8 @@ dans OneDrive : l'installation de Chromium y échoue.
   l'annonce de mise à jour —, committer sur `main`, puis
   `git checkout stable && git merge --ff-only main && git push && git checkout main`.
 - Ne pousser sur `stable` que si les tests passent : c'est immédiatement distribué.
+- Version publiée lue par `lire_stable` (main.py) : API GitHub d'abord, car raw.githubusercontent.com garde ses fichiers
+  5 minutes en cache (une version tout juste publiée n'était pas vue) ; repli sur raw avec un paramètre `?t=`.
 
 ## Tests
 

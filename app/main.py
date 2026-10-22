@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import urllib.request
 import webbrowser
 import zlib
@@ -695,14 +696,29 @@ def creer_app(port, jeton):
         except ValueError as e:
             return jsonify({"erreur": str(e)}), 400
 
+    def lire_stable(chemin: str) -> bytes:
+        """Fichier de la branche stable publiée. raw.githubusercontent.com garde ses fichiers 5 minutes en cache :
+        juste après une publication, il donnait encore l'ancienne version. On demande donc d'abord à l'API de GitHub
+        (à jour à la minute près), puis raw avec un paramètre qui change à chaque fois."""
+        essais = [urllib.request.Request(
+            f"https://api.github.com/repos/{DEPOT_GITHUB}/contents/{chemin}?ref={BRANCHE_STABLE}",
+            headers={"Accept": "application/vnd.github.raw", "User-Agent": "assmat-gestion"}),
+            urllib.request.Request(f"https://raw.githubusercontent.com/{DEPOT_GITHUB}/{BRANCHE_STABLE}/{chemin}"
+                                   f"?t={int(time.time())}", headers={"Cache-Control": "no-cache"})]
+        for requete in essais:
+            try:
+                with urllib.request.urlopen(requete, timeout=5) as r:
+                    return r.read()
+            except Exception:
+                continue
+        raise OSError("Version publiée inaccessible.")
+
     @app.get("/api/version")
     def version():
         locale = version_locale()
         distante = None
         try:
-            url = f"https://raw.githubusercontent.com/{DEPOT_GITHUB}/{BRANCHE_STABLE}/VERSION"
-            with urllib.request.urlopen(url, timeout=5) as r:
-                distante = r.read().decode().strip()
+            distante = lire_stable("VERSION").decode().strip()
         except Exception:
             pass
 
@@ -719,10 +735,8 @@ def creer_app(port, jeton):
     @app.get("/api/notes-distantes")
     def notes_distantes():
         """Notes de la version stable publiée (pour présenter une mise à jour disponible)."""
-        url = f"https://raw.githubusercontent.com/{DEPOT_GITHUB}/{BRANCHE_STABLE}/app/web/notes-versions.json"
         try:
-            with urllib.request.urlopen(url, timeout=5) as r:
-                return app.response_class(r.read(), mimetype="application/json")
+            return app.response_class(lire_stable("app/web/notes-versions.json"), mimetype="application/json")
         except Exception:
             return jsonify([])
 

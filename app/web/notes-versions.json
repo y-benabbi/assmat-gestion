@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.8",
+    "date": "2026-10-22",
+    "titre": "Mises à jour vues tout de suite",
+    "nouveautes": [
+      "Une nouvelle version est maintenant repérée dès sa sortie. Avant, l'application pouvait mettre jusqu'à 5 minutes à la voir."
+    ]
+  },
+  {
     "version": "1.11.7",
     "date": "2026-10-22",
     "titre": "Photos plus rapides à afficher",

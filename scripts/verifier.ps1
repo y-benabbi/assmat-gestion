@@ -22,7 +22,7 @@ $manquants = @("app\main.py", "app\pajemploi.py", "app\bibliotheque.py", "app\pa
 if ($manquants) { Err "Fichiers manquants : $($manquants -join ', ')" $relancer }
 else { Ecrire-Ok "Tous les fichiers sont présents" }
 try {
-    $distante = (Invoke-WebRequest "https://raw.githubusercontent.com/y-benabbi/assmat-gestion/stable/VERSION" -UseBasicParsing -TimeoutSec 10).Content.Trim()
+    $distante = (Invoke-WebRequest "https://raw.githubusercontent.com/y-benabbi/assmat-gestion/stable/VERSION?t=$([DateTime]::Now.Ticks)" -UseBasicParsing -TimeoutSec 10).Content.Trim()
     if ($distante -and $version -and ([version]$distante -gt [version]$version)) {
         Att "Nouvelle version disponible : $distante" "Lancez « Executables\Mettre a jour.bat »."
     } else { Ecrire-Ok "Application à jour" }
