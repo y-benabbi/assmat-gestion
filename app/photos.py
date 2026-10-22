@@ -447,11 +447,14 @@ def lister() -> dict:
             ranges.append({"numero": numero, "genre": r["genre"], "date": meta.get("date", ""),
                            "seance": meta.get("seance", ""), "enfants": ids, "copies": len(r["copies"]),
                            "dossiers": sorted({_nom_famille_enfant(c, racine_photos) for c in r["copies"]})})
-    tri = lambda e: e["date"] or e["date_fichier"]  # noqa: E731
+    tri = lambda e: e["date"] or e["date_fichier"] or ""  # noqa: E731
+    # À trier : jours du plus récent au plus ancien, heures dans l'ordre au sein d'un jour (sans date à la fin).
+    a_trier.sort(key=tri)
+    a_trier.sort(key=lambda e: tri(e)[:10], reverse=True)
     return {
         "configure": bool(p.get("dossier_principal")),
         "sources": [str(d) for d in dossiers_sources(p)] if p.get("dossier_principal") else list(p.get("dossiers_photos") or []),
-        "a_trier": sorted(a_trier, key=tri), "hors_horaires": sorted(hors, key=tri, reverse=True),
+        "a_trier": a_trier, "hors_horaires": sorted(hors, key=tri, reverse=True),
         "ignorees": sorted(ignor, key=tri, reverse=True), "rangees": sorted(ranges, key=lambda r: r["date"] or "", reverse=True),
         "enfants": liste_enfants, "marge": marge, "module_absent": module_absent,
     }

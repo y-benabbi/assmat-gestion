@@ -134,6 +134,13 @@ assert par_nom["IMG_0006.MP4"]["date"] == "2026-10-19T11:00:00" and par_nom["IMG
 assert par_nom["IMG_0007.JPG"]["proposes"] == [hugo["id"]]
 assert par_nom["Capture.png"]["date"] == "2026-10-19T09:30:00", par_nom["Capture.png"]
 assert set(par_nom["Capture.png"]["proposes"]) == {lea["id"], hugo["id"]}
+# À trier : jours du plus récent au plus ancien, heures croissantes dans un même jour.
+dates = [e["date"] for e in liste["a_trier"]]
+assert [d[:10] for d in dates] == sorted((d[:10] for d in dates), reverse=True), dates
+for jour in {d[:10] for d in dates}:
+    heures = [d for d in dates if d[:10] == jour]
+    assert heures == sorted(heures), heures
+assert dates[0][:10] == "2026-10-21", dates
 # Sans EXIF mais avec une date XMP (photo exportée) : la date XMP passe avant celle du fichier.
 assert photos.date_image(icloud / "IMG_0001.JPG") == "2026-10-19T10:00:00"
 xmp = TEMP / "exportee.jpg"

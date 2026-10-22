@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.2",
+    "date": "2026-10-22",
+    "titre": "Ordre des photos à trier",
+    "nouveautes": [
+      "Photos : les photos à trier commencent par le jour le plus récent. Dans une même journée, elles restent dans l'ordre des heures, du matin au soir."
+    ]
+  },
+  {
     "version": "1.11.1",
     "date": "2026-10-22",
     "titre": "Date des photos",
