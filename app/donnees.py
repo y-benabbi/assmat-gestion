@@ -354,7 +354,18 @@ def ajouter_document(contrat_id: str, type_: str, titre: str, chemin: str) -> di
     return doc
 
 
-# Sites utiles pour préparer les activités des enfants (tableau de bord, rubrique « Sites d'activités »).
+def renommer_documents(deplaces: dict) -> None:
+    """Fichiers déplacés (passage au dossier principal) : {ancien chemin: nouveau chemin}."""
+    if not deplaces:
+        return
+    with _verrou:
+        liste = [d for d in _lire(FICHIER_DOCUMENTS, []) if isinstance(d, dict)]
+        for d in liste:
+            d["chemin"] = deplaces.get(d.get("chemin"), d.get("chemin"))
+        _ecrire(FICHIER_DOCUMENTS, liste)
+
+
+# Sites utiles pour préparer les activités des enfants (tableau de bord, rubrique « Accès rapide »).
 # Proposés tant que l'utilisatrice n'a pas enregistré sa propre liste.
 SITES_DEFAUT = [
     {"nom": "Pinterest", "url": "https://www.pinterest.fr/", "description": "Idées de bricolages et d'activités"},
@@ -485,4 +496,7 @@ def echeances(jour: date, horizon_jours: int = 400) -> list:
             ajouter(date(rentree, 6, 1), f"{nom} entre à l'école en septembre {rentree}",
                     "Si l'accueil change (périscolaire, mercredis, vacances), préparez un avenant avec la famille.",
                     "anniversaire", "contrats")
+    import ateliers
+    for d, titre, detail in ateliers.echeances(jour, horizon_jours):
+        ajouter(d, titre, detail, "activite", "ateliers")
     return sorted(liste, key=lambda e: e["date"])

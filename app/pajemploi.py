@@ -227,7 +227,7 @@ class Pajemploi:
     def _verifier_dossier(self):
         dossier = parametres.charger().get("dossier_bulletins", "").strip()
         if not dossier or not Path(dossier).is_dir():
-            raise RuntimeError("Choisissez d'abord le dossier des bulletins de salaire (onglet Paramètres).")
+            raise RuntimeError("Choisissez d'abord le dossier principal (Paramètres, « Dossier principal »).")
 
     def _cmd_connecter_et_analyser(self):
         self._verifier_dossier()

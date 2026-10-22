@@ -8,7 +8,8 @@ qui doit être conservé est à côté, dans %LOCALAPPDATA%\\assmat-gestion :
   profil-navigateur\\   cookies Pajemploi (appareil reconnu)
   donnees\\             paramètres (sans le mot de passe)
   journaux\\            historique et diagnostics
-Le dossier des bulletins de salaire est choisi dans les Paramètres.
+  miniatures\\          miniatures des photos (cache, recréé au besoin)
+Le dossier principal (bulletins, courriers, photos, activités, sauvegarde) est choisi dans les Paramètres.
 """
 import os
 from pathlib import Path
@@ -28,6 +29,7 @@ PROFIL_NAVIGATEUR = BASE / "profil-navigateur"
 NAVIGATEURS_PLAYWRIGHT = BASE / "navigateurs"
 JOURNAUX = BASE / "journaux"
 DIAGNOSTICS = JOURNAUX / "diagnostics"
+MINIATURES = BASE / "miniatures"
 AMORCE = RACINE_CODE / "distribution" / "Executables" / "amorce.ps1"
 FICHIER_PROGRAMME = BASE / "dossier-programme.txt"
 
@@ -37,7 +39,7 @@ FICHIER_PROGRAMME = BASE / "dossier-programme.txt"
 FICHIER_SERVEUR = BASE / "serveur.json"
 PORT_FORCE = int(os.environ.get("ASSMAT_PORT") or 0)   # tests
 
-for d in (DOSSIER_DONNEES, JOURNAUX, DIAGNOSTICS):
+for d in (DOSSIER_DONNEES, JOURNAUX, DIAGNOSTICS, MINIATURES):
     d.mkdir(parents=True, exist_ok=True)
 
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", str(NAVIGATEURS_PLAYWRIGHT))

@@ -37,8 +37,8 @@ if (Venv-Fonctionne) {
     $v = & $PythonVenv -c "import sys; print(sys.version.split()[0])"
     Ecrire-Ok "Environnement de l'application : Python $v"
 
-    $test = & $PythonVenv -c "import flask, playwright, keyring, pypdf; print('ok')" 2>&1
-    if ("$test" -match "ok$") { Ecrire-Ok "Modules Flask, Playwright, Keyring et pypdf" }
+    $test = & $PythonVenv -c "import flask, playwright, keyring, pypdf, PIL, pillow_heif; print('ok')" 2>&1
+    if ("$test" -match "ok$") { Ecrire-Ok "Modules Flask, Playwright, Keyring, pypdf, Pillow et pillow-heif" }
     else { Err "Modules Python manquants" $relancer }
 
     $test = & $PythonVenv -c "import tkinter; print('ok')" 2>&1
@@ -76,9 +76,9 @@ $fichier = Join-Path $Base "donnees\parametres.json"
 if (Test-Path $fichier) {
     $p = Get-Content $fichier -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($p.identifiant) { Ecrire-Ok "Identifiant Pajemploi renseigné" } else { Att "Identifiant Pajemploi vide" "Onglet Paramètres de l'application." }
-    if ($p.dossier_bulletins -and (Test-Path $p.dossier_bulletins)) { Ecrire-Ok "Dossier des bulletins : $($p.dossier_bulletins)" }
-    elseif ($p.dossier_bulletins) { Att "Dossier des bulletins introuvable : $($p.dossier_bulletins)" "Onglet Paramètres de l'application." }
-    else { Att "Dossier des bulletins non choisi" "Onglet Paramètres de l'application." }
+    if ($p.dossier_principal -and (Test-Path $p.dossier_principal)) { Ecrire-Ok "Dossier principal : $($p.dossier_principal)" }
+    elseif ($p.dossier_principal) { Att "Dossier principal introuvable : $($p.dossier_principal)" "Paramètres de l'application, « Dossier principal »." }
+    else { Att "Dossier principal non choisi" "Paramètres de l'application, « Dossier principal »." }
 } else {
     Att "Application pas encore paramétrée" "Ouvrez l'application puis l'onglet Paramètres."
 }

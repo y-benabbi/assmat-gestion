@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.11.0",
+    "date": "2026-10-22",
+    "titre": "Photos, activités et un dossier principal",
+    "nouveautes": [
+      "Un seul dossier pour tout : choisissez votre « dossier principal » dans les Paramètres. L'application y crée Bulletins de salaire, Courriers, Photos et vidéos, Activités, À trier et Sauvegarde, et y déplace vos bulletins et courriers déjà rangés (une barre montre l'avancement).",
+      "Nouvelle rubrique « Photos » : les photos et vidéos de vos dossiers (par exemple iCloud) attendent dans « À trier », en bas à droite (une pastille indique combien), regroupées par moment. Choisissez-les puis cliquez sur le prénom d'un enfant dans la barre en bas, ou glissez-les sur son nom, pour les ranger dans Famille > Enfant > Année. Ctrl en glissant ajoute un enfant de plus : la photo est rangée pour chacun. Une photo rangée par erreur se glisse de nouveau sur « À trier ». Quand un enfant ou une réalisation est choisi dans les filtres, il suffit de glisser les photos à trier sur les photos affichées pour les ranger avec eux. La liste des enfants commence par les derniers gardés et se replie ; une recherche permet de retrouver un enfant.",
+      "Les enfants proposés sont ceux présents à l'heure de la photo d'après leur contrat. Les photos prises en dehors des horaires d'accueil sont mises de côté (marge réglable dans les Paramètres), et celles qui ne concernent personne peuvent être ignorées.",
+      "Chaque photo rangée porte un numéro dans son nom (« LÉA - Peinture - Photo 0012 »). Les photos de l'iPhone (HEIC) sont enregistrées en JPEG ; l'original est gardé dans un dossier « Format source ». Les doublons sont reconnus.",
+      "Vous pouvez aussi déposer des photos depuis l'Explorateur sur la page : elles sont copiées, l'original reste en place.",
+      "Impression : choisissez des photos rangées et imprimez-les en grand, 4 ou 16 par page A4.",
+      "Nouvelle rubrique « Activités », en deux onglets. « Activités » : une fiche par activité (description, choses à préparer, documents utiles, ajoutés dès sa création). « Réalisations » : un calendrier des activités faites ou prévues ; un clic sur un jour montre tout le détail (liste à cocher, documents, photos). Les réalisations à venir apparaissent aussi dans l'agenda. Chaque activité a son icône, à choisir parmi une soixantaine (proposée d'après le titre). Dans les Photos, chaque réalisation se retrouve sous son nom, par exemple « Peinture d'automne du 14 octobre 2026 » : glissez-y des photos déjà rangées pour les lui rattacher. Le détail d'une réalisation propose aussi les photos du même jour qui n'en ont pas encore. Une photo peut appartenir à une réalisation sans enfant : elle est rangée dans « Photos et vidéos > Réalisations », puis rejoint le dossier d'un enfant dès qu'on le lui associe.",
+      "L'ancienne rubrique des sites d'activités s'appelle maintenant « Accès rapide ».",
+      "Une copie de vos fiches est faite chaque jour dans le dossier « Sauvegarde » (les 30 dernières sont gardées)."
+    ]
+  },
+  {
     "version": "1.10.0",
     "date": "2026-10-22",
     "titre": "Une nouvelle présentation, plus douce",

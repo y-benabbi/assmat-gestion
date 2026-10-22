@@ -30,6 +30,9 @@ app/                 code Python (lancé par app/main.py)
   courriers.py       demande de dérogation : texte proposé, page imprimable, PDF via Chromium sans fenêtre
   contrat_travail.py contrat de travail : remplit le PDF officiel de l'Urssaf (app/modeles/) avec pypdf
   chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
+  principal.py       dossier principal : passage (déplacement des anciens dossiers, progression), sauvegarde
+  photos.py          rubrique Photos : photos/vidéos à trier, enfants présents, rangement, numéros, impression
+  ateliers.py        rubrique Activités : modèles d'activités, réalisations datées, documents (donnees\activites.json)
   web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
 scripts/             installer.ps1, verifier.ps1, commun.ps1 (exécutés depuis l'application installée)
 distribution/        ce que l'on copie dans le dossier « Programme » de l'utilisatrice
@@ -71,6 +74,7 @@ py -m venv .venv
 .venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
 .venv\Scripts\python tests\test_contrat_travail.py # contrat de travail Urssaf rempli (champs du modèle, cas 1 et 2)
 .venv\Scripts\python tests\test_icones.py         # icônes des sites d'activités (sites imités en local), cache
+.venv\Scripts\python tests\test_photos.py          # dossier principal, tri et rangement des photos, activités (fictif)
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
 
@@ -201,7 +205,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json`, `activites.json`, `photos.json`, `photos-analyse.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
@@ -252,3 +256,47 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   plus petite : centrée ; dès qu'une icône s'affiche, l'initiale est masquée (`.avec-image`) et le fond (transparence
   comprise) est un blanc teinté de la couleur principale du logo (`couleurPrincipale` sur un canvas, `fondTeinte`) ;
   aucune : initiale sur un pastel. Sur le tableau de bord et dans la rubrique.
+- Sites d'activités = rubrique « Accès rapide » (onglet `acces-rapide`), mais la clé de module reste `activites`
+  (paramètres existants). La rubrique « Activités » (ateliers) a l'onglet et la clé de module `ateliers`, les photos `photos`.
+- Dossier principal (`parametres.dossier_principal`, `parametres.SOUS_DOSSIERS`, `parametres.dossier(nom)`) : tout y
+  est créé (Bulletins de salaire, Courriers, Photos et vidéos, Activités, À trier, Sauvegarde). `dossier_bulletins` et
+  `dossier_courriers` en sont **déduits** par `parametres.charger()` ; `parametres.brut()` donne les valeurs
+  enregistrées (anciennes installations). Choisir ou changer ce dossier passe par `principal.lancer` (fil à part,
+  `/api/principal` suivi par la page) : fichiers déplacés un par un, original supprimé après vérification de la copie,
+  chemins de `documents.json` mis à jour (`donnees.renommer_documents`). Jamais par `/api/parametres`, qui ignore ce champ.
+- Photos (`photos.py`) : dossiers sources = `dossiers_photos` (iCloud…) + « À trier » du dossier principal (dépôts
+  depuis l'Explorateur, copiés). Ranger **déplace** depuis la source (voulu : la photo quitte aussi iCloud et le
+  téléphone). Rangement `Photos et vidéos\Famille\Enfant\AAAA\PRÉNOM - Activité - Photo 0012.jpg`, une copie par
+  enfant ; sans enfant mais avec une réalisation : `Photos et vidéos\Réalisations\S0012 - Titre du 14 octobre 2026\Titre -
+  Photo 0012.jpg` (`photos.REALISATIONS`, `dossier_realisation` ; le dossier commence par l'identifiant, relu par
+  `numeroter` pour un dépôt à la main), quittée dès qu'un enfant est associé ; le numéro (`photos.json`, `compteur`) identifie la photo et figure dans le nom (un fichier rangé sans
+  numéro en reçoit un). HEIC → JPEG (pillow-heif), original dans `Photos et vidéos\Format source\` (même arborescence, même nom). Numéro et
+  activité aussi écrits en XMP dans le JPEG (sans réencodage). Enfants proposés = présents à l'heure de la photo
+  (`donnees.en_vigueur`) ± `marge_photos` minutes ; aucun = « hors horaires », mis de côté. Doublons par empreinte
+  SHA-1. Fichiers iCloud non téléchargés (attributs Windows « cloud ») jamais ouverts. Miniatures dans
+  `%LOCALAPPDATA%\assmat-gestion\miniatures`. Impression : page HTML (1, 4 ou 16 par page A4), aucun PDF enregistré.
+  Reconnaissance des visages : reportée, et jamais par une application ou un service extérieur.
+- Rubrique Photos (interface, demande de Yannis : **peu de texte**, aides en `title` ou repliées) : barre de filtres
+  compacte à gauche (`.filtres-photos` : recherche, enfants en groupes dépliables `photos.enfants()` — « derniers » gardés
+  le dernier jour de garde, « mois » ces 31 jours, « autres » —, activités), photos rangées à droite. Pendant le tri
+  (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants s'agrandissent en cibles de dépôt. « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
+  (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
+  pour ne jamais décaler les photos. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
+  rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`). Des photos à trier glissées sur
+  la zone des photos rangées (`#contenu-photos`) sont rangées avec les filtres choisis (enfant, réalisation :
+  `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien.
+- Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans
+  `Activités\<Titre>`, ajoutables dès la création — gardés dans `documentsEnAttente` puis envoyés après l'enregistrement)
+  et la **réalisation** (une activité à une date ; appelée « séance » dans les données et le code : `seances`, `S0001`),
+  qui porte `prepare` et apparaît dans les échéances (« Réalisation : … », type `activite`). Rubrique en deux onglets
+  (`vueAteliers`) : « Activités » (liste + fiche) et « Réalisations » (grand calendrier du mois, un clic sur un jour montre
+  ses réalisations en détail : à préparer, documents, photos rangées avec elles). Partout où une réalisation est proposée
+  (filtre « Réalisations » des photos : celles qui ont des photos et toutes les passées ; barre de tri), elle s'appelle
+  « [titre] du [date] » (`nomRealisation`).
+  Les photos rangées avec une réalisation y sont rattachées (choisie ou créée depuis la barre de tri). Une photo déjà
+  rangée se rattache après coup (`photos.rattacher`, enfants inchangés) : en la glissant sur une réalisation du filtre
+  (`[data-case-realisation]`, classe `glisse-rangees`), ou depuis le détail d'une réalisation, qui propose les photos du
+  même jour sans réalisation (`sans_realisation` de `/api/ateliers`).
+- Icônes des activités : `ICONES_ACTIVITES` en tête de app.js ([clé, nom, mots du titre, dessin], ajoutées à `PICTOS` en
+  `a-<clé>`), même trait que les autres pictogrammes. Champ `icone` de l'activité ; vide = proposée d'après le titre
+  (`iconeProposee`). Affichée dans la liste, le calendrier, les réalisations et le filtre des photos (`iconeActivite`).
