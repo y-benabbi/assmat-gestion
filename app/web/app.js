@@ -3122,11 +3122,13 @@ async function deposerFichiers(fichiers) {
 function afficherRangees() {
   const d = donneesPhotos;
   afficherCasesEnfants();
-  // Filtre « Réalisations » : celles qui ont des photos, de la plus récente à la plus ancienne.
-  const avecPhotos = realisations().filter((s) => s.photos?.length).sort((x, y) => y.date.localeCompare(x.date));
-  if (filtreActivite.startsWith("s:") && !avecPhotos.some((s) => `s:${s.id}` === filtreActivite)) filtreActivite = "";
+  // Filtre « Réalisations » : celles qui ont des photos et toutes celles déjà passées (on peut y glisser des photos),
+  // de la plus récente à la plus ancienne.
+  const aujourdhui = isoJour(new Date());
+  const listees = realisations().filter((s) => s.photos?.length || s.date <= aujourdhui).sort((x, y) => y.date.localeCompare(x.date));
+  if (filtreActivite.startsWith("s:") && !listees.some((s) => `s:${s.id}` === filtreActivite)) filtreActivite = "";
   $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans réalisation"],
-    ...avecPhotos.map((s) => [`s:${s.id}`, nomRealisation(s.activite.titre, s.date), s])]
+    ...listees.map((s) => [`s:${s.id}`, nomRealisation(s.activite.titre, s.date), s])]
     .map(([v, t, r]) => `<button type="button" class="ligne-filtre${r ? " avec-icone" : ""}" data-filtre-activite="${v}"${
       r ? ` data-case-realisation="${r.id}"` : v === "aucune" ? ` data-case-realisation=""` : ""} aria-pressed="${filtreActivite === v}">${
       r ? picto(iconeActivite(r.activite)) : ""}<span>${echapper(t)}</span></button>`).join("");
