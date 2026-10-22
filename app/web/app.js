@@ -584,6 +584,34 @@ function badgeBulletins() {
   $("#badge-bulletins").classList.toggle("cache", !manquants);
 }
 
+// Carte du tableau de bord : les six derniers mois de chaque famille récente (rangé, à récupérer, rien).
+async function tuileBulletins() {
+  const zone = $("#mini-classeur");
+  if (!etat.bulletins.length && !dossierLocal) dossierLocal = await api("dossier").catch(() => null);
+  const mois = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1 - i, 1);
+    mois.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+  }
+  const etats = {};      // famille -> {periode: "present" | "manquant"}
+  Object.entries(dossierLocal?.clients || {}).forEach(([f, periodes]) => periodes.forEach((p) => ((etats[f] ??= {})[p] = "present")));
+  etat.bulletins.forEach((b) => ((etats[b.client] ??= {})[b.periode] = b.present ? "present" : "manquant"));
+  const familles = Object.keys(etats).filter((f) => mois.some((m) => etats[f][m])).sort((a, b) => a.localeCompare(b, "fr")).slice(0, 8);
+  zone.innerHTML = familles.length ? `<span></span>${mois.map((m) => `<span class="nom-mois">${INITIALES_MOIS[+m.slice(5) - 1]}</span>`).join("")}
+    ${familles.map((f) => `<span class="nom-famille">${echapper(f)}</span>${mois.map((m) => `<i class="${etats[f][m] || "vide"}" title="${
+      echapper(f)} : ${INITIALES_MOIS[+m.slice(5) - 1]} ${m.slice(0, 4)} ${etats[f][m] === "manquant" ? "à récupérer" : etats[f][m] ? "rangé" : "aucun bulletin"}"></i>`).join("")}`).join("")}` : "";
+  const manquants = etat.bulletins.filter((b) => !b.present).length;
+  const nbFamilles = new Set(etat.bulletins.filter((b) => !b.present).map((b) => b.client)).size;
+  $("#tuile-bulletins").textContent = !etat.bulletins.length
+    ? "Pas encore vérifiés sur Pajemploi depuis l'ouverture de l'application."
+    : manquants ? `${manquants} bulletin${manquants > 1 ? "s" : ""} à récupérer, pour ${nbFamilles} famille${nbFamilles > 1 ? "s" : ""}.`
+      : "Tous les bulletins sont rangés.";
+  const bouton = $("#tuile-recuperer");
+  bouton.classList.toggle("cache", !manquants || etat.phase === "telechargement");
+  bouton.innerHTML = `${picto("telecharger")}Récupérer ${manquants > 1 ? `les ${manquants} bulletins` : "le bulletin"}`;
+}
+$("#tuile-recuperer").addEventListener("click", () => { ouvrirOnglet("bulletins"); action("telecharger_manquants"); });
+
 // « 2 bulletins : Durand (août), Bernard (septembre) » : familles et mois des bulletins à récupérer.
 function detailManquants() {
   const parFamille = {};
@@ -645,6 +673,7 @@ async function afficherTableauDeBord() {
 
   salutation(profil);
   statsAccueil(r, ech, contrats);
+  if (modules.bulletins !== false) tuileBulletins();
   echeancesAccueil = ech;
   afficherAgenda();
   contratsAccueil = contrats;

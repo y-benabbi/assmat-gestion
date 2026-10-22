@@ -181,7 +181,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   actions possibles tout de suite), puis deux colonnes indépendantes (`.colonnes-accueil` > `.colonne`, chaque carte
   garde sa hauteur) : à gauche Agenda (calendrier du mois, point sous les jours à échéance, `afficherAgenda`) et Mes
   revenus (graphique compact), à droite la journée (`afficherJour` : aujourd'hui, ou le prochain jour d'accueil quand
-  toutes les plages sont finies ; une ligne par plage, l'enfant revient s'il y a une coupure) et les sites
+  toutes les plages sont finies ; une ligne par plage, l'enfant revient s'il y a une coupure), la carte
+  « Bulletins de salaire » (mini-classeur des 6 derniers mois, `tuileBulletins`, bouton Récupérer) et les sites
   d'activités. Sur téléphone, la journée passe en premier. L'application ne connaît pas les dates des vacances
   scolaires : si un enfant a des horaires de vacances, une bascule « Période scolaire / Vacances » apparaît (choix
   gardé pour la journée dans `localStorage`).
