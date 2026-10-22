@@ -636,6 +636,25 @@ def modifier(numero: str, ids: list, seance_id: str) -> dict:
     return {"numero": numero}
 
 
+def rattacher(numeros: list, seance_id: str) -> dict:
+    """Rattache des photos rangées à une réalisation (ou les en détache si `seance_id` est vide), sans changer
+    leurs enfants."""
+    p = parametres.brut()
+    racine = parametres.dossier("photos", p)
+    liste_enfants = enfants()
+    toutes = rangees(p)
+    faites, erreurs = [], []
+    for numero in numeros:
+        copies = (toutes.get(numero) or {}).get("copies") or []
+        ids = sorted({_enfant_du_chemin(c, racine, liste_enfants) for c in copies} - {""})
+        try:
+            modifier(numero, ids, seance_id)
+            faites.append(numero)
+        except (ValueError, OSError, ModuleAbsent) as e:
+            erreurs.append(f"Photo {numero} : {e}")
+    return {"rattachees": faites, "erreurs": erreurs}
+
+
 def remettre_a_trier(numero: str) -> dict:
     """Sort une photo du rangement : l'original (ou une copie) retourne dans « À trier », le reste est supprimé."""
     p = parametres.brut()

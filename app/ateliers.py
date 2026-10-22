@@ -1,7 +1,8 @@
 """Activités (rubrique « Activités ») : des modèles réutilisables, et leurs réalisations datées.
 
-Une activité : identifiant (« A0007 », jamais modifié), titre, description, liste « à préparer » (matériel à
-préparer, acheter, rassembler) et documents utiles, rangés dans « Activités\\<Titre> » du dossier principal.
+Une activité : identifiant (« A0007 », jamais modifié), titre, icône (clé de ICONES_ACTIVITES dans app.js), description,
+liste « à préparer » (matériel à préparer, acheter, rassembler) et documents utiles, rangés dans « Activités\\<Titre> »
+du dossier principal.
 Chaque fois qu'elle est faite, une réalisation (« S0012 », appelée séance dans les données) porte sa date et ce qui
 est déjà prêt pour elle. Les photos rangées avec une réalisation y sont rattachées (photos.py).
 
@@ -77,7 +78,8 @@ def enregistrer(nouvelle: dict) -> dict:
             d["activites"].append(a)
         ancien = dossier(a) if a.get("dossier") else None
         a.update(titre=titre, description=str(nouvelle.get("description") or "").strip()[:4000],
-                 a_preparer=_liste_texte(nouvelle.get("a_preparer")))
+                 a_preparer=_liste_texte(nouvelle.get("a_preparer")),
+                 icone=re.sub(r"[^a-z0-9-]", "", str(nouvelle.get("icone") or ""))[:40])
         a["dossier"] = nom_dossier(titre)
         nouveau = dossier(a)
         if ancien and nouveau and ancien != nouveau and ancien.is_dir() and not nouveau.exists():

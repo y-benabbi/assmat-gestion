@@ -1217,10 +1217,9 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .grand-calendrier .numero-jour { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 700;
   font-variant-numeric: tabular-nums; }
 .grand-calendrier .aujourdhui .numero-jour { background: var(--eucalyptus); color: #fff; }
-.puce-realisation { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; padding: 3px 7px;
+.puce-realisation { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; padding: 3px 7px;
   border-radius: 8px; background: var(--lavande); color: var(--menthe-encre); font-size: 0.8rem; font-weight: 700; line-height: 1.2;
   overflow-wrap: anywhere; }
-.puce-realisation .picto { width: 12px; height: 12px; margin-left: 4px; vertical-align: -1px; }
 .puce-realisation.a-venir { background: var(--tournesol-clair); color: #8a5a12; }
 .hors-mois .puce-realisation { opacity: 0.6; }
 .puce-plus { font-size: 0.78rem; font-weight: 700; color: var(--encre-douce); padding-left: 4px; }
@@ -1240,6 +1239,35 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .jour-realisations .nouvelle-seance { padding-top: 12px; border-top: 1px dashed var(--trait); }
 .jour-realisations .nouvelle-seance label { flex: 1 1 200px; }
 .jour-realisations .nouvelle-seance select { width: 100%; }
+/* Icône d'une activité : aperçu cliquable à côté du titre, grille de choix */
+.titre-et-icone { display: flex; align-items: flex-end; gap: 12px; }
+.titre-et-icone label { flex: 1; }
+.apercu-icone { flex: none; width: 54px; height: 54px; margin: 10px 0; padding: 0; display: grid; place-items: center;
+  border: 2px solid var(--trait); border-radius: 14px; background: var(--papier); color: var(--c-familles-encre); cursor: pointer; }
+.apercu-icone:hover, .apercu-icone[aria-expanded="true"] { border-color: var(--eucalyptus); background: var(--eucalyptus-clair); }
+.apercu-icone .picto { width: 30px; height: 30px; stroke-width: 1.8; }
+.grille-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); gap: 4px; padding: 10px;
+  margin-bottom: 8px; border-radius: 14px; background: var(--brume); }
+.grille-icones button { aspect-ratio: 1; display: grid; place-items: center; padding: 0; border: 2px solid transparent; border-radius: 10px;
+  background: var(--papier); color: var(--c-familles-encre); cursor: pointer; }
+.grille-icones button:hover { border-color: var(--menthe-fonce); }
+.grille-icones button[aria-selected="true"] { border-color: var(--eucalyptus); background: var(--eucalyptus-clair); }
+.grille-icones .picto { width: 24px; height: 24px; }
+.puce-realisation > .picto { width: 13px; height: 13px; margin: 0 4px 0 0; vertical-align: -2px; }
+.carte-realisation .entete-seance .pic { margin-right: 2px; }
+.ligne-filtre.avec-icone { align-items: flex-start; }
+.ligne-filtre.avec-icone .picto { width: 16px; height: 16px; margin-top: 2px; color: var(--c-familles-encre); }
+/* Photos rangées glissées : les réalisations du filtre deviennent des cibles */
+.glisse-rangees #filtre-activite [data-case-realisation] { padding: 9px 8px; margin: 5px 0; border: 2px dashed var(--menthe-fonce);
+  background: var(--papier); }
+#filtre-activite .survol { border-style: solid !important; border-color: var(--tournesol) !important; background: var(--tournesol-clair) !important; }
+/* Photos du jour sans réalisation, à rattacher */
+.photos-a-rattacher { padding: 14px 16px; margin-bottom: 14px; border: 2px dashed var(--menthe-fonce); border-radius: 14px; }
+.photos-a-rattacher h3 { margin: 0 0 8px; font-size: 1rem; }
+.mini-photo { position: relative; }
+.mini-photo[data-choix-photo] { cursor: pointer; opacity: 0.55; }
+.mini-photo.choisie { opacity: 1; box-shadow: 0 0 0 3px var(--eucalyptus); }
+.mini-photo.choisie .coche-vignette { background: var(--eucalyptus); color: #fff; }
 @media (max-width: 1100px) { .realisations { grid-template-columns: 1fr; } .jour-realisations { position: static; max-height: none; } }
 @media (max-width: 900px) { .ateliers { grid-template-columns: 1fr; } }
 @media (max-width: 600px) {

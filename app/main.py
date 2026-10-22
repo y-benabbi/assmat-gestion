@@ -483,6 +483,11 @@ def creer_app(port, jeton):
         except ValueError as e:
             return jsonify({"erreur": str(e)}), 400
 
+    @app.post("/api/photos/rattacher")
+    def rattacher_photos():
+        d = request.get_json(force=True)
+        return jsonify(photos.rattacher([str(n) for n in d.get("numeros") or []], str(d.get("seance") or "")))
+
     @app.post("/api/photos/modifier")
     def modifier_photo():
         d = request.get_json(force=True)
@@ -555,16 +560,19 @@ def creer_app(port, jeton):
     @app.get("/api/ateliers")
     def lire_ateliers():
         index = photos._index()["photos"]
-        par_seance = {}
+        par_seance, sans_realisation = {}, {}
         for numero, meta in index.items():
             if meta.get("seance"):
                 par_seance.setdefault(meta["seance"], []).append(numero)
+            elif meta.get("date"):
+                sans_realisation.setdefault(meta["date"][:10], []).append(numero)
         liste = ateliers.activites()
         for a in liste:
             a["documents"] = ateliers.documents(a)
             for s in a["seances"]:
                 s["photos"] = sorted(par_seance.get(s["id"], []))
-        return jsonify({"activites": liste, "configure": bool(parametres.brut().get("dossier_principal"))})
+        return jsonify({"activites": liste, "configure": bool(parametres.brut().get("dossier_principal")),
+                        "sans_realisation": {j: sorted(n) for j, n in sans_realisation.items()}})
 
     def reponse_atelier(fonction, *args):
         try:

@@ -55,6 +55,83 @@ const PICTOS = {
   annuler: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
   activite: '<path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.6-1.2-2.8 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/>',
 };
+// Icônes des activités : [clé, nom, mots du titre qui la font proposer, dessin]. Même trait que PICTOS.
+const ICONES_ACTIVITES = [
+  ["palette", "Arts plastiques", "art bricolage creation", '<path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.6-1.2-2.8 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4c0-4.2-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="14.5" cy="7" r="1"/>'],
+  ["pinceau", "Peinture", "peinture peindre gouache aquarelle pinceau", '<path d="M20 4l-8.5 8.5"/><path d="M11.5 12.5c-2-1.5-5-.5-5.7 2S5 19 3 20c3 1.2 7 1 8.6-1.6 1-1.7.6-3.9-.1-5.9z"/>'],
+  ["crayon", "Dessin", "dessin dessiner crayon feutre", '<path d="M4 20l1-5L16 4l4 4L9 19z"/><path d="M14 6l4 4"/>'],
+  ["ciseaux", "Découpage, collage", "decoupage collage ciseaux coller", '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 7.5 20 18M8.5 16.5 20 6"/>'],
+  ["etoile", "Gommettes", "gommette etoile autocollant", '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4l-5.3 3 1.2-6-4.5-4.1 6-.7z"/>'],
+  ["rouleau", "Pâte à modeler", "pate modeler sel argile modelage", '<rect x="5" y="5" width="14" height="5" rx="2.5"/><path d="M2 7.5h3M19 7.5h3"/><path d="M4 19c1.5-4 14.5-4 16 0z"/>'],
+  ["tampon", "Tampons, empreintes", "tampon empreinte", '<rect x="5" y="15" width="14" height="4" rx="1"/><path d="M8 15v-2h8v2"/><path d="M10 13V7a2 2 0 0 1 4 0v6"/><path d="M4 21h16"/>'],
+  ["main", "Peinture au doigt, sensoriel", "doigt main sensoriel toucher", '<path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 10V3.5a1.5 1.5 0 0 1 3 0V11M14 10V5a1.5 1.5 0 0 1 3 0v8c0 4-2.5 8-7 8-3 0-4.5-2-6-5l-1.5-3a1.5 1.5 0 0 1 2.5-1.5L8 13"/>'],
+  ["perles", "Perles, enfilage", "perle enfilage collier", '<path d="M3 6c4 10 14 10 18 0"/><circle cx="6.5" cy="11.5" r="2"/><circle cx="12" cy="13.5" r="2"/><circle cx="17.5" cy="11.5" r="2"/>'],
+  ["livre", "Lecture, histoires", "lecture livre histoire conte", '<path d="M3 5c3-1 6-1 9 1 3-2 6-2 9-1v14c-3-1-6-1-9 1-3-2-6-2-9-1z"/><path d="M12 6v14"/>'],
+  ["bibliotheque", "Bibliothèque", "bibliotheque mediatheque", '<path d="M5 4v15M9 4v15M5 4h4M5 19h4"/><path d="M12 5.5l3-.8 3.6 14-3 .8z"/><path d="M3 21h18"/>'],
+  ["note", "Comptines, chansons", "comptine chanson chant chanter", '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>'],
+  ["tambour", "Éveil musical", "musique musical instrument tambour eveil", '<ellipse cx="12" cy="9" rx="8" ry="3"/><path d="M4 9v7c0 1.7 3.6 3 8 3s8-1.3 8-3V9"/><path d="M7 3l4 5M17 3l-4 5"/>'],
+  ["danse", "Danse, motricité", "danse motricite gym bouger", '<circle cx="12" cy="4" r="2"/><path d="M12 7v7l-3 7M12 14l3 7M12 9 7 5M12 9l5-4"/>'],
+  ["cones", "Parcours", "parcours obstacle", '<path d="M3 20h8M4.5 20 7 8l2.5 12M5.5 15h3"/><path d="M13 20h8M14.5 20 17 8l2.5 12M15.5 15h3"/>'],
+  ["puzzle", "Puzzle", "puzzle encastrement", '<path d="M4 7h4.5a2 2 0 1 1 3 0H16v4.5a2 2 0 1 1 0 3V19H4z"/>'],
+  ["cubes", "Construction", "construction cube kapla", '<rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><rect x="8" y="3" width="8" height="8" rx="1"/>'],
+  ["brique", "Briques à emboîter", "lego duplo brique", '<rect x="3" y="9" width="18" height="10" rx="1.5"/><path d="M6 9V6h4v3M14 9V6h4v3"/>'],
+  ["de", "Jeux de société", "jeu societe de loto memory", '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 8.5h.01M15.5 8.5h.01M12 12h.01M8.5 15.5h.01M15.5 15.5h.01"/>'],
+  ["tasse", "Dînette, jeu d'imitation", "dinette imitation marchande", '<path d="M4 8h12v6a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M16 10h2a2 2 0 0 1 0 4h-2"/><path d="M3 21h14"/>'],
+  ["masque", "Déguisement", "deguisement masque carnaval", '<path d="M3 8c3-1 6-1 9 1 3-2 6-2 9-1 0 6-2 9-5 9-2 0-3-2-4-2s-2 2-4 2c-3 0-5-3-5-9z"/><path d="M7 11h2M15 11h2"/>'],
+  ["marionnette", "Marionnettes", "marionnette spectacle theatre", '<path d="M7 21v-9a5 5 0 0 1 10 0v9"/><path d="M10 11h.01M14 11h.01"/><path d="M10 15c1 1 3 1 4 0"/><path d="M5 21h14"/>'],
+  ["voiture", "Petites voitures", "voiture garage", '<path d="M3 16v-3l2-5h11l3 5h2v3z"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/><path d="M6 13h13"/>'],
+  ["train", "Train", "train", '<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 10h14M9 13.5h.01M15 13.5h.01"/><path d="M8 21l2-4M16 21l-2-4"/>'],
+  ["bulles", "Bulles de savon", "bulle savon", '<circle cx="9" cy="14" r="5"/><circle cx="17" cy="7" r="3"/><circle cx="18" cy="15" r="1.5"/><path d="M7 12a2 2 0 0 1 2-2"/>'],
+  ["emotions", "Émotions", "emotion humeur visage", '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c2 2 5 2 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/>'],
+  ["lune", "Relaxation", "relaxation calme yoga sieste", '<path d="M20 14A8 8 0 1 1 10 4a6.5 6.5 0 0 0 10 10z"/>'],
+  ["toque", "Cuisine", "cuisine recette", '<path d="M7 14a4 4 0 0 1-1-7.9A4.5 4.5 0 0 1 12 4a4.5 4.5 0 0 1 6 2.1A4 4 0 0 1 17 14z"/><path d="M7 14v6h10v-6M7 17h10"/>'],
+  ["gateau", "Pâtisserie", "gateau patisserie biscuit crepe muffin", '<path d="M6 12h12l-2 9H8z"/><path d="M5 12a7 5 0 0 1 14 0"/><path d="M10.5 12l.5 9M13.5 12l-.5 9"/>'],
+  ["pomme", "Fruits, goûter", "fruit pomme gouter legume", '<path d="M12 7c-2-1.5-7-1-7 5 0 5 3 9 5 9 1 0 1.5-.5 2-.5s1 .5 2 .5c2 0 5-4 5-9 0-6-5-6.5-7-5z"/><path d="M12 7c0-2 1-4 3-4"/>'],
+  ["panier", "Marché, pique-nique", "marche pique nique panier course", '<path d="M3 10h18l-2 10H5z"/><path d="M7 10l4-6M17 10l-4-6M9 14v3M12 14v3M15 14v3"/>'],
+  ["pousse", "Semis, plantations", "semis plantation graine pousse potager", '<path d="M12 21v-9"/><path d="M12 12C12 8 9 6 5 6c0 4 3 6 7 6z"/><path d="M12 14c0-3 2.5-5 6-5 0 3.5-2.5 5-6 5z"/><path d="M7 21h10"/>'],
+  ["arrosoir", "Jardinage", "jardin jardinage arroser arrosoir", '<path d="M4 10h11v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M15 13l5-5M18.5 6.5l3 3"/><path d="M7 10V7a2.5 2.5 0 0 1 5 0v3"/>'],
+  ["fleur", "Fleurs", "fleur bouquet printemps", '<path d="M7 4l2.5 2L12 3l2.5 3L17 4v5a5 5 0 0 1-10 0z"/><path d="M12 14v7M12 19c-2-2-4-2.5-6-2 1.5 2 4 3 6 2zM12 18c1.5-1.5 3.5-2 5.5-1.5-1 1.8-3.5 2.5-5.5 1.5z"/>'],
+  ["feuille", "Nature, feuilles", "nature feuille automne", '<path d="M5 19C5 10 10 5 20 4c0 10-5 15-14 15z"/><path d="M5 19 13 11"/>'],
+  ["arbre", "Forêt, parc", "foret arbre bois parc", '<circle cx="12" cy="9" r="6"/><path d="M12 15v6M9 21h6M12 12l2.5-2.5"/>'],
+  ["empreintes", "Promenade", "promenade balade marche sortie", '<path d="M7 4c2 0 3 2 3 5s-1 4-3 4-3-1.5-3-4 1-5 3-5zM17 9c2 0 3 2 3 5s-1 4-3 4-3-1.5-3-4 1-5 3-5z"/><path d="M5.5 16h3M15.5 21h3"/>'],
+  ["toboggan", "Aire de jeux", "aire jeux toboggan square", '<path d="M5 21V6h4v15M5 10h4M5 14h4"/><path d="M9 6c3 0 4 3 6 8s3 7 6 7"/>'],
+  ["balancoire", "Balançoire", "balancoire", '<path d="M3 21 7 3h10l4 18"/><path d="M10 3v11M14 3v11M9 14h6"/>'],
+  ["ballon", "Jeux de ballon", "ballon balle foot", '<circle cx="12" cy="12" r="9"/><path d="M12 3c-3 3-3 15 0 18M12 3c3 3 3 15 0 18M3.5 9h17M3.5 15h17"/>'],
+  ["velo", "Vélo, draisienne", "velo draisienne tricycle porteur", '<circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M6 16l4-7h5l3 7M15 9l-1-3h2.5M10 9 9 7H7"/>'],
+  ["trottinette", "Trottinette", "trottinette", '<circle cx="5.5" cy="18" r="2.5"/><circle cx="18.5" cy="18" r="2.5"/><path d="M8 18h8M17.5 16 14.5 4M12 4h5"/>'],
+  ["seau", "Bac à sable", "sable seau pelle chateau plage", '<path d="M5 9h10l-1.5 11h-7z"/><path d="M5 9a5 5 0 0 1 10 0"/><path d="M19 3v12M17 15h4l-2 4z"/>'],
+  ["goutte", "Jeux d'eau", "eau transvasement", '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>'],
+  ["vagues", "Piscine, bébés nageurs", "piscine nageur nage", '<path d="M2 7c2.5-2 4.5-2 7 0s4.5 2 7 0 3.5-1.5 6 0M2 12c2.5-2 4.5-2 7 0s4.5 2 7 0 3.5-1.5 6 0M2 17c2.5-2 4.5-2 7 0s4.5 2 7 0 3.5-1.5 6 0"/>'],
+  ["cerf-volant", "Cerf-volant, vent", "cerf volant vent moulin", '<path d="M12 2l6 7-6 8-6-8z"/><path d="M6 9h12M12 2v15"/><path d="M12 17c-1 2 1 3 0 5"/>'],
+  ["papillon", "Petites bêtes", "papillon insecte bete coccinelle", '<path d="M12 7v13"/><path d="M12 10C9 4 3 4 3 8s4 5 9 3M12 10c3-6 9-6 9-2s-4 5-9 3M12 13c-3 0-7 2-6 5s5 0 6-3M12 13c3 0 7 2 6 5s-5 0-6-3"/><path d="M10 4l2 3 2-3"/>'],
+  ["escargot", "Escargots", "escargot limace", '<path d="M3 18h15a3 3 0 0 0 3-3V8"/><circle cx="11" cy="12" r="6"/><path d="M11 12a2.5 2.5 0 1 1 2.5 2.5"/><path d="M19 8l-1-3M21 8l1-3"/>'],
+  ["patte", "Animaux", "animal animaux chien chat", '<ellipse cx="12" cy="16" rx="4" ry="3.5"/><circle cx="6" cy="10" r="2"/><circle cx="10" cy="6" r="2"/><circle cx="14" cy="6" r="2"/><circle cx="18" cy="10" r="2"/>'],
+  ["ferme", "Ferme", "ferme poule mouton vache", '<path d="M3 21V10l9-6 9 6v11z"/><path d="M8 21v-7h8v7M8 14l8 7M16 14l-8 7"/>'],
+  ["oiseau", "Oiseaux", "oiseau mangeoire nichoir", '<path d="M16 6a3 3 0 0 0-3 3v.5C9 9 4 11 4 15c0 2.5 2 4 4.5 4H13a5 5 0 0 0 5-5V9.5l3-1-3-1.2A3 3 0 0 0 16 6z"/><path d="M15.5 8.5h.01M8 14c1.5 1.5 3.5 1.5 5 0"/>'],
+  ["poisson", "Poissons, aquarium", "poisson aquarium mer", '<path d="M3 12c3-5 9-6 14 0-5 6-11 5-14 0z"/><path d="M17 12l4-4v8z"/><path d="M8 11h.01"/>'],
+  ["loupe", "Observation", "observation loupe exploration decouverte", '<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/>'],
+  ["soleil", "Soleil, été", "soleil ete", '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'],
+  ["parapluie", "Pluie", "pluie parapluie flaque", '<path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v7a2 2 0 0 0 4 0M12 2v1"/>'],
+  ["flocon", "Neige, hiver", "neige hiver flocon", '<path d="M12 2v20M3.3 7l17.4 10M20.7 7 3.3 17"/><path d="M9 4l3 2 3-2M9 20l3-2 3 2"/>'],
+  ["arc-en-ciel", "Arc-en-ciel, couleurs", "arc ciel couleur", '<path d="M2 18a10 10 0 0 1 20 0M6 18a6 6 0 0 1 12 0M10 18a2 2 0 0 1 4 0"/>'],
+  ["tente", "Cabane", "cabane tente", '<path d="M2 20 12 4l10 16z"/><path d="M9 20l3-6 3 6"/>'],
+  ["sapin", "Noël", "noel sapin", '<path d="M12 2l1.2 2.2 2.3.3-1.7 1.6.4 2.4L12 7.4l-2.2 1.1.4-2.4-1.7-1.6 2.3-.3z"/><path d="M12 9l-5 6h3l-4 5h12l-4-5h3z"/>'],
+  ["citrouille", "Halloween", "halloween citrouille sorciere", '<path d="M12 7c-5 0-8 3-8 7s3 6 8 6 8-2 8-6-3-7-8-7z"/><path d="M12 7c-2 0-3 3-3 6.5S10 20 12 20s3-3 3-6.5S14 7 12 7z"/><path d="M12 7c0-2 1-3 3-4"/>'],
+  ["oeuf", "Pâques", "paques oeuf lapin", '<path d="M12 3c-4 0-7 6-7 11a7 7 0 0 0 14 0c0-5-3-11-7-11z"/><path d="M5.5 12l3 2 3-2 3 2 3-2 1.2.8"/>'],
+  ["coeur", "Fête des parents", "fete mere pere cadeau coeur", '<path d="M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z"/>'],
+  ["ballons", "Fête, anniversaire", "fete anniversaire ballon baudruche", '<ellipse cx="9" cy="8" rx="4" ry="5"/><ellipse cx="16" cy="10" rx="3.5" ry="4.5"/><path d="M9 13c0 3 2 4 2 8M16 14.5c0 2-2 3-2 6.5"/>'],
+];
+ICONES_ACTIVITES.forEach(([cle, , , dessin]) => { PICTOS[`a-${cle}`] = dessin; });
+
+// Icône proposée d'après le titre (« Peinture d'automne » → pinceau), sinon la palette.
+function iconeProposee(titre) {
+  const mots = String(titre || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().split(/[^a-z]+/).filter((m) => m.length > 2);
+  const trouvee = ICONES_ACTIVITES.find(([, , cles]) => cles.split(" ").some((c) => mots.some((m) => m === c || (c.length > 3 && m.startsWith(c)))));
+  return trouvee ? trouvee[0] : "palette";
+}
+// Pictogramme d'une activité : celui choisi, ou celui proposé d'après son titre.
+const iconeActivite = (a) => `a-${PICTOS[`a-${a?.icone}`] ? a.icone : iconeProposee(a?.titre)}`;
+
 const picto = (nom) => `<svg class="picto" viewBox="0 0 24 24" aria-hidden="true">${PICTOS[nom]}</svg>`;
 // Pastille colorée selon la catégorie du menu : argent (menthe), familles (lavande), demarches (beurre), moi (rose).
 const pastille = (nom, categorie) => `<span class="pic ${categorie}">${picto(nom)}</span>`;
@@ -3002,7 +3079,7 @@ document.addEventListener("drop", (e) => {
 });
 document.addEventListener("dragend", () => {
   $$("#photos .survol, #photos .depot-actif").forEach((x) => x.classList.remove("survol", "depot-actif"));
-  $("#tri-photos").classList.remove("glisse");
+  $("#tri-photos").classList.remove("glisse", "glisse-rangees");
 });
 
 // Sur le bouton ou le panneau « À trier » : photos rangées glissées (remises à trier), fichiers de l'Explorateur (copiés).
@@ -3049,9 +3126,10 @@ function afficherRangees() {
   const avecPhotos = realisations().filter((s) => s.photos?.length).sort((x, y) => y.date.localeCompare(x.date));
   if (filtreActivite.startsWith("s:") && !avecPhotos.some((s) => `s:${s.id}` === filtreActivite)) filtreActivite = "";
   $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans réalisation"],
-    ...avecPhotos.map((s) => [`s:${s.id}`, nomRealisation(s.activite.titre, s.date)])]
-    .map(([v, t]) => `<button type="button" class="ligne-filtre" data-filtre-activite="${v}" aria-pressed="${filtreActivite === v}">${
-      echapper(t)}</button>`).join("");
+    ...avecPhotos.map((s) => [`s:${s.id}`, nomRealisation(s.activite.titre, s.date), s])]
+    .map(([v, t, r]) => `<button type="button" class="ligne-filtre${r ? " avec-icone" : ""}" data-filtre-activite="${v}"${
+      r ? ` data-case-realisation="${r.id}"` : v === "aucune" ? ` data-case-realisation=""` : ""} aria-pressed="${filtreActivite === v}">${
+      r ? picto(iconeActivite(r.activite)) : ""}<span>${echapper(t)}</span></button>`).join("");
   const liste = rangeesVisibles();
   $("#nb-rangees").textContent = pluriel(liste.length, "élément");
   let html = "", mois = null;
@@ -3086,7 +3164,8 @@ function afficherCasesEnfants() {
     echapper(e.prenom)}<small>${echapper(e.famille)}</small></span><span class="compte">${compte(e.id)}</span></button>`;
   const tous = `<button type="button" class="case-enfant toutes" data-filtre-enfant="" aria-pressed="${!filtreEnfant}">
     <span class="nom-enfant">Tous</span><span class="compte">${d.rangees.length}</span></button>`;
-  const groupes = GROUPES_ENFANTS.map(([cle, titre, ouvert]) => {
+  // Sans groupes (serveur d'une version précédente encore lancé) : simple liste.
+  const groupes = !d.enfants.some((e) => e.groupe) ? trouves.map(ligne).join("") : GROUPES_ENFANTS.map(([cle, titre, ouvert]) => {
     const liste = trouves.filter((e) => (e.groupe || "autres") === cle);
     if (!liste.length) return "";
     const ouvre = cherche || (groupesOuverts[cle] ?? ouvert) || liste.some((e) => e.id === filtreEnfant);
@@ -3180,9 +3259,37 @@ $("#grille-rangees").addEventListener("dragstart", (e) => {
     majVignettes("#grille-rangees", selRangees, "data-numero");
     afficherBarreRangees();
   }
+  $("#tri-photos").classList.add("glisse-rangees");
   e.dataTransfer.setData(RANGEES_GLISSEES, [...selRangees].join(","));
   e.dataTransfer.effectAllowed = "move";
 });
+
+// Glisser des photos rangées sur une réalisation du filtre : elles y sont rattachées (« Sans réalisation » les en
+// détache). Leurs enfants ne changent pas.
+const caseRealisation = (e) => e.dataTransfer?.types.includes(RANGEES_GLISSEES) && e.target.closest?.("#filtre-activite [data-case-realisation]");
+document.addEventListener("dragover", (e) => {
+  const c = caseRealisation(e);
+  $$("#filtre-activite .survol").forEach((x) => x !== c && x.classList.remove("survol"));
+  if (!c) return;
+  e.preventDefault();
+  c.classList.add("survol");
+});
+document.addEventListener("drop", async (e) => {
+  const c = caseRealisation(e);
+  if (!c) return;
+  e.preventDefault();
+  c.classList.remove("survol");
+  await rattacherPhotos(e.dataTransfer.getData(RANGEES_GLISSEES).split(",").filter(Boolean), c.dataset.caseRealisation);
+  afficherPhotos();
+});
+async function rattacherPhotos(numeros, seance) {
+  if (!numeros.length) return null;
+  document.body.classList.add("occupe");
+  const r = await api("photos/rattacher", { numeros, seance }).catch((err) => ({ erreurs: [err.message] }));
+  document.body.classList.remove("occupe");
+  if (r.erreurs?.length) alert(r.erreurs.join("\n"));
+  return r;
+}
 
 // Changer les enfants (et l'activité) des photos rangées choisies.
 const enfantsEditeur = new Set();
@@ -3265,6 +3372,8 @@ let vueAteliers = "activites";
 let documentsEnAttente = [];       // documents choisis pour une activité pas encore enregistrée
 let moisRealisations = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let jourRealisations = isoJour(new Date());
+let sansRealisation = {};          // photos rangées sans réalisation, par jour de prise de vue
+const choixRattacher = { jour: "", numeros: new Set() };
 
 // « Peinture d'automne du 14 octobre 2026 » : nom d'une réalisation partout où elle est proposée.
 const nomRealisation = (titre, jour) => `${titre} du ${dateFr(jour)}`;
@@ -3274,6 +3383,7 @@ async function afficherAteliers() {
   const r = await api("ateliers").catch((e) => { alert(e.message); return null; });
   if (!r) return;
   activitesConnues = r.activites;
+  sansRealisation = r.sans_realisation || {};
   $("#ateliers-sans-dossier").classList.toggle("cache", r.configure);
   $$("[data-vue-ateliers]").forEach((b) => {
     const oui = b.dataset.vueAteliers === vueAteliers;
@@ -3290,7 +3400,7 @@ async function afficherAteliers() {
       passees.length ? `${pluriel(passees.length, "réalisation")}, la dernière le ${dateCourte(passees[0].date)}` : "jamais réalisée"]
       .filter(Boolean).join(" · ");
     return `<li><button type="button" class="carte-activite" data-activite="${a.id}" aria-pressed="${activiteOuverte === a.id}">
-      ${pastille("activite", "familles")}<span><span class="nom">${echapper(a.titre)}</span><span class="petit">${detail}</span></span></button></li>`;
+      ${pastille(iconeActivite(a), "familles")}<span><span class="nom">${echapper(a.titre)}</span><span class="petit">${detail}</span></span></button></li>`;
   }).join("") : `<li class="petit">Aucune activité pour l'instant : créez la première avec « Nouvelle activité ».</li>`;
   appliquerFiltres();
   afficherFicheActivite();
@@ -3318,7 +3428,13 @@ function afficherFicheActivite() {
       s.photos?.length ? ` · ${pluriel(s.photos.length, "photo")}` : ""}</span></li>`).join("") : "";
   fiche.innerHTML = `<form id="form-activite" class="formulaire-activite">
       <h2>${a ? echapper(a.titre) : "Nouvelle activité"}</h2>
-      <label>Titre <input name="titre" required maxlength="120" value="${echapper(a?.titre || "")}" placeholder="Peinture d'automne"></label>
+      <div class="titre-et-icone">
+        <button type="button" class="apercu-icone" id="apercu-icone" aria-expanded="false" title="Choisir une icône">${picto(iconeActivite(a))}</button>
+        <input type="hidden" name="icone" value="${echapper(a?.icone || "")}">
+        <label>Titre <input name="titre" required maxlength="120" value="${echapper(a?.titre || "")}" placeholder="Peinture d'automne"></label>
+      </div>
+      <div class="grille-icones cache" id="grille-icones" role="listbox" aria-label="Icônes">${ICONES_ACTIVITES.map(([cle, nom]) =>
+        `<button type="button" role="option" data-icone="${cle}" title="${echapper(nom)}" aria-label="${echapper(nom)}">${picto(`a-${cle}`)}</button>`).join("")}</div>
       <label>Description <textarea name="description" rows="3" placeholder="Déroulement, âges, durée…">${echapper(a?.description || "")}</textarea></label>
       <label>À préparer, acheter ou rassembler <textarea name="a_preparer" rows="4"
         placeholder="Une ligne par élément : gouache, pinceaux, feuilles ramassées…">${echapper((a?.a_preparer || []).join("\n"))}</textarea></label>
@@ -3342,8 +3458,19 @@ function afficherFicheActivite() {
         <button type="button" class="secondaire" id="ajouter-seance">${picto("plus")}Ajouter une réalisation</button></div>` : ""}`;
   fiche.querySelector("[data-picto-js]")?.insertAdjacentHTML("afterbegin", picto("coche"));
   marquerChamps($("#form-activite"));
+  majApercuIcone();
   if (!a) afficherDocumentsEnAttente();
 }
+
+// Icône : choisie dans la grille, sinon proposée d'après le titre tant qu'aucune n'a été choisie.
+function majApercuIcone() {
+  const f = $("#form-activite");
+  const cle = f.elements.icone.value || iconeProposee(f.elements.titre.value);
+  $("#apercu-icone").innerHTML = picto(`a-${cle}`);
+  $("#apercu-icone").title = `${ICONES_ACTIVITES.find((i) => i[0] === cle)?.[1] || ""} : choisir une autre icône`;
+  $$("#grille-icones [data-icone]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.icone === cle)));
+}
+$("#fiche-activite").addEventListener("input", (e) => { if (e.target.name === "titre") majApercuIcone(); });
 
 // Activité pas encore enregistrée : les documents choisis attendent l'enregistrement (la fiche n'est pas redessinée,
 // pour garder ce qui est déjà saisi).
@@ -3387,6 +3514,7 @@ $("#fiche-activite").addEventListener("submit", async (e) => {
   const f = e.target;
   try {
     const a = await api("ateliers", { id: activiteOuverte === "nouvelle" ? "" : activiteOuverte, titre: f.elements.titre.value,
+      icone: f.elements.icone.value || iconeProposee(f.elements.titre.value),
       description: f.elements.description.value, a_preparer: f.elements.a_preparer.value });
     activiteOuverte = a.id;
   } catch (err) { alert(err.message); return; }
@@ -3433,7 +3561,15 @@ $("#fiche-activite").addEventListener("click", async (e) => {
   const cible = e.target.closest("button");
   if (!cible) return;
   if (cible.matches("[data-fermer-activite]")) { activiteOuverte = ""; documentsEnAttente = []; afficherAteliers(); }
-  else if (cible.matches("[data-supprimer-activite]")) {
+  else if (cible.id === "apercu-icone") {
+    const ouvre = $("#grille-icones").classList.toggle("cache") === false;
+    cible.setAttribute("aria-expanded", String(ouvre));
+  } else if (cible.dataset.icone) {
+    $("#form-activite").elements.icone.value = cible.dataset.icone;
+    $("#grille-icones").classList.add("cache");
+    $("#apercu-icone").setAttribute("aria-expanded", "false");
+    majApercuIcone();
+  } else if (cible.matches("[data-supprimer-activite]")) {
     if (!confirm("Supprimer cette activité et ses réalisations ? Son dossier de documents et les photos rangées restent en place.")) return;
     await api("ateliers/supprimer", { id: activiteOuverte }).catch((err) => alert(err.message));
     activiteOuverte = "";
@@ -3483,7 +3619,7 @@ function afficherRealisations() {
     if (cases.length % 7 === 0 && cases.length >= 35 && iso.slice(0, 7) !== cle) break;
     const liste = parJour[iso] || [];
     const puces = liste.slice(0, 3).map((r) => `<span class="puce-realisation${r.date > aujourdhui ? " a-venir" : ""}">${
-      echapper(r.activite.titre)}${r.photos?.length ? picto("appareil") : ""}</span>`).join("")
+      picto(iconeActivite(r.activite))}${echapper(r.activite.titre)}</span>`).join("")
       + (liste.length > 3 ? `<span class="puce-plus">+${liste.length - 3}</span>` : "");
     cases.push(`<button type="button" class="jour${iso.slice(0, 7) !== cle ? " hors-mois" : ""}${iso === aujourdhui ? " aujourdhui" : ""}${
       iso === jourRealisations ? " choisi" : ""}" data-jour="${iso}" aria-pressed="${iso === jourRealisations}"
@@ -3493,6 +3629,9 @@ function afficherRealisations() {
     .map((j) => `<span class="nom-jour">${j}</span>`).join("") + cases.join("");
   afficherJourRealisations();
 }
+
+const miniPhoto = (n) => `<img loading="lazy" alt="" src="/api/photos/miniature?numero=${n}"
+  onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'${n}'}))">`;
 
 function carteRealisation(r) {
   const a = r.activite, aujourdhui = isoJour(new Date());
@@ -3504,13 +3643,12 @@ function carteRealisation(r) {
   const docs = listeDocuments(a);
   const photos = r.photos || [];
   return `<article class="carte-realisation${r.date > aujourdhui ? " a-venir-seance" : ""}">
-    <div class="entete-seance"><h3>${echapper(a.titre)}</h3><span class="etat-realisation">${etat}</span></div>
+    <div class="entete-seance">${pastille(iconeActivite(a), "familles")}<h3>${echapper(a.titre)}</h3><span class="etat-realisation">${etat}</span></div>
     ${a.description ? `<p class="description-activite">${echapper(a.description)}</p>` : ""}
     ${aPreparer}
     ${docs ? `<h4>Documents</h4><ul class="documents-activite">${docs}</ul>` : ""}
     ${photos.length ? `<h4>${pluriel(photos.length, "photo")}</h4><div class="photos-realisation">${photos.map((n) =>
-      `<button type="button" class="mini-photo" data-ouvrir-photo="${n}" title="Photo ${n} : ouvrir"><img loading="lazy" alt="" src="/api/photos/miniature?numero=${n}"
-        onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'${n}'}))"></button>`).join("")}</div>` : ""}
+      `<button type="button" class="mini-photo" data-ouvrir-photo="${n}" title="Photo ${n} : ouvrir">${miniPhoto(n)}</button>`).join("")}</div>` : ""}
     <div class="boutons">
       ${photos.length ? `<button type="button" class="action" data-voir-photos="${r.id}">${picto("appareil")}Voir dans Photos</button>` : ""}
       <button type="button" class="action" data-ouvrir-fiche="${a.id}">${picto("activite")}Fiche de l'activité</button>
@@ -3523,8 +3661,24 @@ function afficherJourRealisations() {
   const liste = realisations().filter((r) => r.date === jourRealisations);
   const deja = new Set(liste.map((r) => r.activite.id));
   const autres = activitesConnues.filter((a) => !deja.has(a.id));
+  // Photos de ce jour rangées sans réalisation : toutes choisies d'abord, un clic en retire une.
+  const sans = sansRealisation[jourRealisations] || [];
+  if (choixRattacher.jour !== jourRealisations) {
+    choixRattacher.jour = jourRealisations;
+    choixRattacher.numeros = new Set(sans);
+  }
+  const aRattacher = !sans.length ? "" : liste.length ? `<div class="photos-a-rattacher">
+      <h3>${pluriel(sans.length, "photo")} de ce jour sans réalisation</h3>
+      <div class="photos-realisation">${sans.map((n) => `<button type="button" class="mini-photo${choixRattacher.numeros.has(n) ? " choisie" : ""}"
+        data-choix-photo="${n}" aria-pressed="${choixRattacher.numeros.has(n)}" title="Photo ${n} : cliquer pour la choisir ou non">${miniPhoto(n)}
+        <span class="coche-vignette" aria-hidden="true">${picto("coche")}</span></button>`).join("")}</div>
+      <div class="boutons">${liste.map((r) => `<button type="button" class="secondaire" data-rattacher="${r.id}"${choixRattacher.numeros.size ? "" : " disabled"}>${
+        picto("plus")}Ajouter à « ${echapper(r.activite.titre)} »</button>`).join("")}</div></div>`
+    : `<p class="petit">${pluriel(sans.length, "photo")} de ce jour ${sans.length > 1 ? "sont rangées" : "est rangée"} sans réalisation :
+      ajoutez la réalisation ci-dessous pour les y rattacher.</p>`;
   $("#jour-realisations").innerHTML = `<h2>${jourLong(jourRealisations)}</h2>
     ${liste.map(carteRealisation).join("") || `<p class="petit">Aucune réalisation ce jour-là.</p>`}
+    ${aRattacher}
     ${autres.length ? `<div class="ligne nouvelle-seance"><label>Ajouter une réalisation <select id="activite-realisation">${
       autres.map((a) => `<option value="${a.id}">${echapper(a.titre)}</option>`).join("")}</select></label>
       <button type="button" class="secondaire" id="ajouter-realisation">${picto("plus")}Ajouter</button></div>`
@@ -3558,7 +3712,15 @@ $("#mois-realisations-aujourdhui").addEventListener("click", () => {
 $("#jour-realisations").addEventListener("click", async (e) => {
   const cible = e.target.closest("button");
   if (!cible) return;
-  if (cible.id === "ajouter-realisation") {
+  if (cible.dataset.choixPhoto) {
+    const n = cible.dataset.choixPhoto;
+    choixRattacher.numeros.has(n) ? choixRattacher.numeros.delete(n) : choixRattacher.numeros.add(n);
+    afficherJourRealisations();
+  } else if (cible.dataset.rattacher) {
+    await rattacherPhotos([...choixRattacher.numeros], cible.dataset.rattacher);
+    choixRattacher.jour = "";
+    afficherAteliers();
+  } else if (cible.id === "ajouter-realisation") {
     try { await api("ateliers/seance", { activite: $("#activite-realisation").value, date: jourRealisations }); }
     catch (err) { alert(err.message); return; }
     afficherAteliers();

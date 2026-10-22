@@ -175,7 +175,13 @@ assert (racine / "Photos et vidéos" / "Format source" / "Martin" / "Hugo" / "20
         / "Hugo - Peinture des feuilles - Photo 0002.heic").is_file()
 assert not heic.exists() and (racine / "Photos et vidéos" / "Dupont" / "Léa" / "2026"
                               / "Léa - Peinture des feuilles - Photo 0002.jpg").is_file()
-print("modification : enfants et activité changés, copies ajoutées, retirées, renommées")
+# Rattacher à une réalisation (glisser sur le filtre, ou depuis la réalisation) : les enfants ne changent pas.
+r = photos.rattacher(["0001"], seance["id"])
+assert r == {"rattachees": ["0001"], "erreurs": []}, r
+assert (racine / "Photos et vidéos" / "Dupont" / "Léa" / "2026" / "Léa - Peinture des feuilles - Photo 0001.jpg").is_file()
+assert photos._index()["photos"]["0001"]["seance"] == seance["id"]
+assert photos.rattacher(["9999"], seance["id"])["erreurs"], "photo inconnue signalée"
+print("modification : enfants et activité changés, copies ajoutées, retirées, renommées ; rattachement à une réalisation")
 
 # Doublon : la même photo réapparaît dans les sources.
 image(icloud / "IMG_0001 copie.JPG", "2026:10:19 10:00:00")

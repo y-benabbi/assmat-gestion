@@ -288,4 +288,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (`vueAteliers`) : « Activités » (liste + fiche) et « Réalisations » (grand calendrier du mois, un clic sur un jour montre
   ses réalisations en détail : à préparer, documents, photos rangées avec elles). Partout où une réalisation est proposée
   (filtre « Réalisations » des photos, barre de tri), elle s'appelle « [titre] du [date] » (`nomRealisation`).
-  Les photos rangées avec une réalisation y sont rattachées (choisie ou créée depuis la barre de tri).
+  Les photos rangées avec une réalisation y sont rattachées (choisie ou créée depuis la barre de tri). Une photo déjà
+  rangée se rattache après coup (`photos.rattacher`, enfants inchangés) : en la glissant sur une réalisation du filtre
+  (`[data-case-realisation]`, classe `glisse-rangees`), ou depuis le détail d'une réalisation, qui propose les photos du
+  même jour sans réalisation (`sans_realisation` de `/api/ateliers`).
+- Icônes des activités : `ICONES_ACTIVITES` en tête de app.js ([clé, nom, mots du titre, dessin], ajoutées à `PICTOS` en
+  `a-<clé>`), même trait que les autres pictogrammes. Champ `icone` de l'activité ; vide = proposée d'après le titre
+  (`iconeProposee`). Affichée dans la liste, le calendrier, les réalisations et le filtre des photos (`iconeActivite`).
