@@ -189,71 +189,105 @@
     <p class="petit avertissement cache" id="photos-module"></p>
 
     <div class="tri-photos" id="tri-photos">
-      <!-- À gauche : les photos rangées -->
-      <div class="panneau colonne-rangees">
-        <div class="titre-bloc"><h2>Rangées</h2><span class="petit" id="nb-rangees"></span></div>
-        <p class="petit">Glissez des photos sur un enfant pour les ranger. Avec <kbd>Ctrl</kbd>, l'enfant est
-          seulement ajouté à la sélection, pour répartir une photo entre plusieurs enfants.</p>
-        <div class="cases-enfants" id="cases-enfants"></div>
-        <div class="filtres-rangees">
-          <label>Activité <select id="filtre-activite"></select></label>
-          <button class="lien" id="tout-rangees">Tout sélectionner</button>
-        </div>
-        <div class="barre-selection cache" id="barre-rangees">
-          <span id="texte-rangees"></span>
-          <span class="actions-selection">
-            <label class="mise-en-page">Imprimer <select id="par-page">
-              <option value="16">16 par page (4 × 4)</option><option value="4">4 par page</option><option value="1">1 par page</option>
-            </select></label>
-            <button class="principal" id="imprimer-photos" data-picto="impression">Imprimer</button>
-            <button class="secondaire" id="modifier-rangees" data-picto="modifier">Changer les enfants</button>
-            <button class="secondaire" id="remettre-rangees" data-picto="annuler">Remettre à trier</button>
-            <button class="lien" id="deselectionner-rangees">Désélectionner</button>
-          </span>
-        </div>
-        <div class="editeur-rangees cache" id="editeur-rangees">
-          <p class="libelle">Qui est sur <span id="titre-editeur"></span> ?</p>
-          <div class="pastilles-enfants" id="pastilles-editeur"></div>
-          <label>Activité <select id="activite-editeur"></select></label>
-          <div class="boutons">
-            <button class="principal" id="enregistrer-editeur" data-picto="coche">Enregistrer</button>
-            <button class="secondaire" id="annuler-editeur">Annuler</button>
+      <!-- Les photos rangées, sur toute la largeur -->
+      <div class="panneau rangees-plein">
+        <div class="titre-bloc"><h2>Photos rangées</h2><span class="petit" id="nb-rangees"></span>
+          <button class="lien" id="tout-rangees">Tout sélectionner</button></div>
+        <div class="filtres-photos">
+          <details class="filtre-enfants" id="filtre-enfants" open>
+            <summary><span class="libelle-filtre">Enfants</span><span class="resume-filtre" id="resume-enfants">Tous</span>
+              <span class="chevron-filtre" data-picto="chevron"></span></summary>
+            <label class="recherche-enfants"><span data-picto="recherche"></span>
+              <input type="search" id="recherche-enfants" placeholder="Rechercher un enfant ou une famille"
+                aria-label="Rechercher un enfant ou une famille"></label>
+            <div class="cases-enfants" id="cases-enfants"></div>
+          </details>
+          <div class="filtre-activites">
+            <span class="libelle-filtre">Activité</span>
+            <div class="puces-filtre" id="filtre-activite"></div>
           </div>
         </div>
+        <p class="petit aide-photos">Ouvrez « À trier » (en bas à droite) et glissez des photos sur un enfant pour les ranger.
+          Avec <kbd>Ctrl</kbd>, l'enfant est seulement ajouté au choix, pour répartir une photo entre plusieurs enfants.
+          Une photo rangée par erreur : glissez-la sur « À trier ».</p>
         <div class="rangees-photos" id="grille-rangees"></div>
       </div>
 
-      <!-- À droite : les photos à trier -->
-      <div class="panneau colonne-a-trier" id="colonne-a-trier">
-        <div class="titre-bloc"><h2>À trier <span class="badge cache" id="nb-a-trier"></span></h2>
-          <button class="lien" id="tout-a-trier">Tout sélectionner</button></div>
-        <div class="barre-tri" id="barre-tri">
-          <p class="consigne" id="consigne-tri">Cliquez sur des photos (ou sur l'heure d'un groupe), puis sur les enfants présents.</p>
+      <!-- Sélection en cours : barre fixée en bas de l'écran (n'interrompt pas la grille des photos) -->
+      <div class="barre-photos cache" id="barre-photos" role="region" aria-label="Photos sélectionnées">
+        <div class="cache" id="barre-tri">
+          <div class="ligne-barre">
+            <strong class="nb-selection" id="consigne-tri"></strong>
+            <span class="petit">Qui est dessus ?</span>
+            <button class="lien" id="deselectionner-tri">Désélectionner</button>
+          </div>
           <div class="pastilles-enfants" id="pastilles-tri"></div>
-          <div class="ligne-tri">
+          <div class="ligne-barre">
             <label>Activité <select id="activite-tri"></select></label>
             <span class="boutons">
               <button class="principal" id="ranger" data-picto="coche" disabled>Ranger</button>
-              <button class="secondaire" id="ignorer" disabled>Ignorer</button>
+              <button class="secondaire" id="ignorer">Ignorer</button>
             </span>
           </div>
         </div>
-        <div id="groupes-a-trier" class="groupes-a-trier"></div>
-        <p class="zone-depot" id="zone-depot">Vous pouvez aussi glisser ici des photos depuis l'Explorateur : elles sont
-          copiées dans « À trier » (l'original reste où il est). Pour qu'elles soient déplacées, déposez-les plutôt
-          directement dans le dossier <button class="lien" data-ouvrir="a_trier">À trier</button>.</p>
-        <details class="mis-de-cote" id="bloc-hors">
-          <summary>Hors horaires <span id="nb-hors"></span></summary>
-          <p class="petit">Prises en dehors des horaires d'accueil (marge réglable dans les Paramètres). Elles restent où elles sont.</p>
-          <div class="grille-photos petite" id="grille-hors"></div>
-          <button class="secondaire" id="remettre-hors" disabled>Remettre à trier</button>
-        </details>
-        <details class="mis-de-cote" id="bloc-ignorees">
-          <summary>Ignorées <span id="nb-ignorees"></span></summary>
-          <p class="petit">Mises de côté avec « Ignorer ». Elles restent où elles sont.</p>
-          <div class="grille-photos petite" id="grille-ignorees"></div>
-          <button class="secondaire" id="remettre-ignorees" disabled>Remettre à trier</button>
-        </details>
+        <div class="cache" id="barre-rangees">
+          <div class="ligne-barre">
+            <strong class="nb-selection" id="texte-rangees"></strong>
+            <span class="actions-selection">
+              <label class="mise-en-page">Imprimer <select id="par-page">
+                <option value="16">16 par page (4 × 4)</option><option value="4">4 par page</option><option value="1">1 par page</option>
+              </select></label>
+              <button class="principal" id="imprimer-photos" data-picto="impression">Imprimer</button>
+              <button class="secondaire" id="modifier-rangees" data-picto="modifier">Changer les enfants</button>
+              <button class="secondaire" id="remettre-rangees" data-picto="annuler">Remettre à trier</button>
+              <button class="lien" id="deselectionner-rangees">Désélectionner</button>
+            </span>
+          </div>
+          <div class="editeur-rangees cache" id="editeur-rangees">
+            <p class="libelle">Qui est sur <span id="titre-editeur"></span> ?</p>
+            <div class="pastilles-enfants" id="pastilles-editeur"></div>
+            <div class="ligne-barre">
+              <label>Activité <select id="activite-editeur"></select></label>
+              <span class="boutons">
+                <button class="principal" id="enregistrer-editeur" data-picto="coche">Enregistrer</button>
+                <button class="secondaire" id="annuler-editeur">Annuler</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- À trier : bouton fixe en bas à droite ; un clic ouvre un grand panneau d'où l'on glisse les photos -->
+      <button type="button" class="bouton-a-trier" id="bouton-a-trier" aria-expanded="false" aria-controls="colonne-a-trier"
+        title="Photos et vidéos à trier (vous pouvez aussi y glisser une photo rangée par erreur)">
+        <span data-picto="appareil"></span>À trier<span class="badge cache" id="nb-a-trier"></span></button>
+      <div class="panneau-a-trier cache" id="colonne-a-trier" role="dialog" aria-labelledby="titre-a-trier">
+        <div class="tete-a-trier">
+          <h2 id="titre-a-trier">À trier <span class="badge cache" id="nb-a-trier-panneau"></span></h2>
+          <button class="lien" id="tout-a-trier">Tout sélectionner</button>
+          <button type="button" class="fermer-panneau" id="fermer-a-trier" title="Fermer (Échap)" aria-label="Fermer"
+            data-picto="fermer"></button>
+        </div>
+        <p class="petit consigne-panneau">Cliquez sur des photos (ou sur l'heure d'un groupe) puis sur les enfants dans la
+          barre en bas, ou glissez-les directement sur un enfant.</p>
+        <div class="corps-a-trier">
+          <div id="groupes-a-trier" class="groupes-a-trier"></div>
+          <p class="zone-depot" id="zone-depot">Vous pouvez aussi glisser ici des photos depuis l'Explorateur : elles sont
+            copiées dans « À trier » (l'original reste où il est). Pour qu'elles soient déplacées, déposez-les plutôt
+            directement dans le dossier <button class="lien" data-ouvrir="a_trier">À trier</button>.</p>
+          <details class="mis-de-cote" id="bloc-hors">
+            <summary>Hors horaires <span id="nb-hors"></span></summary>
+            <p class="petit">Prises en dehors des horaires d'accueil (marge réglable dans les Paramètres). Elles restent où elles sont.</p>
+            <div class="grille-photos petite" id="grille-hors"></div>
+            <button class="secondaire" id="remettre-hors" disabled>Remettre à trier</button>
+          </details>
+          <details class="mis-de-cote" id="bloc-ignorees">
+            <summary>Ignorées <span id="nb-ignorees"></span></summary>
+            <p class="petit">Mises de côté avec « Ignorer ». Elles restent où elles sont.</p>
+            <div class="grille-photos petite" id="grille-ignorees"></div>
+            <button class="secondaire" id="remettre-ignorees" disabled>Remettre à trier</button>
+          </details>
+        </div>
       </div>
     </div>
   </section>

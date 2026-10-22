@@ -14,6 +14,7 @@ async function api(chemin, donnees) {
 const PICTOS = {
   chevron: '<path d="M6 9l6 6 6-6"/>',
   fermer: '<path d="M6 6l12 12M18 6L6 18"/>',
+  recherche: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
   avenant: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
   modifier: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
   pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
@@ -2690,9 +2691,11 @@ $("#choisir-principal").addEventListener("click", async () => {
 });
 
 // ------------------------------------------------------------- photos
-// À droite les photos à trier (groupées par moment), à gauche les photos rangées (une case par enfant). On choisit des
-// photos, puis les enfants présents (proposés d'après les horaires des contrats) et éventuellement une activité.
-// Glisser des photos sur un enfant les range pour lui seul ; avec Ctrl, l'enfant est ajouté au choix pour répartir.
+// Les photos rangées occupent la page (filtres : enfants, activité). « À trier » est un bouton fixe en bas à droite qui
+// ouvre un grand panneau (photos groupées par moment). On choisit des photos, puis les enfants présents (proposés d'après
+// les horaires des contrats) dans la barre fixée en bas, et éventuellement une activité. Glisser des photos sur un enfant
+// les range pour lui seul ; avec Ctrl, l'enfant est ajouté au choix pour répartir. Une photo rangée glissée sur
+// « À trier » y retourne. Une seule sélection à la fois (à trier ou rangées).
 let donneesPhotos = null;
 let activitesConnues = [];
 let groupesCourants = [];
@@ -2701,7 +2704,7 @@ const selRangees = new Set();      // numéros des photos rangées choisies
 const selHors = new Set(), selIgnorees = new Set();
 const enfantsTri = new Set();      // enfants choisis pour « Ranger »
 let tousLesEnfants = false;        // « Autre enfant… » : toutes les fiches sont proposées
-let filtreEnfant = "", filtreActivite = "";
+let filtreEnfant = "", filtreActivite = "", rechercheEnfant = "";
 let derniereCle = null;
 const ECART_GROUPE = 10 * 60000;   // photos prises à moins de 10 minutes d'écart : un même moment
 
@@ -2773,8 +2776,10 @@ async function afficherPhotos() {
 
 function afficherATrier() {
   const liste = donneesPhotos.a_trier;
-  $("#nb-a-trier").textContent = liste.length;
-  $("#nb-a-trier").classList.toggle("cache", !liste.length);
+  ["#nb-a-trier", "#nb-a-trier-panneau"].forEach((b) => {
+    $(b).textContent = liste.length;
+    $(b).classList.toggle("cache", !liste.length);
+  });
   groupesCourants = grouper(liste);
   let html = "", jour = null;
   groupesCourants.forEach((g, i) => {
@@ -2797,25 +2802,59 @@ function afficherATrier() {
   afficherBarreTri();
 }
 
-const pastilleEnfant = (e, choisi) => `<button type="button" class="pastille-enfant" data-enfant="${e.id}" aria-pressed="${choisi}">
+const pastilleEnfant = (e, choisi, cible = false) => `<button type="button" class="pastille-enfant" data-enfant="${e.id}"${
+  cible ? ` data-case-enfant="${e.id}"` : ""} aria-pressed="${choisi}">
   ${initialeEnfant(e)}<span>${echapper(e.prenom)}<small>${echapper(e.famille)}</small></span>${choisi ? picto("coche") : ""}</button>`;
 
 function afficherBarreTri() {
   const choisies = donneesPhotos.a_trier.filter((e) => selTri.has(e.cle));
   const proposes = new Set([...choisies.flatMap((e) => e.proposes), ...enfantsTri]);
-  const tous = donneesPhotos.enfants;
+  const tous = donneesPhotos.enfants;        // déjà dans l'ordre : derniers gardés, gardés dans le mois, autres
   const visibles = tousLesEnfants ? tous : tous.filter((e) => proposes.has(e.id));
-  $("#pastilles-tri").innerHTML = choisies.length || enfantsTri.size ? visibles.map((e) => pastilleEnfant(e, enfantsTri.has(e.id))).join("")
+  $("#pastilles-tri").innerHTML = choisies.length ? visibles.map((e) => pastilleEnfant(e, enfantsTri.has(e.id), true)).join("")
     + (visibles.length < tous.length ? `<button type="button" class="lien autres-enfants" data-autres-enfants>Autre enfant…</button>` : "") : "";
-  $("#consigne-tri").innerHTML = choisies.length
-    ? `<strong>${pluriel(choisies.length, "élément")} choisi${choisies.length > 1 ? "s" : ""}</strong> : qui est dessus ?`
-    : "Cliquez sur des photos (ou sur l'heure d'un groupe), puis sur les enfants présents.";
+  $("#consigne-tri").textContent = `${pluriel(choisies.length, "élément")} sélectionné${choisies.length > 1 ? "s" : ""}`;
   $("#ranger").disabled = !choisies.length || !enfantsTri.size;
   $("#ignorer").disabled = !choisies.length;
   $("#ranger").lastChild.textContent = enfantsTri.size > 1 ? `Ranger pour ${enfantsTri.size} enfants` : "Ranger";
   remplirActivites($("#activite-tri"), choisies.map((e) => (e.date || "").slice(0, 10)).filter(Boolean));
-  $("#barre-tri").classList.toggle("active", choisies.length > 0);
+  $("#barre-tri").classList.toggle("cache", !choisies.length);
+  majBarrePhotos();
 }
+
+// La barre fixe n'apparaît que s'il y a une sélection ; elle se pose sur la page sans déplacer les photos.
+function majBarrePhotos() {
+  $("#barre-photos").classList.toggle("cache", $("#barre-tri").classList.contains("cache") && $("#barre-rangees").classList.contains("cache"));
+}
+function viderTri() {
+  if (!selTri.size && !enfantsTri.size) return;
+  selTri.clear();
+  enfantsTri.clear();
+  tousLesEnfants = false;
+  majVignettes("#groupes-a-trier", selTri, "data-cle");
+  afficherBarreTri();
+}
+function viderRangees() {
+  if (!selRangees.size) return;
+  selRangees.clear();
+  majVignettes("#grille-rangees", selRangees, "data-numero");
+  afficherBarreRangees();
+}
+
+// Panneau « À trier » (Échap ou la croix le referment).
+function ouvrirATrier(oui) {
+  $("#colonne-a-trier").classList.toggle("cache", !oui);
+  $("#tri-photos").classList.toggle("tri-ouvert", oui);
+  $("#bouton-a-trier").setAttribute("aria-expanded", String(oui));
+  if (!oui) viderTri();
+}
+$("#bouton-a-trier").addEventListener("click", () => ouvrirATrier(true));
+$("#fermer-a-trier").addEventListener("click", () => ouvrirATrier(false));
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("#photos").classList.contains("actif") && !$("#colonne-a-trier").classList.contains("cache")
+    && !document.querySelector(".menu-contextuel")) ouvrirATrier(false);
+});
+$("#deselectionner-tri").addEventListener("click", viderTri);
 
 // Liste des activités : séances des jours concernés, puis toutes les activités (une séance est créée à cette date).
 function remplirActivites(select, jours, toutesSeances = false, valeur = select.value) {
@@ -2877,12 +2916,15 @@ $("#groupes-a-trier").addEventListener("click", (e) => {
     if (!v) return;
     basculer(selTri, v.dataset.cle, e.shiftKey, donneesPhotos.a_trier.map((x) => x.cle));
   }
+  if (!selTri.size) enfantsTri.clear();
+  viderRangees();
   majVignettes("#groupes-a-trier", selTri, "data-cle");
   afficherBarreTri();
 });
 $("#tout-a-trier").addEventListener("click", () => {
   const tous = donneesPhotos.a_trier.every((x) => selTri.has(x.cle));
   donneesPhotos.a_trier.forEach((x) => (tous ? selTri.delete(x.cle) : selTri.add(x.cle)));
+  viderRangees();
   majVignettes("#groupes-a-trier", selTri, "data-cle");
   afficherBarreTri();
 });
@@ -2924,29 +2966,30 @@ $("#groupes-a-trier").addEventListener("dblclick", (e) => {
   if (v) api("photos/ouvrir", { cle: v.dataset.cle }).catch((err) => alert(err.message));
 });
 
-// Glisser des photos à trier sur la case d'un enfant (à gauche).
+// Glisser des photos à trier sur un enfant : case de la liste des enfants ou pastille de la barre en bas.
+const PHOTOS_GLISSEES = "application/x-assmat-photos";
 $("#groupes-a-trier").addEventListener("dragstart", (e) => {
   const v = e.target.closest("[data-cle]");
   if (!v) return;
   if (!selTri.has(v.dataset.cle)) {
     selTri.clear();
     selTri.add(v.dataset.cle);
+    viderRangees();
     majVignettes("#groupes-a-trier", selTri, "data-cle");
     afficherBarreTri();
   }
-  e.dataTransfer.setData("application/x-assmat-photos", [...selTri].join(","));
+  e.dataTransfer.setData(PHOTOS_GLISSEES, [...selTri].join(","));
   e.dataTransfer.effectAllowed = "copyMove";
 });
-const caseCible = (e) => e.dataTransfer?.types.includes("application/x-assmat-photos") && e.target.closest("[data-case-enfant]");
-$("#cases-enfants").addEventListener("dragover", (e) => {
+const caseCible = (e) => e.dataTransfer?.types.includes(PHOTOS_GLISSEES) && e.target.closest?.("#photos [data-case-enfant]");
+document.addEventListener("dragover", (e) => {
   const c = caseCible(e);
+  $$("#photos .survol").forEach((x) => x !== c && x.classList.remove("survol"));
   if (!c) return;
   e.preventDefault();
-  $$(".case-enfant.survol").forEach((x) => x !== c && x.classList.remove("survol"));
   c.classList.add("survol");
 });
-$("#cases-enfants").addEventListener("dragleave", (e) => e.target.closest?.("[data-case-enfant]")?.classList.remove("survol"));
-$("#cases-enfants").addEventListener("drop", (e) => {
+document.addEventListener("drop", (e) => {
   const c = caseCible(e);
   if (!c) return;
   e.preventDefault();
@@ -2954,25 +2997,37 @@ $("#cases-enfants").addEventListener("drop", (e) => {
   if (e.ctrlKey) {               // répartir : l'enfant rejoint le choix, on range ensuite avec « Ranger »
     enfantsTri.add(c.dataset.caseEnfant);
     afficherBarreTri();
-    $("#barre-tri").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } else rangerSelection([c.dataset.caseEnfant]);
 });
+document.addEventListener("dragend", () => $$("#photos .survol, #photos .depot-actif").forEach((x) => x.classList.remove("survol", "depot-actif")));
 
-// Fichiers glissés depuis l'Explorateur : copiés dans « À trier ».
-$("#colonne-a-trier").addEventListener("dragover", (e) => {
-  if (!e.dataTransfer?.types.includes("Files")) return;
-  e.preventDefault();
-  $("#colonne-a-trier").classList.add("depot-actif");
+// Sur le bouton ou le panneau « À trier » : photos rangées glissées (remises à trier), fichiers de l'Explorateur (copiés).
+const RANGEES_GLISSEES = "application/x-assmat-rangees";
+["#bouton-a-trier", "#colonne-a-trier"].forEach((sel) => {
+  const zone = $(sel);
+  zone.addEventListener("dragover", (e) => {
+    const types = e.dataTransfer?.types || [];
+    if (!types.includes("Files") && !types.includes(RANGEES_GLISSEES)) return;
+    e.preventDefault();
+    zone.classList.add("depot-actif");
+  });
+  zone.addEventListener("dragleave", (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove("depot-actif"); });
+  zone.addEventListener("drop", (e) => {
+    zone.classList.remove("depot-actif");
+    const rangees = e.dataTransfer?.getData(RANGEES_GLISSEES);
+    if (rangees) {
+      e.preventDefault();
+      remettreRangees(rangees.split(","));
+    } else if (e.dataTransfer?.files.length) {
+      e.preventDefault();
+      deposerFichiers(e.dataTransfer.files);
+    }
+  });
 });
-$("#colonne-a-trier").addEventListener("dragleave", (e) => {
-  if (!$("#colonne-a-trier").contains(e.relatedTarget)) $("#colonne-a-trier").classList.remove("depot-actif");
-});
-$("#colonne-a-trier").addEventListener("drop", async (e) => {
-  if (!e.dataTransfer?.files.length) return;
-  e.preventDefault();
-  $("#colonne-a-trier").classList.remove("depot-actif");
+async function deposerFichiers(fichiers) {
+  ouvrirATrier(true);
   const donnees = new FormData();
-  [...e.dataTransfer.files].forEach((f) => { donnees.append("fichiers", f, f.name); donnees.append("modifie", f.lastModified); });
+  [...fichiers].forEach((f) => { donnees.append("fichiers", f, f.name); donnees.append("modifie", f.lastModified); });
   document.body.classList.add("occupe");
   try {
     const r = await fetch("/api/photos/deposer", { method: "POST", body: donnees }).then((x) => x.json());
@@ -2980,26 +3035,17 @@ $("#colonne-a-trier").addEventListener("drop", async (e) => {
   } catch (err) { alert(err.message); }
   document.body.classList.remove("occupe");
   afficherPhotos();
-});
+}
 
 // --- photos rangées
 function afficherRangees() {
   const d = donneesPhotos;
-  const compte = (id) => d.rangees.filter((r) => r.enfants.includes(id)).length;
-  const aujourdhui = isoJour(new Date());
-  const enfants = [...d.enfants].sort((a, b) => ((b.fin && b.fin < aujourdhui) ? -1 : 0) - ((a.fin && a.fin < aujourdhui) ? -1 : 0)
-    || a.prenom.localeCompare(b.prenom, "fr"));
-  $("#cases-enfants").innerHTML = `<button type="button" class="case-enfant toutes" data-filtre-enfant="" aria-pressed="${!filtreEnfant}">
-      <span class="initiale moi" aria-hidden="true">${picto("appareil")}</span><span>Toutes<small>${pluriel(d.rangees.length, "élément")}</small></span></button>`
-    + enfants.map((e) => `<button type="button" class="case-enfant${e.fin && e.fin < aujourdhui ? " termine" : ""}" data-case-enfant="${e.id}"
-      data-filtre-enfant="${e.id}" aria-pressed="${filtreEnfant === e.id}">${initialeEnfant(e)}<span>${echapper(e.prenom)}<small>${
-      echapper(e.famille)} · ${compte(e.id)}</small></span></button>`).join("")
-    + (enfants.length ? "" : `<p class="petit">Ajoutez d'abord les fiches enfants dans <button class="lien" data-aller-photos="contrats">Familles et contrats</button>.</p>`);
-  $$("#cases-enfants [data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
+  afficherCasesEnfants();
   const avecSeance = activitesConnues.filter((a) => a.seances.some((s) => s.photos?.length));
-  $("#filtre-activite").innerHTML = `<option value="">Toutes</option><option value="aucune">Sans activité</option>${
-    avecSeance.map((a) => `<option value="a:${a.id}">${echapper(a.titre)}</option>`).join("")}`;
-  $("#filtre-activite").value = [...$("#filtre-activite").options].some((o) => o.value === filtreActivite) ? filtreActivite : "";
+  if (filtreActivite.startsWith("a:") && !avecSeance.some((a) => `a:${a.id}` === filtreActivite)) filtreActivite = "";
+  $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans activité"], ...avecSeance.map((a) => [`a:${a.id}`, a.titre])]
+    .map(([v, t]) => `<button type="button" class="puce-filtre" data-filtre-activite="${v}" aria-pressed="${filtreActivite === v}">${
+      echapper(t)}</button>`).join("");
   const liste = rangeesVisibles();
   $("#nb-rangees").textContent = pluriel(d.rangees.length, "élément");
   let html = "", mois = null;
@@ -3020,6 +3066,37 @@ function afficherRangees() {
   afficherBarreRangees();
 }
 
+// Liste des enfants (filtre et cibles du glisser) : derniers gardés, gardés dans le mois, autres ; recherche par prénom ou famille.
+const GROUPES_ENFANTS = [["derniers", "Derniers gardés"], ["mois", "Gardés ce mois-ci"], ["autres", "Autres enfants"]];
+function afficherCasesEnfants() {
+  const d = donneesPhotos;
+  const compte = (id) => d.rangees.filter((r) => r.enfants.includes(id)).length;
+  const aujourdhui = isoJour(new Date());
+  const cherche = sansAccents(rechercheEnfant.trim().toLowerCase());
+  const trouves = d.enfants.filter((e) => !cherche || sansAccents(`${e.prenom} ${e.famille}`.toLowerCase()).includes(cherche));
+  const caseEnfant = (e) => `<button type="button" class="case-enfant${e.fin && e.fin < aujourdhui ? " termine" : ""}" data-case-enfant="${e.id}"
+    data-filtre-enfant="${e.id}" aria-pressed="${filtreEnfant === e.id}">${initialeEnfant(e)}<span>${echapper(e.prenom)}<small>${
+    echapper(e.famille)} · ${compte(e.id)}</small></span></button>`;
+  const toutes = `<button type="button" class="case-enfant toutes" data-filtre-enfant="" aria-pressed="${!filtreEnfant}">
+    <span class="initiale moi" aria-hidden="true">${picto("appareil")}</span><span>Tous les enfants<small>${
+    pluriel(d.rangees.length, "élément")}</small></span></button>`;
+  let premier = !cherche;           // « Tous les enfants » en tête du premier groupe affiché
+  const groupes = GROUPES_ENFANTS.map(([cle, titre]) => {
+    const liste = trouves.filter((e) => (e.groupe || "autres") === cle);
+    if (!liste.length) return "";
+    const debut = premier ? toutes : "";
+    premier = false;
+    return `<div class="groupe-enfants"><h3>${titre}</h3><div class="grille-enfants">${debut + liste.map(caseEnfant).join("")}</div></div>`;
+  }).join("");
+  $("#cases-enfants").innerHTML = !d.enfants.length
+    ? `<div class="groupe-enfants"><p class="petit">Ajoutez d'abord les fiches enfants dans <button class="lien" data-aller-photos="contrats">Familles et contrats</button>.</p></div>`
+    : groupes || `<div class="groupe-enfants"><p class="petit">Aucun enfant ne correspond à « ${echapper(rechercheEnfant)} ».</p></div>`;
+  $$("#cases-enfants [data-aller-photos]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerPhotos)));
+  const choisi = enfantPar(filtreEnfant);
+  $("#resume-enfants").textContent = choisi ? `${choisi.prenom} (${choisi.famille})` : "Tous";
+}
+$("#recherche-enfants").addEventListener("input", (e) => { rechercheEnfant = e.target.value; afficherCasesEnfants(); });
+
 function rangeesVisibles() {
   const seancesDe = (id) => new Set(activitesConnues.find((a) => a.id === id)?.seances.map((s) => s.id) || []);
   const seances = filtreActivite.startsWith("a:") ? seancesDe(filtreActivite.slice(2)) : null;
@@ -3030,7 +3107,8 @@ function rangeesVisibles() {
 function afficherBarreRangees() {
   const n = selRangees.size;
   $("#barre-rangees").classList.toggle("cache", !n);
-  $("#texte-rangees").textContent = `${pluriel(n, "élément")} choisi${n > 1 ? "s" : ""}`;
+  majBarrePhotos();
+  $("#texte-rangees").textContent = `${pluriel(n, "élément")} sélectionné${n > 1 ? "s" : ""}`;
   const photosSeules = [...selRangees].filter((x) => donneesPhotos.rangees.find((r) => r.numero === x)?.genre === "photo").length;
   $("#imprimer-photos").disabled = !photosSeules;
   if (!n) $("#editeur-rangees").classList.add("cache");
@@ -3042,11 +3120,17 @@ $("#cases-enfants").addEventListener("click", (e) => {
   filtreEnfant = filtreEnfant === b.dataset.filtreEnfant ? "" : b.dataset.filtreEnfant;
   afficherRangees();
 });
-$("#filtre-activite").addEventListener("change", (e) => { filtreActivite = e.target.value; afficherRangees(); });
+$("#filtre-activite").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-filtre-activite]");
+  if (!b) return;
+  filtreActivite = b.dataset.filtreActivite;
+  afficherRangees();
+});
 $("#grille-rangees").addEventListener("click", (e) => {
   const v = e.target.closest("[data-numero]");
   if (!v) return;
   basculer(selRangees, v.dataset.numero, e.shiftKey, rangeesVisibles().map((r) => r.numero));
+  viderTri();
   majVignettes("#grille-rangees", selRangees, "data-numero");
   afficherBarreRangees();
 });
@@ -3058,6 +3142,7 @@ $("#tout-rangees").addEventListener("click", () => {
   const liste = rangeesVisibles();
   const tous = liste.length && liste.every((r) => selRangees.has(r.numero));
   liste.forEach((r) => (tous ? selRangees.delete(r.numero) : selRangees.add(r.numero)));
+  viderTri();
   majVignettes("#grille-rangees", selRangees, "data-numero");
   afficherBarreRangees();
 });
@@ -3067,13 +3152,32 @@ $("#imprimer-photos").addEventListener("click", () => {
     .sort((a, b) => (a.date || "").localeCompare(b.date || "")).map((r) => r.numero);
   window.open(`/api/photos/imprimer?numeros=${ordre.join(",")}&par_page=${$("#par-page").value}`, "_blank");
 });
-$("#remettre-rangees").addEventListener("click", async () => {
-  const n = selRangees.size;
-  if (!confirm(`Remettre ${n > 1 ? `ces ${n} éléments` : "cet élément"} à trier ? Les copies rangées pour chaque enfant sont retirées ;
-le fichier retourne dans le dossier « À trier ».`)) return;
-  for (const numero of selRangees) await api("photos/remettre", { numero }).catch((e) => alert(e.message));
-  selRangees.clear();
+// Remettre à trier : les copies rangées pour chaque enfant sont retirées, le fichier retourne dans « À trier ».
+async function remettreRangees(numeros) {
+  document.body.classList.add("occupe");
+  for (const numero of numeros) await api("photos/remettre", { numero }).catch((e) => alert(e.message));
+  document.body.classList.remove("occupe");
+  numeros.forEach((n) => selRangees.delete(n));
   afficherPhotos();
+}
+$("#remettre-rangees").addEventListener("click", () => {
+  const n = selRangees.size;
+  if (confirm(`Remettre ${n > 1 ? `ces ${n} éléments` : "cet élément"} à trier ? Les copies rangées pour chaque enfant sont retirées ;
+le fichier retourne dans le dossier « À trier ».`)) remettreRangees([...selRangees]);
+});
+// Glisser des photos rangées sur le bouton ou le panneau « À trier » : elles y retournent.
+$("#grille-rangees").addEventListener("dragstart", (e) => {
+  const v = e.target.closest("[data-numero]");
+  if (!v) return;
+  if (!selRangees.has(v.dataset.numero)) {
+    selRangees.clear();
+    selRangees.add(v.dataset.numero);
+    viderTri();
+    majVignettes("#grille-rangees", selRangees, "data-numero");
+    afficherBarreRangees();
+  }
+  e.dataTransfer.setData(RANGEES_GLISSEES, [...selRangees].join(","));
+  e.dataTransfer.effectAllowed = "move";
 });
 
 // Changer les enfants (et l'activité) des photos rangées choisies.

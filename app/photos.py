@@ -191,11 +191,36 @@ def _nom(texte) -> str:
     return re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", str(texte or "")).strip(" .") or "Sans nom"
 
 
-def enfants() -> list:
-    """Fiches enfants, la plus récente d'abord : [{id, prenom, famille, debut, fin}]."""
-    return [{"id": c.get("id"), "prenom": (c.get("enfant_prenom") or "").strip() or "Enfant",
-             "famille": (c.get("famille") or "").strip() or "Famille", "debut": c.get("debut", ""), "fin": c.get("fin", "")}
-            for c in donnees.contrats() if c.get("id")]
+def derniere_garde(c: dict, jour: date, jours_max: int = 400) -> str:
+    """Dernier jour (AAAA-MM-JJ, au plus tard `jour`) où l'enfant était accueilli d'après son emploi du temps."""
+    for k in range(jours_max):
+        j = jour - timedelta(days=k)
+        if not donnees.actif(c, j):
+            if c.get("debut") and c["debut"] > j.isoformat():
+                return ""
+            continue
+        v = donnees.en_vigueur(c, j)
+        nom_jour = donnees.JOURS[j.weekday()]
+        if _plages((v.get("horaires_scolaire") or {}).get(nom_jour, "")) or _plages((v.get("horaires_vacances") or {}).get(nom_jour, "")):
+            return j.isoformat()
+    return ""
+
+
+def enfants(jour: date = None) -> list:
+    """Fiches enfants : [{id, prenom, famille, debut, fin, derniere_garde, groupe}], dans l'ordre d'affichage :
+    groupe « derniers » (accueillis le dernier jour de garde), « mois » (accueillis ces 31 derniers jours), « autres »."""
+    jour = jour or date.today()
+    liste = [{"id": c.get("id"), "prenom": (c.get("enfant_prenom") or "").strip() or "Enfant",
+              "famille": (c.get("famille") or "").strip() or "Famille", "debut": c.get("debut", ""), "fin": c.get("fin", ""),
+              "derniere_garde": derniere_garde(c, jour)}
+             for c in donnees.contrats() if c.get("id")]
+    recent = max((e["derniere_garde"] for e in liste), default="")
+    mois = (jour - timedelta(days=31)).isoformat()
+    for e in liste:
+        e["groupe"] = ("derniers" if recent and e["derniere_garde"] == recent
+                       else "mois" if e["derniere_garde"] and e["derniere_garde"] >= mois else "autres")
+    rang = {"derniers": 0, "mois": 1, "autres": 2}
+    return sorted(liste, key=lambda e: (rang[e["groupe"]], e["prenom"].lower()))
 
 
 def _plages(texte: str) -> list:
