@@ -311,7 +311,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien. Déplacements instantanés : ranger, remettre à trier, rattacher,
   modifier et supprimer changent d'abord `donneesPhotos` et la page (photo `enCours` : blanchie, roue `.roue`), puis les fichiers
   suivent dans une file (`enFile`) ; `finirVignette` colore la vignette (numéro via `par_cle` de `/api/photos/ranger`, clé via
-  `/api/photos/remettre`) ; `afficherPhotos` attend la fin de la file puis relit tout. Listes de vignettes (à trier, rangées, mises de côté) affichées par tranches
+  `/api/photos/remettre`) ; `afficherPhotos` attend la fin de la file puis relit tout ; une relecture partie avant un
+  nouveau changement (`changementsPhotos`) ou doublée par une plus récente (`lecturePhotos`) est ignorée. Listes de vignettes (à trier, rangées, mises de côté) affichées par tranches
   (`rendreParTranches`, `TRANCHE_PHOTOS`, repère `.suite-photos` suivi par un IntersectionObserver) ; les listes de données
   (`donneesPhotos`) restent complètes : « Tout sélectionner », Maj + clic et les actions ne dépendent pas de ce qui est affiché.
 - Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans

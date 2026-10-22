@@ -2995,9 +2995,13 @@ function vignetteRangee(r) {
 // Ranger, remettre à trier, rattacher, modifier, supprimer : la page change tout de suite (la photo disparaît d'un côté et
 // apparaît de l'autre, blanchie avec une roue tant que le fichier n'est pas déplacé). Les déplacements passent l'un après
 // l'autre ; quand il n'en reste plus, la liste est relue pour tout remettre d'aplomb.
-let enAttentePhotos = 0, filePhotos = Promise.resolve();
+// changementsPhotos compte les changements faits dans la page : une relecture partie avant l'un d'eux est périmée (elle
+// remettrait la photo à son ancienne place le temps d'une seconde) ; lecturePhotos écarte une relecture doublée par une
+// plus récente.
+let enAttentePhotos = 0, filePhotos = Promise.resolve(), changementsPhotos = 0, lecturePhotos = 0;
 function enFile(travail) {
   enAttentePhotos++;
+  changementsPhotos++;
   const tache = filePhotos.then(travail);
   filePhotos = tache.catch((err) => alert(err.message)).finally(() => { if (--enAttentePhotos === 0) afficherPhotos(); });
   return tache.catch(() => null);
@@ -3047,9 +3051,10 @@ async function afficherPhotos() {
   if (enAttentePhotos) return;          // relue quand les déplacements en cours seront finis
   // Premier affichage : les dossiers de photos sont parcourus (dates, doublons), ce qui peut prendre du temps.
   if (!$("#grille-rangees").children.length) ["#grille-rangees", "#groupes-a-trier"].forEach((z) => ($(z).innerHTML = attenteHtml("Lecture des photos…")));
+  const changements = changementsPhotos, lecture = ++lecturePhotos;
   const [d, at] = await Promise.all([api("photos").catch((e) => { alert(e.message); return null; }),
     api("ateliers").catch(() => ({ activites: [] }))]);
-  if (!d) return;
+  if (!d || enAttentePhotos || changements !== changementsPhotos || lecture !== lecturePhotos) return;
   donneesPhotos = d;
   activitesConnues = at.activites || [];
   const cles = new Set([...d.a_trier, ...d.hors_horaires, ...d.ignorees].map((e) => e.cle));
