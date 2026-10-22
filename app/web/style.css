@@ -1124,6 +1124,7 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .coche-vignette { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
   background: rgba(255, 255, 255, 0.85); color: transparent; box-shadow: 0 0 0 1px rgba(58, 53, 82, 0.15); }
 .coche-vignette .picto { width: 15px; height: 15px; }
+.vignette .coche-vignette { touch-action: none; cursor: cell; }
 .vignette.choisie .coche-vignette { background: var(--eucalyptus); color: #fff; }
 .icone-video, .sans-apercu { width: 100%; height: 100%; display: grid; place-items: center; align-content: center; gap: 4px;
   color: var(--eucalyptus-fonce); font-size: 0.78rem; }

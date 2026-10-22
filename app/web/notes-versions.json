@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.4",
+    "date": "2026-10-22",
+    "titre": "Choisir plusieurs photos d'un geste",
+    "nouveautes": [
+      "Photos : maintenez le clic sur le petit rond d'une photo et glissez jusqu'à une autre photo : toutes celles entre les deux sont choisies, sans être déplacées. En partant d'une photo déjà choisie, le même geste les retire de la sélection."
+    ]
+  },
+  {
     "version": "1.11.3",
     "date": "2026-10-22",
     "titre": "L'icône de l'application dans le menu",

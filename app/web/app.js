@@ -2990,6 +2990,56 @@ function basculer(sel, cle, etendre, ordre) {
   derniereCle = cle;
 }
 
+// Bouton maintenu sur le cercle d'une photo puis glissé : sélectionne les photos entre celle de départ et la dernière
+// survolée (ou les retire si la photo de départ était choisie). Les photos ne sont pas déplacées pendant ce geste.
+let selectionGlissee = null;
+function demarrerSelectionGlissee(e, zone, attr, sel, apres) {
+  const rond = e.target.closest(".coche-vignette");
+  const v = rond?.closest(`[${attr}]`);
+  if (!v || e.button !== 0 || e.shiftKey) return;
+  e.preventDefault();
+  const depart = v.getAttribute(attr);
+  selectionGlissee = { zone, attr, sel, apres, depart, derniere: depart, retirer: sel.has(depart), avant: new Set(sel), bouge: false };
+}
+function suivreSelectionGlissee(e) {
+  const g = selectionGlissee;
+  if (!g) return;
+  const v = document.elementFromPoint(e.clientX, e.clientY)?.closest(`${g.zone} [${g.attr}]`);
+  if (!v || v.getAttribute(g.attr) === g.derniere) return;
+  g.derniere = v.getAttribute(g.attr);
+  g.bouge = true;
+  const ordre = $$(`${g.zone} [${g.attr}]`).map((x) => x.getAttribute(g.attr));
+  const [a, b] = [ordre.indexOf(g.depart), ordre.indexOf(g.derniere)].sort((x, y) => x - y);
+  g.sel.clear();
+  g.avant.forEach((c) => g.sel.add(c));
+  ordre.slice(a, b + 1).forEach((c) => (g.retirer ? g.sel.delete(c) : g.sel.add(c)));
+  derniereCle = g.derniere;
+  g.apres();
+}
+function finirSelectionGlissee() {
+  const g = selectionGlissee;
+  selectionGlissee = null;
+  // Le clic qui suit le relâchement ne doit pas défaire la sélection glissée.
+  if (!g?.bouge) return;
+  const bloquer = (e) => { e.stopPropagation(); e.preventDefault(); };
+  window.addEventListener("click", bloquer, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener("click", bloquer, { capture: true }), 0);
+}
+document.addEventListener("pointermove", suivreSelectionGlissee);
+document.addEventListener("pointerup", finirSelectionGlissee);
+document.addEventListener("pointercancel", finirSelectionGlissee);
+$("#groupes-a-trier").addEventListener("pointerdown", (e) => demarrerSelectionGlissee(e, "#groupes-a-trier", "data-cle", selTri, () => {
+  if (!selTri.size) enfantsTri.clear();
+  viderRangees();
+  majVignettes("#groupes-a-trier", selTri, "data-cle");
+  afficherBarreTri();
+}));
+$("#grille-rangees").addEventListener("pointerdown", (e) => demarrerSelectionGlissee(e, "#grille-rangees", "data-numero", selRangees, () => {
+  viderTri();
+  majVignettes("#grille-rangees", selRangees, "data-numero");
+  afficherBarreRangees();
+}));
+
 $("#groupes-a-trier").addEventListener("click", (e) => {
   const g = e.target.closest("[data-groupe]");
   if (g) {
@@ -3069,6 +3119,7 @@ $("#groupes-a-trier").addEventListener("dblclick", (e) => {
 const PHOTOS_GLISSEES = "application/x-assmat-photos";
 $("#groupes-a-trier").addEventListener("dragstart", (e) => {
   const v = e.target.closest("[data-cle]");
+  if (selectionGlissee) { e.preventDefault(); return; }
   if (!v) return;
   if (!selTri.has(v.dataset.cle)) {
     selTri.clear();
@@ -3316,6 +3367,7 @@ le fichier retourne dans le dossier « À trier ».`)) remettreRangees([...selRa
 // Glisser des photos rangées sur le bouton ou le panneau « À trier » : elles y retournent.
 $("#grille-rangees").addEventListener("dragstart", (e) => {
   const v = e.target.closest("[data-numero]");
+  if (selectionGlissee) { e.preventDefault(); return; }
   if (!v) return;
   if (!selRangees.has(v.dataset.numero)) {
     selRangees.clear();
