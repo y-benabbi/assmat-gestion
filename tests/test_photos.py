@@ -116,7 +116,8 @@ image(icloud / "IMG_0001.JPG", "2026:10:19 10:00:00")                  # lundi :
 image(icloud / "IMG_0002.JPG", "2026:10:19 14:00:00", (90, 140, 200))  # lundi après-midi : Léa
 image(icloud / "IMG_0003.JPG", "2026:10:24 15:00:00", (10, 10, 10))    # samedi : hors horaires
 image(icloud / "IMG_0004.JPG", "2026:10:19 17:20:00", (40, 200, 40))   # 17 h 20 : Léa dans la marge
-image(icloud / "Capture.png")                                          # sans date
+image(icloud / "Capture.png")                                          # sans EXIF : date du fichier
+os.utime(icloud / "Capture.png", (datetime(2026, 10, 19, 9, 30).timestamp(),) * 2)
 image(icloud / "IMG_0005.HEIC", "2026:10:20 09:00:00", (250, 200, 60), "HEIF")
 video(icloud / "IMG_0006.MP4", datetime(2026, 10, 19, 11, 0))
 image(icloud / "IMG_0007.JPG", "2026:10:21 10:00:00", (1, 2, 3))       # mercredi : horaires de vacances de Hugo
@@ -131,7 +132,13 @@ assert par_nom["IMG_0002.JPG"]["proposes"] == [lea["id"]]
 assert par_nom["IMG_0004.JPG"]["proposes"] == [lea["id"]]
 assert par_nom["IMG_0006.MP4"]["date"] == "2026-10-19T11:00:00" and par_nom["IMG_0006.MP4"]["genre"] == "video"
 assert par_nom["IMG_0007.JPG"]["proposes"] == [hugo["id"]]
-assert par_nom["Capture.png"]["date"] == "" and set(par_nom["Capture.png"]["proposes"]) == {lea["id"], hugo["id"]}
+assert par_nom["Capture.png"]["date"] == "2026-10-19T09:30:00", par_nom["Capture.png"]
+assert set(par_nom["Capture.png"]["proposes"]) == {lea["id"], hugo["id"]}
+# Sans EXIF mais avec une date XMP (photo exportée) : la date XMP passe avant celle du fichier.
+assert photos.date_image(icloud / "IMG_0001.JPG") == "2026-10-19T10:00:00"
+xmp = TEMP / "exportee.jpg"
+Image.new("RGB", (8, 8)).save(xmp, xmp=b'<x:xmpmeta><rdf:Description xmp:CreateDate="2026-10-14T09:52:10+02:00"/></x:xmpmeta>')
+assert photos.date_image(xmp) == "2026-10-14T09:52:10", photos.date_image(xmp)
 parametres.enregistrer({"marge_photos": 0})
 assert "IMG_0004.JPG" not in {e["nom"] for e in photos.lister()["a_trier"]}, "sans marge, 17 h 20 est hors horaires"
 parametres.enregistrer({"marge_photos": 30})

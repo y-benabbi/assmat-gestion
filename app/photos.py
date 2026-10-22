@@ -118,8 +118,31 @@ def _lire_date_exif(texte) -> str:
         return ""
 
 
+# Dates écrites en XMP (photos retouchées ou exportées) quand l'EXIF n'en a pas.
+RE_DATE_XMP = re.compile(rb'(?:exif:DateTimeOriginal|xmp:CreateDate|photoshop:DateCreated)(?:="|>)(\d{4}-\d\d-\d\dT\d\d:\d\d(?::\d\d)?)')
+# Version de la lecture des dates : l'augmenter relit les fichiers déjà analysés (cache photos-analyse.json).
+VERSION_ANALYSE = 2
+
+
+def _date_xmp(chemin: Path) -> str:
+    try:
+        with open(chemin, "rb") as f:
+            m = RE_DATE_XMP.search(f.read(256 * 1024))
+        return datetime.fromisoformat(m.group(1).decode()).isoformat() if m else ""
+    except (OSError, ValueError):
+        return ""
+
+
+def date_fichier(st) -> str:
+    """Date du fichier quand le contenu n'en donne pas : la plus ancienne entre la création (« Créé le » de
+    l'Explorateur, souvent la date de la photo chez iCloud) et la dernière modification (gardée par une copie)."""
+    dates = [st.st_mtime, getattr(st, "st_birthtime", None) or (st.st_ctime if os.name == "nt" else None)]
+    dates = [d for d in dates if d and d > 631152000]       # après 1990 : une date nulle n'est pas une date
+    return datetime.fromtimestamp(min(dates)).replace(microsecond=0).isoformat() if dates else ""
+
+
 def date_image(chemin: Path) -> str:
-    """Date de prise de vue (EXIF) au format ISO, ou ""."""
+    """Date de prise de vue (EXIF, sinon XMP) au format ISO, ou ""."""
     try:
         from PIL import Image
     except ImportError:
@@ -131,8 +154,8 @@ def date_image(chemin: Path) -> str:
             exif = im.getexif()
             valeur = exif.get_ifd(0x8769).get(0x9003) or exif.get_ifd(0x8769).get(0x9004) or exif.get(0x0132)
     except Exception:
-        return ""
-    return _lire_date_exif(valeur) if valeur else ""
+        valeur = None
+    return (_lire_date_exif(valeur) if valeur else "") or _date_xmp(chemin)
 
 
 def date_video(chemin: Path) -> str:
@@ -182,10 +205,13 @@ def _analyser(chemin: Path, cache: dict, avec_empreinte: bool = False) -> dict:
     st = chemin.stat()
     cle = str(chemin)
     info = cache.get(cle)
-    if not info or info.get("taille") != st.st_size or info.get("modif") != int(st.st_mtime):
+    if (not info or info.get("taille") != st.st_size or info.get("modif") != int(st.st_mtime)
+            or info.get("version") != VERSION_ANALYSE):
         en_ligne = _en_ligne(st)
-        info = {"taille": st.st_size, "modif": int(st.st_mtime), "en_ligne": en_ligne,
-                "date": "" if en_ligne else (date_image(chemin) if genre(chemin) == "photo" else date_video(chemin))}
+        # Fichier iCloud pas encore téléchargé : jamais ouvert, seule la date du fichier est lue.
+        prise = "" if en_ligne else (date_image(chemin) if genre(chemin) == "photo" else date_video(chemin))
+        info = {"taille": st.st_size, "modif": int(st.st_mtime), "en_ligne": en_ligne, "version": VERSION_ANALYSE,
+                "date": prise or date_fichier(st), "date_du_fichier": not prise}
         cache[cle] = info
     if avec_empreinte and not info.get("empreinte") and not info.get("en_ligne"):
         info["empreinte"] = empreinte(chemin)
@@ -394,7 +420,8 @@ def lister() -> dict:
                 except OSError:
                     fichier_date = ""
                 element = {"cle": cle, "nom": chemin.name, "genre": genre(chemin), "date": prise,
-                           "date_fichier": fichier_date, "en_ligne": bool(info.get("en_ligne")),
+                           "date_fichier": fichier_date, "date_du_fichier": bool(info.get("date_du_fichier")),
+                           "en_ligne": bool(info.get("en_ligne")),
                            "dossier": str(chemin.parent), "proposes": [], "doublon": ""}
                 if str(chemin) in ignorees:
                     ignor.append(element)

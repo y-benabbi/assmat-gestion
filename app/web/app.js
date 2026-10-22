@@ -2817,7 +2817,8 @@ function vignette(e, attribut, choisie, etiquette = "") {
   const src = e.cle ? `/api/photos/miniature?cle=${e.cle}` : `/api/photos/miniature?numero=${e.numero}`;
   const media = e.genre === "video" ? `<span class="icone-video">${picto("video")}<small>${heureFr(e.date) || "Vidéo"}</small></span>`
     : `<img loading="lazy" alt="" src="${src}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
-  const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "date de prise de vue inconnue";
+  const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })
+    + (e.date_du_fichier ? " (date du fichier, la photo n'en indique pas)" : "") : "date de prise de vue inconnue";
   const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Double-clic : ouvrir.`;
   return `<button type="button" class="vignette${choisie ? " choisie" : ""}" ${attribut} draggable="true" aria-pressed="${choisie}"
     title="${echapper(titre)}">${media}<span class="coche-vignette" aria-hidden="true">${picto("coche")}</span>${etiquette}</button>`;

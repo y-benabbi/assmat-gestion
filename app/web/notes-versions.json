@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.1",
+    "date": "2026-10-22",
+    "titre": "Date des photos",
+    "nouveautes": [
+      "Photos : une photo qui n'indique pas sa date de prise de vue (certaines photos d'iCloud) prend maintenant la date du fichier, celle que l'Explorateur affiche dans « Créé le ». Elle n'est plus classée « sans date » et les enfants présents ce jour-là sont proposés."
+    ]
+  },
+  {
     "version": "1.11.0",
     "date": "2026-10-22",
     "titre": "Photos, activités et un dossier principal",

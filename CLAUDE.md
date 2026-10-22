@@ -273,7 +273,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   Photo 0012.jpg` (`photos.REALISATIONS`, `dossier_realisation` ; le dossier commence par l'identifiant, relu par
   `numeroter` pour un dépôt à la main), quittée dès qu'un enfant est associé ; le numéro (`photos.json`, `compteur`) identifie la photo et figure dans le nom (un fichier rangé sans
   numéro en reçoit un). HEIC → JPEG (pillow-heif), original dans `Photos et vidéos\Format source\` (même arborescence, même nom). Numéro et
-  activité aussi écrits en XMP dans le JPEG (sans réencodage). Enfants proposés = présents à l'heure de la photo
+  activité aussi écrits en XMP dans le JPEG (sans réencodage). Date : EXIF, sinon XMP, sinon date du fichier (`date_fichier` : plus ancienne entre création et
+  modification ; seule lue pour un fichier iCloud non téléchargé), `date_du_fichier` le signale ; augmenter
+  `VERSION_ANALYSE` quand la lecture change (cache relu). Enfants proposés = présents à l'heure de la photo
   (`donnees.en_vigueur`) ± `marge_photos` minutes ; aucun = « hors horaires », mis de côté. Doublons par empreinte
   SHA-1. Fichiers iCloud non téléchargés (attributs Windows « cloud ») jamais ouverts. Miniatures dans
   `%LOCALAPPDATA%\assmat-gestion\miniatures`. Impression : page HTML (1, 4 ou 16 par page A4), aucun PDF enregistré.
