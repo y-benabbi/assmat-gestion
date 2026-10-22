@@ -657,6 +657,9 @@ async function afficherTableauDeBord() {
       texte: "Complétez votre profil (identité, agrément)", detail: "Il sert aux courriers, aux contrats de travail et aux échéances." });
   // Sans vérification sur Pajemploi, on ne sait pas s'il manque des bulletins : on le dit plutôt que « tout est à jour ».
   const nonVerifie = modules.bulletins !== false && !etat.bulletins.length;
+  $("#nb-a-faire").textContent = aFaire.length;
+  $("#nb-a-faire").classList.toggle("cache", !aFaire.length);
+  $("#a-faire").classList.toggle("calme", !aFaire.length && !nonVerifie);
   $("#liste-a-faire").innerHTML = aFaire.length
     ? aFaire.map((a) => `<li>${pastille(a.picto, a.categorie)}<span class="texte">${echapper(a.texte)}${
         a.detail ? `<small>${echapper(a.detail)}</small>` : ""}</span>
@@ -2366,26 +2369,14 @@ function surveillerIcones(zone) {
   });
 }
 
-// Raccourci de l'en-tête : les sites d'activités, accessibles depuis n'importe quelle page.
-const fermerPopSites = () => { $("#pop-sites").classList.add("cache"); $("#bouton-sites").setAttribute("aria-expanded", "false"); };
-$("#bouton-sites").addEventListener("click", async (e) => {
-  e.stopPropagation();
-  if (!$("#pop-sites").classList.contains("cache")) return fermerPopSites();
-  if (!sites.length) sites = await api("sites").catch(() => sites);
-  $("#sites-entete").innerHTML = sites.length ? sites.map(tuileSite).join("")
-    : `<p class="petit">Aucun site pour l'instant.</p>`;
-  surveillerIcones($("#sites-entete"));
-  $("#pop-sites").classList.remove("cache");
-  $("#bouton-sites").setAttribute("aria-expanded", "true");
-});
-$("#pop-sites").addEventListener("click", (e) => { if (e.target.closest("a, button")) fermerPopSites(); });
-document.addEventListener("click", (e) => { if (!$(".raccourci-sites").contains(e.target)) fermerPopSites(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#pop-sites").classList.contains("cache")) { fermerPopSites(); $("#bouton-sites").focus(); } });
-
 async function afficherSites() {
   sites = await api("sites").catch(() => sites);
   const ajout = `<button type="button" class="tuile-site ajout-site" data-ajouter-site><span class="icone-site">${picto("plus")}</span>
     <span class="nom-site">Ajouter</span></button>`;
+  // En-tête : les icônes seules, en miniature (le nom s'affiche au survol).
+  $("#sites-entete").innerHTML = sites.map((site, i) => tuileSite(site, i).replace('class="tuile-site"', 'class="tuile-site miniature"')
+    .replace(/title="[^"]*"/, `title="${echapper(site.nom)}" aria-label="${echapper(site.nom)}"`)).join("");
+  surveillerIcones($("#sites-entete"));
   ["#sites-accueil", "#sites-grille"].forEach((sel) => {
     $(sel).innerHTML = sites.map(tuileSite).join("") + ajout;
     surveillerIcones($(sel));

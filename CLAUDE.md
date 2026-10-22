@@ -135,8 +135,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   de couleur, pied : À propos / version, mise à jour, quitter) + `.zone` (en-tête blanc puis `main`). Boutons du menu
   `data-onglet` ; chaque rubrique optionnelle porte `data-module` (masquée si `parametres.modules[nom]` est faux).
   Pastille abricot `#badge-bulletins` = nombre de bulletins à récupérer (`badgeBulletins()`). Sur téléphone (≤ 820 px)
-  le menu glisse par-dessus la page (bouton « Menu », clic à côté ou Échap le referment). En-tête : à gauche, icône des sites
-  d'activités (`#bouton-sites`, ouvre `#pop-sites` avec les tuiles des sites), mise à jour disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
+  le menu glisse par-dessus la page (bouton « Menu », clic à côté ou Échap le referment). En-tête : à gauche, miniatures des sites
+  d'activités (`#sites-entete`, icônes seules cliquables, rempli par `afficherSites` ; celles qui ne tiennent pas
+  sont masquées), mise à jour disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
   prénom) en haut à droite : choix de Yannis, ne pas les déplacer dans le menu.
 - Couleurs : douces, « enfance » ; rose poudré et lavande pour l'ensemble, abricot / jaune doux (`--tournesol`)
   réservé à ce qui doit attirer l'œil (à récupérer, mise à jour, pastilles, alertes) et orange `--urgent` pour une date
@@ -155,7 +156,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   confirmation. Retirer `modifie` (`sansModifs`) après chargement ou enregistrement.
 - Échéances (`donnees.echeances`) : chaque entrée a un `type` (pictogramme, `PICTO_ECHEANCE`) et `aller` (rubrique où
   agir, lien affiché ; vide = aucun lien). Tableau de bord : version compacte (`ligneEcheance(e, true)`).
-- « À faire » : chaque ligne = pastille + texte + détail + bouton qui dit l'action ; `data-lancer` lance en plus une
+- « À faire » : bloc le plus visible (fond dégradé rose-lavande, lignes en cartes blanches, nombre en pastille
+  abricot `#nb-a-faire` ; classe `calme` = fond blanc quand tout est à jour). Chaque ligne = pastille + texte + détail + bouton qui dit l'action ; `data-lancer` lance en plus une
   action Pajemploi (vérifier, récupérer).
 - Revenus : le « Total encaissé » est le « Net payé en euros » de chaque bulletin (acompte compris, impôt déduit),
   reconstitué (net + indemnités + rupture + exonération heures complémentaires - impôt) s'il manque.
