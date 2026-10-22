@@ -1256,6 +1256,7 @@ body.occupe, body.occupe * { cursor: progress !important; }
 .puce-realisation > .picto { width: 13px; height: 13px; margin: 0 4px 0 0; vertical-align: -2px; }
 .carte-realisation .entete-seance .pic { margin-right: 2px; }
 .ligne-filtre.avec-icone { align-items: flex-start; }
+.date-realisation { display: block; font-size: 0.78rem; font-weight: 400; color: var(--encre-douce); }
 .ligne-filtre.avec-icone .picto { width: 16px; height: 16px; margin-top: 2px; color: var(--c-familles-encre); }
 /* Photos rangées glissées : les réalisations du filtre deviennent des cibles */
 .glisse-rangees #filtre-activite [data-case-realisation], .glisse #filtre-activite [data-case-realisation]:not([data-case-realisation=""]) { padding: 9px 8px; margin: 5px 0; border: 2px dashed var(--menthe-fonce);

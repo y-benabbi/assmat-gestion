@@ -3139,10 +3139,11 @@ function afficherRangees() {
   const listees = realisations().filter((s) => s.photos?.length || s.date <= aujourdhui).sort((x, y) => y.date.localeCompare(x.date));
   if (filtreActivite.startsWith("s:") && !listees.some((s) => `s:${s.id}` === filtreActivite)) filtreActivite = "";
   $("#filtre-activite").innerHTML = [["", "Toutes"], ["aucune", "Sans réalisation"],
-    ...listees.map((s) => [`s:${s.id}`, nomRealisation(s.activite.titre, s.date), s])]
+    ...listees.map((s) => [`s:${s.id}`, s.activite.titre, s])]
     .map(([v, t, r]) => `<button type="button" class="ligne-filtre${r ? " avec-icone" : ""}" data-filtre-activite="${v}"${
-      r ? ` data-case-realisation="${r.id}"` : v === "aucune" ? ` data-case-realisation=""` : ""} aria-pressed="${filtreActivite === v}">${
-      r ? picto(iconeActivite(r.activite)) : ""}<span>${echapper(t)}</span></button>`).join("");
+      r ? ` data-case-realisation="${r.id}" title="${echapper(nomRealisation(t, r.date))}"` : v === "aucune" ? ` data-case-realisation=""` : ""
+      } aria-pressed="${filtreActivite === v}">${r ? picto(iconeActivite(r.activite)) : ""}<span>${echapper(t)}${
+      r ? `<small class="date-realisation">du ${dateFr(r.date)}</small>` : ""}</span></button>`).join("");
   const liste = rangeesVisibles();
   $("#nb-rangees").textContent = pluriel(liste.length, "élément");
   let html = "", mois = null;
