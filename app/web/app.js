@@ -299,7 +299,12 @@ function intercalaire(famille, entrees, resume, aCompleter, seulementManquants) 
 function choixCase(liste, titre) {
   const plusieurs = liste.length > 1;
   const groupes = liste.map((e) => {
-    const qui = plusieurs && e.enfant ? ` (${e.enfant})` : "";
+    // Plusieurs bulletins le même mois : prénom de l'enfant, ou nom du fichier tant que Pajemploi n'a pas été consulté.
+    // (« … - 2026-09 - Léa.pdf » → « Léa »).
+    const fichier = e.local && e.fichier ? e.fichier.split(/[\\/]/).pop().replace(/\.pdf$/i, "") : "";
+    const fin = fichier.split(" - ").pop();
+    const nom = e.enfant || (/\d/.test(fin) ? fichier : fin);
+    const qui = plusieurs && nom ? ` (${nom})` : "";
     if (e.manquant) return [{ picto: "telecharger", texte: `Récupérer ce bulletin${qui}`,
       action: () => api("action", { action: "telecharger_manquants", cibles: [e.cible] }).then(rafraichir).catch((err) => alert(err.message)) }];
     if (!e.fichier) return [];
@@ -421,7 +426,10 @@ async function afficherListe() {
   }
   zone.innerHTML = "";
   familles.filter(([, periodes]) => !recentes || periodes.some((p) => p >= limite)).forEach(([famille, periodes]) => {
-    const entrees = periodes.map((p) => ({ periode: p, local: true, manquant: false, fichier: null, details: "Présent dans le dossier" }));
+    // Un bulletin par fichier trouvé : la case ouvre le même menu qu'après la vérification (ouvrir, afficher dans le dossier).
+    const entrees = periodes.flatMap((p) => (dossierLocal.fichiers?.[famille]?.[p] || [null]).map((fichier) => ({
+      periode: p, local: true, manquant: false, fichier,
+      details: fichier ? `Rangé : ${fichier}` : "Présent dans le dossier" })));
     zone.appendChild(intercalaire(famille, entrees, `${periodes.length} mois dans le dossier`, false, false));
   });
   appliquerFiltres();
