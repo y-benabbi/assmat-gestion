@@ -50,6 +50,17 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu
   </button>
   <a class="marque marque-mobile" href="#" data-aller="accueil">Assistante Maternelle</a>
+  <div class="raccourci-sites" data-module="activites">
+    <button class="bouton-parametres" id="bouton-sites" title="Sites d'activités" aria-label="Sites d'activités"
+      aria-expanded="false" aria-controls="pop-sites">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0 0 18c1.4 0 2-1 2-2 0-1.5-1.2-1.6-1.2-2.8 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4C21 6.4 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7" r="1.2"/></svg>
+    </button>
+    <div class="pop-sites cache" id="pop-sites" role="dialog" aria-label="Sites d'activités">
+      <p class="titre-menu">Sites d'activités</p>
+      <div class="grille-sites compacte" id="sites-entete"></div>
+      <button class="lien" data-aller="activites">Gérer mes sites</button>
+    </div>
+  </div>
   <div id="bandeau-maj" class="maj cache" role="status">
     <span class="point-maj" aria-hidden="true"></span>
     <span id="texte-maj"></span>

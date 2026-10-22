@@ -135,8 +135,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   de couleur, pied : À propos / version, mise à jour, quitter) + `.zone` (en-tête blanc puis `main`). Boutons du menu
   `data-onglet` ; chaque rubrique optionnelle porte `data-module` (masquée si `parametres.modules[nom]` est faux).
   Pastille abricot `#badge-bulletins` = nombre de bulletins à récupérer (`badgeBulletins()`). Sur téléphone (≤ 820 px)
-  le menu glisse par-dessus la page (bouton « Menu », clic à côté ou Échap le referment). En-tête : mise à jour
-  disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
+  le menu glisse par-dessus la page (bouton « Menu », clic à côté ou Échap le referment). En-tête : à gauche, icône des sites
+  d'activités (`#bouton-sites`, ouvre `#pop-sites` avec les tuiles des sites), mise à jour disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
   prénom) en haut à droite : choix de Yannis, ne pas les déplacer dans le menu.
 - Couleurs : douces, « enfance » ; rose poudré et lavande pour l'ensemble, abricot / jaune doux (`--tournesol`)
   réservé à ce qui doit attirer l'œil (à récupérer, mise à jour, pastilles, alertes) et orange `--urgent` pour une date
