@@ -11,6 +11,8 @@
 <link rel="icon" href="/web/icone.svg" type="image/svg+xml">
 </head>
 <body>
+<!-- Attente de plus de 0,4 s (lecture des photos, création d'un PDF…) : affichée par suivreChargement() dans app.js -->
+<div class="chargement" id="chargement" role="status" aria-live="polite"><span class="rond-chargement" aria-hidden="true"></span><span class="texte-chargement">Chargement…</span></div>
 <div class="cadre">
 <nav class="menu" id="menu" aria-label="Rubriques">
   <a class="marque" href="#" data-aller="accueil"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15 16 5l12 10v12a1.5 1.5 0 0 1-1.5 1.5h-21A1.5 1.5 0 0 1 4 27z"/><path class="coeur" d="M16 24.5s-5-3-5-6.4a2.6 2.6 0 0 1 5-1 2.6 2.6 0 0 1 5 1c0 3.4-5 6.4-5 6.4z"/></svg>Assistante Maternelle</a>

@@ -2,12 +2,69 @@ const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
 async function api(chemin, donnees) {
-  const r = await fetch("/api/" + chemin, donnees === undefined ? {} : {
+  const requete = fetch("/api/" + chemin, donnees === undefined ? {} : {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(donnees),
   });
+  const r = await (SANS_INDICATEUR.test(chemin) ? requete : suivreChargement(requete, messageChargement(chemin)));
   const json = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(json.erreur || r.statusText);
   return json;
+}
+
+// ------------------------------------------------------------- chargements
+// Toute attente de plus de 0,4 s s'affiche : pastille « Chargement… » en haut de l'écran (#chargement), avec un texte
+// qui dit ce qui se passe. Les appels réguliers (état de Pajemploi) et les fenêtres de Windows n'en ont pas.
+const SANS_INDICATEUR = /^(etat|version|notes-distantes|quitter|mettre-a-jour|interrompre|choisir-dossier|principal)/;
+const MESSAGES_CHARGEMENT = [
+  [/^photos\/ranger/, "Rangement des photos…"], [/^photos\/deposer/, "Ajout des photos…"],
+  [/^photos\/(remettre|rattacher|modifier|ignorer)/, "Mise à jour des photos…"],
+  [/^photos\/supprimer/, "Suppression des photos…"], [/^photos(\?|$)/, "Lecture des photos…"],
+  [/^(courriers\/pdf|contrat-travail|avenant-pdf)/, "Création du PDF…"], [/^courriers/, "Préparation du courrier…"],
+  [/^revenus/, "Lecture des bulletins de salaire…"], [/^impots/, "Calcul pour la déclaration de revenus…"],
+  [/^ateliers\/document/, "Ajout des documents…"], [/^(ouvrir|montrer|photos\/ouvrir|ateliers\/ouvrir)/, "Ouverture…"],
+];
+const messageChargement = (chemin) => (MESSAGES_CHARGEMENT.find(([re]) => re.test(chemin)) || [])[1] || "Chargement…";
+const chargements = new Map();
+let numeroChargement = 0, minuterieChargement = null;
+
+// Suit une promesse (requête, création de PDF…) : la pastille s'affiche tant qu'elle n'est pas terminée.
+function suivreChargement(promesse, message = "Chargement…") {
+  const id = ++numeroChargement;
+  chargements.set(id, message);
+  majChargement();
+  return Promise.resolve(promesse).finally(() => { chargements.delete(id); majChargement(); });
+}
+
+function majChargement() {
+  const pastille = document.getElementById("chargement");
+  if (!pastille) return;
+  if (!chargements.size) {
+    clearTimeout(minuterieChargement);
+    minuterieChargement = null;
+    pastille.classList.remove("visible");
+    document.body.classList.remove("en-chargement");
+    return;
+  }
+  pastille.querySelector(".texte-chargement").textContent = [...chargements.values()].at(-1);
+  if (pastille.classList.contains("visible") || minuterieChargement) return;
+  minuterieChargement = setTimeout(() => {
+    minuterieChargement = null;
+    if (!chargements.size) return;
+    pastille.classList.add("visible");
+    document.body.classList.add("en-chargement");
+  }, 400);
+}
+
+// Texte d'attente à placer dans une zone (liste, résultat) pendant qu'elle se remplit.
+const attenteHtml = (texte = "Chargement…") => `<p class="attente-texte"><span class="rond-chargement" aria-hidden="true"></span>${texte}</p>`;
+
+// Bouton occupé : désactivé, petit cercle qui tourne et texte d'attente ; la fonction rendue le rétablit.
+function boutonOccupe(bouton, texte) {
+  const avant = bouton.innerHTML;
+  bouton.disabled = true;
+  bouton.classList.add("en-cours");
+  bouton.innerHTML = `<span class="rond-chargement" aria-hidden="true"></span>${texte}`;
+  return () => { bouton.disabled = false; bouton.classList.remove("en-cours"); bouton.innerHTML = avant; };
 }
 
 // ------------------------------------------------------------- pictogrammes
@@ -1836,7 +1893,7 @@ function dossierEnfant(c, aujourdhui) {
         ${resumeEnVigueur(c, v)}</section>
       <div class="suivi-contrat">
         <section><h3>Historique du contrat</h3><ol class="historique">${historique}</ol></section>
-        <section><h3>Documents</h3><ul class="documents" data-documents><li class="petit">Chargement…</li></ul></section>
+        <section><h3>Documents</h3><ul class="documents" data-documents><li>${attenteHtml()}</li></ul></section>
       </div>
     </div>
     <p class="pied-dossier"><button type="button" class="lien" data-une-page>Modifier la fiche sur une seule page</button>
@@ -2355,7 +2412,7 @@ $("#nouvel-enfant").addEventListener("click", async () => { await afficherContra
 // Contrat de travail ou avenant en PDF : résultat affiché avec un lien pour l'ouvrir.
 const creerAvenantPdf = (contratId, avenantId, zone) => creerContratTravail(contratId, zone, avenantId);
 async function creerContratTravail(contratId, zone, avenantId = "") {
-  zone.innerHTML = `<p class="petit">Création du ${avenantId ? "PDF de l'avenant" : "contrat"}…</p>`;
+  zone.innerHTML = attenteHtml(`Création du ${avenantId ? "PDF de l'avenant" : "contrat"}…`);
   try {
     const r = avenantId ? await api("avenant-pdf", { contrat_id: contratId, avenant_id: avenantId })
       : await api("contrat-travail", { contrat_id: contratId || "" });
@@ -2705,13 +2762,13 @@ formDerog.addEventListener("submit", async (e) => {
 formTexte.addEventListener("submit", async (e) => {
   e.preventDefault();
   const bouton = formTexte.querySelector("button.principal");
-  bouton.disabled = true; bouton.textContent = "Création du PDF…";
+  const retablir = boutonOccupe(bouton, "Création du PDF…");
   try {
     const r = await api("courriers/pdf", texteCourrier());
     $("#pdf-cree").innerHTML = `PDF enregistré : ${echapper(r.chemin)} <button type="button" class="lien" id="ouvrir-pdf">Ouvrir</button>`;
     $("#ouvrir-pdf").addEventListener("click", () => api("ouvrir", { quoi: r.chemin }).catch((err) => alert(err.message)));
   } catch (err) { alert(err.message); }
-  bouton.disabled = false; bouton.textContent = "Créer le PDF";
+  retablir();
 });
 
 // ------------------------------------------------------------- dossier principal
@@ -2817,7 +2874,7 @@ const initialeEnfant = (e) => `<span class="initiale ${couleurEnfant(e.prenom)}"
 function vignette(e, attribut, choisie, etiquette = "") {
   const src = e.cle ? `/api/photos/miniature?cle=${e.cle}` : `/api/photos/miniature?numero=${e.numero}`;
   const media = e.genre === "video" ? `<span class="icone-video">${picto("video")}<small>${heureFr(e.date) || "Vidéo"}</small></span>`
-    : `<img loading="lazy" alt="" src="${src}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
+    : `<img loading="lazy" alt="" src="${src}" onload="this.classList.add('chargee')" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
   const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })
     + (e.date_du_fichier ? " (date du fichier, la photo n'en indique pas)" : "") : "date de prise de vue inconnue";
   const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Clic : menu ; double-clic : voir en grand.`;
@@ -2841,6 +2898,8 @@ function grouper(liste) {
 }
 
 async function afficherPhotos() {
+  // Premier affichage : les dossiers de photos sont parcourus (dates, doublons), ce qui peut prendre du temps.
+  if (!$("#grille-rangees").children.length) ["#grille-rangees", "#groupes-a-trier"].forEach((z) => ($(z).innerHTML = attenteHtml("Lecture des photos…")));
   const [d, at] = await Promise.all([api("photos").catch((e) => { alert(e.message); return null; }),
     api("ateliers").catch(() => ({ activites: [] }))]);
   if (!d) return;
@@ -3028,7 +3087,9 @@ function voirPhoto(liste, ref) {
     const quand = x.date ? new Date(x.date).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" }) : "Date inconnue";
     const media = x.genre === "video"
       ? `<video controls autoplay src="/api/photos/image?${q}"></video>`
-      : `<img alt="" src="/api/photos/image?${q}" onerror="this.onerror=null;this.src='/api/photos/miniature?${q}'">`;
+      : `<span class="rond-chargement attente-visionneuse" aria-hidden="true"></span><img alt="" src="/api/photos/image?${q}"
+        onload="this.parentNode.querySelector('.attente-visionneuse')?.remove()"
+        onerror="this.onerror=null;this.src='/api/photos/miniature?${q}'">`;
     fond.innerHTML = `<button type="button" class="fermer-visionneuse" title="Fermer (Échap)" aria-label="Fermer">${picto("fermer")}</button>
       ${elements.length > 1 ? `<button type="button" class="precedente" title="Photo précédente (←)" aria-label="Photo précédente">${picto("chevron")}</button>
       <button type="button" class="suivante" title="Photo suivante (→)" aria-label="Photo suivante">${picto("chevron")}</button>` : ""}
@@ -3316,7 +3377,7 @@ async function deposerFichiers(fichiers) {
   [...fichiers].forEach((f) => { donnees.append("fichiers", f, f.name); donnees.append("modifie", f.lastModified); });
   document.body.classList.add("occupe");
   try {
-    const r = await fetch("/api/photos/deposer", { method: "POST", body: donnees }).then((x) => x.json());
+    const r = await suivreChargement(fetch("/api/photos/deposer", { method: "POST", body: donnees }).then((x) => x.json()), "Ajout des photos…");
     if (r.erreurs?.length) alert(r.erreurs.join("\n"));
   } catch (err) { alert(err.message); }
   document.body.classList.remove("occupe");
@@ -3726,7 +3787,8 @@ async function envoyerDocuments(fichiers, activite = activiteOuverte) {
   const donnees = new FormData();
   donnees.append("activite", activite);
   [...fichiers].forEach((f) => donnees.append("fichiers", f, f.name));
-  const r = await fetch("/api/ateliers/document", { method: "POST", body: donnees }).then((x) => x.json()).catch((e) => ({ erreurs: [e.message] }));
+  const r = await suivreChargement(fetch("/api/ateliers/document", { method: "POST", body: donnees }).then((x) => x.json()), "Ajout des documents…")
+    .catch((e) => ({ erreurs: [e.message] }));
   if (r.erreurs?.length) alert(r.erreurs.join("\n"));
   afficherAteliers();
 }
@@ -3867,7 +3929,7 @@ function afficherRealisations() {
   afficherJourRealisations();
 }
 
-const miniPhoto = (n) => `<img loading="lazy" alt="" src="/api/photos/miniature?numero=${n}"
+const miniPhoto = (n) => `<img loading="lazy" alt="" src="/api/photos/miniature?numero=${n}" onload="this.classList.add('chargee')"
   onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'${n}'}))">`;
 
 function carteRealisation(r) {
