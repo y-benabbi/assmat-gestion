@@ -97,6 +97,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `assistante-maternelle:<utilisateur>`). Ne jamais revenir à un port fixe ni à une API sans jeton.
   Les scripts (amorce.ps1) ne ferment que l'application de la session courante.
 
+- Ouverture de la page : `main.ouvrir_fenetre` lance Edge en mode application (`msedge --app=…`, profil Edge habituel :
+  les sites d'activités gardent leurs connexions), trouvé par `chemin_edge` (registre « App Paths », puis Program Files) ;
+  sans Edge, navigateur par défaut. « Quitter » tente `window.close()`.
 - **Pajemploi refuse les navigateurs headless** (`ERR_CONNECTION_RESET`) : toujours `headless=False`,
   fenêtre réduite (`--start-minimized`) et affichée via CDP (`_montrer_fenetre`) quand une action manuelle
   est nécessaire. Ne pas contourner autrement la détection du site.

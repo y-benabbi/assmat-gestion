@@ -323,7 +323,8 @@ $$("[data-ouvrir]").forEach((b) => b.addEventListener("click", () =>
 $("#quitter").addEventListener("click", async () => {
   if (!confirm("Arrêter l'application ?")) return;
   await api("quitter", {}).catch(() => {});
-  document.body.innerHTML = "<main><p>L'application est arrêtée. Vous pouvez fermer cet onglet.</p></main>";
+  window.close();   // fenêtre d'application (Edge) : se ferme ; dans un onglet ordinaire, le message reste
+  document.body.innerHTML = "<main><p>L'application est arrêtée. Vous pouvez fermer cette fenêtre.</p></main>";
 });
 
 // ------------------------------------------------------------- état

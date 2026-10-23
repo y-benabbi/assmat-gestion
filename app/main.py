@@ -66,6 +66,43 @@ def adresse(port, jeton=None):
     return f"http://127.0.0.1:{port}/" + (f"?jeton={jeton}" if jeton else "")
 
 
+def chemin_edge():
+    """msedge.exe s'il est installé (présent sur Windows 10 et 11), sinon None."""
+    if os.name != "nt":
+        return None
+    try:
+        import winreg
+        for racine in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            try:
+                with winreg.OpenKey(racine, r"Software\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe") as cle:
+                    chemin = winreg.QueryValue(cle, None)
+                if chemin and os.path.isfile(chemin):
+                    return chemin
+            except OSError:
+                pass
+    except ImportError:
+        pass
+    for variable in ("ProgramFiles(x86)", "ProgramFiles", "LOCALAPPDATA"):
+        chemin = os.path.join(os.environ.get(variable, ""), "Microsoft", "Edge", "Application", "msedge.exe")
+        if os.environ.get(variable) and os.path.isfile(chemin):
+            return chemin
+    return None
+
+
+def ouvrir_fenetre(url):
+    """Ouvre la page dans une fenêtre à part, comme une application (Edge en mode application : ni barre d'adresse
+    ni onglets, icône à elle dans la barre des tâches). Sans Edge, dans le navigateur habituel."""
+    edge = chemin_edge()
+    if edge:
+        try:
+            subprocess.Popen([edge, f"--app={url}", "--window-size=1400,900"], close_fds=True,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            return
+        except OSError:
+            pass
+    webbrowser.open(url)
+
+
 def deja_lance():
     """Adresse de l'application de CETTE session si elle tourne déjà, sinon None."""
     info = lire_serveur()
@@ -815,14 +852,14 @@ def installer_modules_manquants():
 def main():
     existante = deja_lance()
     if existante:
-        webbrowser.open(existante)
+        ouvrir_fenetre(existante)
         return
     threading.Thread(target=installer_modules_manquants, daemon=True).start()
     port, jeton = preparer_serveur()
     app = creer_app(port, jeton)
     import principal
     threading.Thread(target=principal.sauvegarder, daemon=True).start()     # copie des fiches, une fois par jour
-    ouvrir = lambda: webbrowser.open(adresse(port, jeton))  # noqa: E731
+    ouvrir = lambda: ouvrir_fenetre(adresse(port, jeton))  # noqa: E731
     if "--apres-mise-a-jour" in sys.argv:
         # La page restée ouverte se recharge seule ; on n'ouvre un onglet que si elle a été fermée.
         threading.Timer(15, lambda: PAGE_OUVERTE.is_set() or ouvrir()).start()
