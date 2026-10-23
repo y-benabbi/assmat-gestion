@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.11.15",
+    "date": "2026-10-23",
+    "titre": "Épingler l'application",
+    "nouveautes": [
+      "L'application peut maintenant être épinglée à la barre des tâches : tapez « Assistante » dans le menu Démarrer, faites un clic droit sur « Assistante Maternelle » puis « Épingler à la barre des tâches ».",
+      "Le raccourci n'ouvre plus de petite fenêtre noire au lancement."
+    ]
+  },
+  {
     "version": "1.11.14",
     "date": "2026-10-23",
     "titre": "Avenant plus complet",

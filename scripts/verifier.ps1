@@ -58,7 +58,7 @@ $prog = Dossier-Programme
 $lnkChemin = if ($prog) { Join-Path $prog $NomRaccourci } else { $null }
 if ($lnkChemin -and (Test-Path $lnkChemin)) {
     $cible = (New-Object -ComObject WScript.Shell).CreateShortcut($lnkChemin).TargetPath
-    if ($cible -eq $Lanceur) { Ecrire-Ok "Raccourci : $lnkChemin" }
+    if ($cible -eq $PythonwVenv -or $cible -eq $Lanceur) { Ecrire-Ok "Raccourci : $lnkChemin" }
     else { Att "Le raccourci pointe vers un autre emplacement ($cible)" $relancer }
 } else { Err "Raccourci absent" $relancer }
 

@@ -11,6 +11,10 @@ $Racine = Split-Path -Parent $PSScriptRoot          # dossier « application » 
 $Venv = Join-Path $Base "python"
 $PythonVenv = Join-Path $Venv "Scripts\python.exe"
 $Lanceur = Join-Path $Racine "Lancer.bat"
+# Le raccourci vise directement pythonw.exe (un programme, pas un .bat) : Windows propose alors « Épingler à la
+# barre des tâches », et aucune fenêtre noire ne s'ouvre.
+$PythonwVenv = Join-Path $Venv "Scripts\pythonw.exe"
+$ScriptPrincipal = Join-Path $Racine "app\main.py"
 $FichierProgramme = Join-Path $Base "dossier-programme.txt"
 $NomRaccourci = "Assistante Maternelle.lnk"
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $Base "navigateurs"

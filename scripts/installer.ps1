@@ -68,19 +68,29 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "L'installation du navigateur Chromium a échoué." }
     Ecrire-Ok "Chromium installé"
 
-    Ecrire-Titre "5/5  Raccourci"
-    if ($DossierProgramme -and (Test-Path $DossierProgramme)) {
+    Ecrire-Titre "5/5  Raccourcis"
+    # Même raccourci dans le dossier Programme et dans le menu Démarrer (où l'on peut l'épingler à la barre des tâches).
+    function Creer-Raccourci($chemin) {
         $shell = New-Object -ComObject WScript.Shell
-        $lnk = $shell.CreateShortcut((Join-Path $DossierProgramme $NomRaccourci))
-        $lnk.TargetPath = $Lanceur
+        $lnk = $shell.CreateShortcut($chemin)
+        $lnk.TargetPath = $PythonwVenv
+        $lnk.Arguments = "`"$ScriptPrincipal`""
         $lnk.WorkingDirectory = $Racine
-        $lnk.WindowStyle = 7   # réduit : la fenêtre noire reste discrète
+        $lnk.WindowStyle = 1
         $lnk.IconLocation = "$(Join-Path $Racine "app\web\icone.ico"),0"   # logo du menu (outils\creer_icone.py)
         $lnk.Description = "Ouvrir l'application Assistante Maternelle"
         $lnk.Save()
-        Ecrire-Ok "Raccourci : $(Join-Path $DossierProgramme $NomRaccourci)"
+        Ecrire-Ok "Raccourci : $chemin"
+    }
+    if ($DossierProgramme -and (Test-Path $DossierProgramme)) {
+        Creer-Raccourci (Join-Path $DossierProgramme $NomRaccourci)
     } else {
-        Ecrire-Attention "Dossier du raccourci inconnu : raccourci non créé."
+        Ecrire-Attention "Dossier du raccourci inconnu : raccourci du dossier Programme non créé."
+    }
+    try {
+        Creer-Raccourci (Join-Path ([Environment]::GetFolderPath("Programs")) $NomRaccourci)
+    } catch {
+        Ecrire-Attention "Raccourci du menu Démarrer non créé : $($_.Exception.Message)"
     }
 
     Write-Host ""
