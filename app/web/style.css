@@ -1008,6 +1008,17 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
   box-shadow: inset 0 0 0 1px rgba(58, 53, 82, 0.06); transition: transform 0.12s; }
 .tuile-site.miniature .initiale-site { font-size: 1rem; }
 .tuile-site.miniature .nom-site { display: none; }
+/* Dossier principal, avant les liens rapides de l'en-tête */
+.dossier-entete { flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0;
+  border-radius: 9px; background: var(--eucalyptus-clair); color: var(--eucalyptus-fonce); cursor: pointer;
+  transition: transform 0.15s; }
+.dossier-entete svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dossier-entete { position: relative; }
+.dossier-entete:hover { transform: translateY(-2px); }
+.dossier-entete::after { content: attr(data-bulle); position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
+  padding: 5px 10px; border-radius: 8px; background: var(--encre); color: #fff; font-size: 0.8rem; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+.dossier-entete:hover::after, .dossier-entete:focus-visible::after { opacity: 1; }
 .tuile-site.miniature:hover .icone-site { transform: translateY(-2px); }
 /* « À faire » : le bloc le plus visible du tableau de bord (fond rose-lavande, lignes en cartes blanches) */
 .panneau.a-faire { background: linear-gradient(120deg, #fbe3ec 0%, #ece5fb 100%); padding: 22px 24px 24px;

@@ -151,7 +151,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   Pastille abricot `#badge-bulletins` = nombre de bulletins à récupérer (`badgeBulletins()`). Sur téléphone (≤ 820 px)
   le menu glisse par-dessus la page (bouton « Menu », clic à côté ou Échap le referment). En-tête : à gauche, miniatures des sites
   d'activités (`#sites-entete`, icônes seules cliquables, rempli par `afficherSites` ; celles qui ne tiennent pas
-  sont masquées), mise à jour disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
+  sont masquées ; juste avant, `.dossier-entete` ouvre le dossier principal, bulle « Ouvrir le dossier » au survol), mise à jour disponible (pastille abricot), puis « Paramètres » (onglet `fonctionnalites`) et « Mon profil » (initiale du
   prénom) en haut à droite : choix de Yannis, ne pas les déplacer dans le menu.
 - Couleurs : douces, « enfance » ; rose poudré et lavande pour l'ensemble, abricot / jaune doux (`--tournesol`)
   réservé à ce qui doit attirer l'œil (à récupérer, mise à jour, pastilles, alertes) et orange `--urgent` pour une date
