@@ -295,7 +295,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `VERSION_ANALYSE` quand la lecture change (cache relu). Enfants proposés = présents à l'heure de la photo
   (`donnees.en_vigueur`) ± `marge_photos` minutes ; aucun = « hors horaires », mis de côté. Doublons par empreinte
   SHA-1. Fichiers iCloud non téléchargés (attributs Windows « cloud ») jamais ouverts. Miniatures dans
-  `%LOCALAPPDATA%\assmat-gestion\miniatures`. Impression : page HTML (1, 4 ou 16 par page A4), aucun PDF enregistré.
+  `%LOCALAPPDATA%\assmat-gestion\miniatures` ; vidéo : image tirée de la vidéo par ffmpeg (module `imageio-ffmpeg`,
+  `_image_video`, vers 1 s, redressée), échec noté par un fichier `.aucune` ; une vidéo iCloud non téléchargée n'est jamais ouverte. Impression : page HTML (1, 4 ou 16 par page A4), aucun PDF enregistré.
   Reconnaissance des visages : reportée, et jamais par une application ou un service extérieur.
 - Rubrique Photos (interface, demande de Yannis : **peu de texte**, aides en `title` ou repliées) : barre de filtres
   compacte à gauche (`.filtres-photos` : recherche, enfants en groupes dépliables `photos.enfants()` — « derniers » gardés
@@ -303,7 +304,10 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants gardent leur taille (demande de Yannis : on dépose surtout dans la zone des photos ; un enfant survolé reste une cible). « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
   (`ouvrirATrier`, Échap) à trois onglets (`vueTri`, `choisirVueTri`) : « À ranger », « Hors horaires », « Ignorées » (aperçus des
   deux derniers chargés seulement quand leur onglet est ouvert) ; on glisse des photos sur un onglet (`depotOnglet` :
-  « Ignorées » ← à ranger ou hors horaires, « À ranger » ← hors horaires, ignorées ou rangées ; `mettreDeCote`) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
+  « Ignorées » ← à ranger ou hors horaires, « À ranger » ← hors horaires, ignorées ou rangées ; `mettreDeCote`) ; seuls la zone
+  des photos à ranger (`#vue-tri-ranger`) et le bouton « À trier » reçoivent des photos rangées ou des fichiers de l'Explorateur,
+  jamais tout le panneau ; une image glissée depuis la page transporte un « fichier » : ignoré (`glisseDepuisPage`), sinon
+  la photo était dupliquée ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Bouton maintenu sur le rond `.coche-vignette` puis glissé = sélection de la photo de départ à la dernière survolée
   (`demarrerSelectionGlissee`, retire si la photo de départ était choisie) ; ce geste ne lance jamais le glisser-déposer. Clic bref sur la photo (hors du rond, sans Maj/Ctrl) : menu
   `menuPhoto` (Voir = visionneuse `voirPhoto`, ←/→/Échap ; Afficher dans le dossier ; Sélectionner ; Supprimer = `photos.supprimer`,

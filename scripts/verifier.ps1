@@ -37,8 +37,8 @@ if (Venv-Fonctionne) {
     $v = & $PythonVenv -c "import sys; print(sys.version.split()[0])"
     Ecrire-Ok "Environnement de l'application : Python $v"
 
-    $test = & $PythonVenv -c "import flask, playwright, keyring, pypdf, PIL, pillow_heif; print('ok')" 2>&1
-    if ("$test" -match "ok$") { Ecrire-Ok "Modules Flask, Playwright, Keyring, pypdf, Pillow et pillow-heif" }
+    $test = & $PythonVenv -c "import flask, playwright, keyring, pypdf, PIL, pillow_heif, imageio_ffmpeg; print('ok')" 2>&1
+    if ("$test" -match "ok$") { Ecrire-Ok "Modules Flask, Playwright, Keyring, pypdf, Pillow, pillow-heif et imageio-ffmpeg" }
     else { Err "Modules Python manquants" $relancer }
 
     $test = & $PythonVenv -c "import tkinter; print('ok')" 2>&1

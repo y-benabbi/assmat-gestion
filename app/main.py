@@ -765,7 +765,7 @@ def creer_app(port, jeton):
 
 
 # Modules Python nécessaires (requirements.txt) : nom à importer.
-MODULES = ("flask", "playwright", "keyring", "pypdf", "PIL", "pillow_heif")
+MODULES = ("flask", "playwright", "keyring", "pypdf", "PIL", "pillow_heif", "imageio_ffmpeg")
 
 
 def installer_modules_manquants():

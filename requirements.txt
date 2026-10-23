@@ -4,3 +4,4 @@ keyring>=25,<26
 pypdf>=4,<7
 Pillow>=10,<14
 pillow-heif>=0.16,<2
+imageio-ffmpeg>=0.5,<1

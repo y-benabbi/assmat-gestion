@@ -153,6 +153,22 @@ parametres.enregistrer({"marge_photos": 30})
 liste = photos.lister()
 par_nom = {e["nom"]: e for e in liste["a_trier"]}
 assert photos.miniature(icloud / "IMG_0005.HEIC") and photos.miniature(icloud / "IMG_0001.JPG")
+# Vidéo : image tirée de la vidéo (ffmpeg du module imageio-ffmpeg). Vidéo filmée en portrait (rotation) : image redressée.
+import subprocess  # noqa: E402
+import imageio_ffmpeg  # noqa: E402
+vraie = TEMP / "videos" / "vraie.mp4"
+vraie.parent.mkdir(exist_ok=True)
+brute = vraie.with_name("brute.mp4")
+subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-v", "error", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=10:duration=2",
+                "-pix_fmt", "yuv420p", str(brute)], check=True)
+subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-v", "error", "-display_rotation", "90", "-i", str(brute), "-c", "copy",
+                str(vraie)], check=True)
+apercu_video = photos.miniature(vraie)
+assert apercu_video and apercu_video.suffix == ".jpg", apercu_video
+with Image.open(apercu_video) as im:
+    assert im.size[1] > im.size[0], f"vidéo portrait redressée : {im.size}"
+assert photos.miniature(icloud / "IMG_0006.MP4") is None, "vidéo sans image lisible : pas d'aperçu"
+assert list(photos.MINIATURES.glob("*.aucune")), "échec noté, pas de nouvel essai à chaque affichage"
 print("pré-classement : horaires et marge, sans date, vidéo datée, miniatures (HEIC compris)")
 
 # ------------------------------------------------------------------ rangement

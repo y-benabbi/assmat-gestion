@@ -2972,12 +2972,15 @@ const initialeEnfant = (e) => `<span class="initiale ${couleurEnfant(e.prenom)}"
 
 function vignette(e, attribut, choisie, etiquette = "") {
   const src = `/api/photos/miniature?${e.apercu || (e.cle ? `cle=${e.cle}` : `numero=${e.numero}`)}`;
-  const media = e.genre === "video" ? `<span class="icone-video">${picto("video")}<small>${heureFr(e.date) || "Vidéo"}</small></span>`
+  // Vidéo : image tirée de la vidéo, avec une petite pastille « vidéo » ; sans image possible, le pictogramme seul.
+  const media = e.genre === "video" ? `<img loading="lazy" alt="" src="${src}" onload="this.classList.add('chargee')"
+      onerror="this.closest('.vignette')?.classList.add('sans-image'); this.remove()"><span class="icone-video">${picto("video")}<small>${
+      heureFr(e.date) || "Vidéo"}</small></span>`
     : `<img loading="lazy" alt="" src="${src}" onload="this.classList.add('chargee')" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'sans-apercu',textContent:'Aperçu indisponible'}))">`;
   const quand = e.date ? new Date(e.date).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" })
     + (e.date_du_fichier ? " (date du fichier, la photo n'en indique pas)" : "") : "date de prise de vue inconnue";
   const titre = `${e.nom || (e.genre === "video" ? "Vidéo " : "Photo ") + e.numero} — ${quand}. Clic : menu ; double-clic : voir en grand.`;
-  return `<button type="button" class="vignette${choisie ? " choisie" : ""}${e.enCours ? " en-cours" : ""}" ${attribut}
+  return `<button type="button" class="vignette${e.genre === "video" ? " video" : ""}${choisie ? " choisie" : ""}${e.enCours ? " en-cours" : ""}" ${attribut}
     draggable="${!e.enCours}" aria-pressed="${choisie}" aria-busy="${!!e.enCours}"
     title="${echapper(titre)}">${media}<span class="coche-vignette" aria-hidden="true">${picto("coche")}</span>${etiquette}${
     e.enCours ? `<span class="roue" aria-hidden="true"></span>` : ""}</button>`;
@@ -3610,13 +3613,19 @@ $("#contenu-photos").addEventListener("drop", (e) => {
   rangerSelection(f.enfants, f.seance);
 });
 
-// Sur le bouton ou le panneau « À trier » : photos rangées glissées (remises à trier), fichiers de l'Explorateur (copiés).
+// Sur le bouton « À trier » ou la zone des photos à ranger (pas tout le panneau : ses onglets sont d'autres cibles) :
+// photos rangées glissées (remises à trier), fichiers venus de l'Explorateur (copiés). Une photo glissée depuis la page
+// elle-même transporte aussi un « fichier » (son aperçu) : jamais copié, sinon la photo serait dupliquée.
 const RANGEES_GLISSEES = "application/x-assmat-rangees";
-["#bouton-a-trier", "#colonne-a-trier"].forEach((sel) => {
+let glisseDepuisPage = false;
+document.addEventListener("dragstart", () => { glisseDepuisPage = true; }, true);
+document.addEventListener("dragend", () => { glisseDepuisPage = false; }, true);
+document.addEventListener("drop", () => setTimeout(() => { glisseDepuisPage = false; }), true);
+["#bouton-a-trier", "#vue-tri-ranger"].forEach((sel) => {
   const zone = $(sel);
   zone.addEventListener("dragover", (e) => {
     const types = e.dataTransfer?.types || [];
-    if (!types.includes("Files") && !types.includes(RANGEES_GLISSEES)) return;
+    if (!types.includes(RANGEES_GLISSEES) && (glisseDepuisPage || !types.includes("Files"))) return;
     e.preventDefault();
     zone.classList.add("depot-actif");
   });
@@ -3627,7 +3636,7 @@ const RANGEES_GLISSEES = "application/x-assmat-rangees";
     if (rangees) {
       e.preventDefault();
       remettreRangees(rangees.split(","));
-    } else if (e.dataTransfer?.files.length) {
+    } else if (!glisseDepuisPage && e.dataTransfer?.files.length) {
       e.preventDefault();
       deposerFichiers(e.dataTransfer.files);
     }
@@ -3655,7 +3664,7 @@ $$("[data-vue-tri]").forEach((b) => {
     if (!depotOnglet(e, b.dataset.vueTri)) return;
     e.preventDefault();
     e.stopPropagation();
-    $("#colonne-a-trier").classList.remove("depot-actif");
+    $("#vue-tri-ranger").classList.remove("depot-actif");
     const d = e.dataTransfer;
     if (b.dataset.vueTri === "ignorees") mettreDeCote((d.getData(PHOTOS_GLISSEES) || d.getData(MISES_GLISSEES)).split(","), true);
     else if (d.getData(RANGEES_GLISSEES)) remettreRangees(d.getData(RANGEES_GLISSEES).split(","));

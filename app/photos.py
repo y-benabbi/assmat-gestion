@@ -24,6 +24,7 @@ import os
 import re
 import shutil
 import struct
+import subprocess
 import tempfile
 import threading
 from datetime import date, datetime, timedelta
@@ -886,9 +887,37 @@ def chemin_range(numero: str, affichable: bool = True):
     return r["copies"][0] if r["copies"] else None
 
 
+def _image_video(chemin: Path, cible: Path) -> bool:
+    """Image tirée de la vidéo elle-même (vers 1 s, sinon la toute première), réduite à 400 px, par ffmpeg
+    (fourni par le module imageio-ffmpeg ; il redresse les vidéos filmées en portrait)."""
+    try:
+        import imageio_ffmpeg
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return False
+    for debut in ("1", "0"):
+        fd, temp = tempfile.mkstemp(dir=MINIATURES, suffix=".jpg")
+        os.close(fd)
+        try:
+            subprocess.run([ffmpeg, "-v", "error", "-y", "-ss", debut, "-i", str(chemin), "-frames:v", "1",
+                            "-vf", "scale=400:400:force_original_aspect_ratio=decrease", "-q:v", "4", temp],
+                           capture_output=True, timeout=60, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            if os.path.getsize(temp) > 0:
+                os.replace(temp, cible)
+                return True
+        except (OSError, subprocess.SubprocessError):
+            pass
+        finally:
+            if os.path.exists(temp):
+                os.remove(temp)
+    return False
+
+
 def miniature(chemin: Path) -> Path | None:
-    """Miniature JPEG (400 px) gardée en cache ; None pour une vidéo ou sans Pillow."""
-    if genre(chemin) != "photo":
+    """Miniature JPEG (400 px) gardée en cache : réduction de la photo, ou image tirée de la vidéo. None sans
+    aperçu possible (fichier iCloud pas encore téléchargé pour une vidéo, module absent, fichier illisible)."""
+    genre_ = genre(chemin)
+    if not genre_:
         return None
     try:
         st = chemin.stat()
@@ -898,6 +927,16 @@ def miniature(chemin: Path) -> Path | None:
     cible = MINIATURES / f"{cle}.jpg"
     if cible.exists():
         return cible
+    MINIATURES.mkdir(parents=True, exist_ok=True)
+    if genre_ == "video":
+        # Une vidéo iCloud pas encore téléchargée n'est jamais ouverte (elle serait téléchargée en entier).
+        echec = MINIATURES / f"{cle}.aucune"
+        if _en_ligne(st) or echec.exists():
+            return None
+        if _image_video(chemin, cible):
+            return cible
+        echec.touch()
+        return None
     try:
         from PIL import Image, ImageOps
     except ImportError:

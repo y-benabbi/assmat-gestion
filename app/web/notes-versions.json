@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.11.12",
+    "date": "2026-10-23",
+    "titre": "Aperçu des vidéos",
+    "nouveautes": [
+      "Photos : chaque vidéo montre maintenant une image tirée de la vidéo elle-même, avec une petite pastille « vidéo » et l'heure.",
+      "Photos : glisser une photo à l'intérieur de « À trier » ne la duplique plus. Seules la zone des photos et les onglets reçoivent les photos glissées, et jamais l'endroit d'où la photo vient."
+    ]
+  },
+  {
     "version": "1.11.11",
     "date": "2026-10-22",
     "titre": "Photos plus faciles à manier",
