@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.11.17",
+    "date": "2026-10-23",
+    "titre": "Contrats de quelques mois",
+    "nouveautes": [
+      "Fiche enfant : une case « Accueil prévu sur moins d'un an » permet d'indiquer la durée de l'accueil en mois ou son dernier jour (l'un se calcule d'après l'autre).",
+      "Le salaire est alors mensualisé sur cette durée : heures par semaine × semaines d'accueil ÷ nombre de mois. Le résumé, le contrat de travail, les avenants et les jours de garde des impôts en tiennent compte."
+    ]
+  },
+  {
     "version": "1.11.16",
     "date": "2026-10-23",
     "titre": "Vacances scolaires dans l'agenda",

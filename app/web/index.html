@@ -628,6 +628,14 @@
             <label>Date d'embauche (début de l'accueil) <input name="debut" type="date" required></label>
             <label class="hors-assistant">Fin du contrat (si connue) <input name="fin" type="date"></label>
           </div>
+          <label class="case-a-cocher"><input type="checkbox" id="duree-courte"> Accueil prévu sur moins d'un an</label>
+          <input type="hidden" name="duree_courte">
+          <div class="grille-champs cache" id="ligne-duree-courte">
+            <label>Durée de l'accueil, en mois <input type="number" id="duree-mois" min="1" max="11" step="1" inputmode="numeric" data-obligatoire></label>
+            <label>Dernier jour de l'accueil <input type="date" id="fin-prevue" data-obligatoire></label>
+            <div class="champ-calcule"><span class="intitule">Salaire mensualisé sur <span class="mention calcule">calculé</span></span>
+              <output id="mois-mensualisation">—</output><span class="aide-calcul" id="mois-mensualisation-aide"></span></div>
+          </div>
           <h3 class="sous-titre">Période d'essai</h3>
           <label class="case-a-cocher"><input type="checkbox" id="essai-oui" checked> Il y a une période d'essai</label>
           <div class="grille-champs ligne-essai" id="ligne-essai">
@@ -671,7 +679,7 @@
         <div data-etape="horaires" data-titre="Durée et horaires">
           <h3 class="sous-titre">Semaines d'accueil</h3>
           <div class="grille-champs">
-            <label>Semaines d'accueil par an (52 = année complète)
+            <label><span id="libelle-semaines">Semaines d'accueil par an (52 = année complète)</span>
               <input name="semaines" type="number" min="1" max="52" step="1" inputmode="numeric" required>
             </label>
             <div class="champ-calcule"><span class="intitule">Contrat de travail <span class="mention calcule">calculé</span></span>
@@ -1268,6 +1276,10 @@
             le nombre de semaines programmées sinon). Avec des horaires différents pendant les vacances, les semaines
             programmées sont comptées d'abord en période scolaire (36 semaines d'école par an au plus), le reste en
             vacances : (heures scolaires × semaines d'école + heures de vacances × semaines de vacances) ÷ 12.</li>
+          <li>Accueil prévu sur moins d'un an (case de l'étape « Début ») : la durée en mois et le dernier jour se calculent
+            l'un l'autre, et le salaire est mensualisé sur cette durée : heures par semaine × semaines d'accueil de la
+            période ÷ nombre de mois (par exemple 40 h × 26 semaines ÷ 6 mois). La période compte ses jours ÷ 7 semaines
+            (26 pour 6 mois) ; les semaines d'école sont ramenées à la même proportion (18 pour 6 mois).</li>
           <li>Salaire mensualisé brut = heures mensualisées × tarif horaire brut. Net indicatif = brut × part du brut
             restée en net sur vos 6 derniers bulletins lus (environ 78 % à défaut de bulletin).</li>
           <li>Indemnités par mois ≈ jours d'accueil par mois (même calcul que les heures) × (entretien d'une journée moyenne + repas).</li>
@@ -1286,7 +1298,8 @@
           <li>SMIC retenu : celui en vigueur le mois de la garde (deux montants si le SMIC change dans l'année).</li>
           <li>Jours proposés : les jours d'activité du bulletin quand la famille n'a qu'un enfant accueilli (sans dépasser
             les jours prévus par l'emploi du temps, car en année complète ils comptent aussi les congés payés) ; sinon
-            les jours prévus par l'emploi du temps × semaines d'accueil ÷ 52. La part des journées de 8 heures ou plus
+            les jours prévus par l'emploi du temps × semaines d'accueil ÷ 52 (÷ les semaines de la période pour un accueil
+            de moins d'un an). La part des journées de 8 heures ou plus
             suit l'emploi du temps. Vos corrections confirmées remplacent la proposition.</li>
           <li>Revenu à déclarer (régime spécifique) = revenus − abattement, ramené à 0 s'il est négatif, famille par
             famille, puis additionné.</li>

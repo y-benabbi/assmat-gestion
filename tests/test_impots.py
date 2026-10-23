@@ -35,6 +35,10 @@ def main():
     c = {"horaires_scolaire": SEMAINE, "semaines": "52"}
     p = impots.proposition_mois(c, 2026, 5, None, 1)
     assert p == {"jours_8h": 21, "jours_courts": 0, "heures_courtes": 0.0, "jours_24h": 0, "source": "emploi du temps"}, p
+    # Accueil prévu sur 6 mois, toutes les semaines : tous les jours prévus du mois (pas 26 ÷ 52).
+    court = {"horaires_scolaire": SEMAINE, "semaines": "26", "duree_courte": "oui", "debut": "2026-03-01", "fin": "2026-08-31"}
+    assert impots.proposition_mois(court, 2026, 5, None, 2)["jours_8h"] == 21
+    assert impots.proposition_mois({**court, "semaines": "13"}, 2026, 5, None, 2)["jours_8h"] == 10
     p = impots.proposition_mois(c, 2026, 5, 18, 1)
     assert p["jours_8h"] == 18 and p["source"] == "bulletin", p
     p = impots.proposition_mois(c, 2026, 5, 35, 1)       # jours d'activité avec congés payés : limité

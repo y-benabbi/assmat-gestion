@@ -7,7 +7,7 @@ personnelles : ils restent sur le poste, jamais dans le dépôt.
 import json
 import secrets
 import threading
-from datetime import date
+from datetime import date, timedelta
 
 from chemins import DOSSIER_DONNEES
 
@@ -74,7 +74,8 @@ CHAMPS_CONTRAT = {
     "enfant_genre": "",            # « fille », « garcon » ou « autre » (accords dans les courriers)
     "debut": "",                   # début de l'accueil
     "fin": "",                     # vide : contrat en cours
-    "semaines": "52",              # semaines d'accueil par an : « 52 » (année complète) ou moins
+    "duree_courte": "",            # « oui » : accueil prévu sur moins d'un an, du début à « fin » (mensualisation sur cette durée)
+    "semaines": "52",              # semaines d'accueil par an (ou sur la période d'un accueil de moins d'un an)
     "tarif_horaire": "",
     "entretien_horaire": "",       # indemnité d'entretien, € par heure d'accueil
     "entretien_jour": "",          # déduit : montant d'une journée moyenne (estimations par mois)
@@ -406,11 +407,40 @@ def enregistrer_sites(liste) -> list:
     return propres
 
 
+def _periode_courte(c: dict):
+    """(début, fin) d'un accueil prévu sur moins d'un an, sinon None."""
+    if c.get("duree_courte") != "oui":
+        return None
+    try:
+        debut, fin = date.fromisoformat(c.get("debut") or ""), date.fromisoformat(c.get("fin") or "")
+    except ValueError:
+        return None
+    return (debut, fin) if debut <= fin else None
+
+
+def mois_accueil(c: dict) -> int:
+    """Nombre de mois sur lesquels le salaire est mensualisé : 12, ou la durée d'un accueil de moins d'un an
+    (mois entiers du début au lendemain de la fin, arrondis : du 1er septembre au 28 février = 6 mois)."""
+    p = _periode_courte(c)
+    if not p:
+        return 12
+    debut, fin = p[0], p[1] + timedelta(days=1)
+    mois = (fin.year - debut.year) * 12 + fin.month - debut.month + (fin.day - debut.day) / 30
+    return min(12, max(1, int(mois + 0.5)))
+
+
+def semaines_periode(c: dict) -> int:
+    """Semaines que compte la période d'accueil : 52, ou moins pour un accueil de moins d'un an (jours ÷ 7,
+    arrondi : 6 mois = 26 semaines)."""
+    p = _periode_courte(c)
+    return 52 if not p or mois_accueil(c) >= 12 else min(52, max(1, int(((p[1] - p[0]).days + 1) / 7 + 0.5)))
+
+
 def _semaines(c: dict) -> int:
     try:
-        return min(52, max(1, int(str(c.get("semaines") or "52").strip())))
+        return min(semaines_periode(c), max(1, int(str(c.get("semaines") or "52").strip())))
     except ValueError:
-        return 52
+        return semaines_periode(c)
 
 
 def actif(c: dict, jour: date) -> bool:
@@ -479,7 +509,7 @@ def echeances(jour: date, horizon_jours: int = 400) -> list:
     for annee in (jour.year, jour.year + 1):
         ajouter(date(annee, 4, 15), "Déclaration de revenus",
                 "Période habituelle d'avril à juin : la rubrique Impôts calcule le montant à déclarer.", "impots", "impots")
-        incomplets = sorted({c["famille"] for c in actifs if _semaines(c) < 52})
+        incomplets = sorted({c["famille"] for c in actifs if _semaines(c) < semaines_periode(c)})
         if incomplets:
             ajouter(date(annee, 6, 1), "Congés payés à verser en juin",
                     "Contrats en année incomplète (moins de 52 semaines) : " + ", ".join(incomplets) + ".",

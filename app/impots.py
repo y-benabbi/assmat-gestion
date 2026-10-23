@@ -106,10 +106,9 @@ def proposition_mois(contrat: dict, annee: int, mois: int, jours_bulletin, enfan
             courts += 1
             heures_courtes += h
     prevus = longs + courts
-    try:
-        semaines = min(int(donnees.en_vigueur(contrat, date(annee, mois, 15)).get("semaines") or 52), 52)
-    except ValueError:
-        semaines = 52
+    # Semaines programmées rapportées aux semaines de la période (52, ou moins pour un accueil de moins d'un an).
+    vigueur = donnees.en_vigueur(contrat, date(annee, mois, 15))
+    semaines, sur = donnees._semaines(vigueur), donnees.semaines_periode(vigueur)
     if jours_bulletin and enfants_famille == 1:
         # En année complète, les jours d'activité du bulletin comptent aussi les congés payés :
         # on ne propose jamais plus de jours que l'emploi du temps n'en prévoit dans le mois.
@@ -117,7 +116,7 @@ def proposition_mois(contrat: dict, annee: int, mois: int, jours_bulletin, enfan
         if prevus and total > prevus:
             total, source = prevus, "bulletin, limité à l'emploi du temps"
     else:
-        total, source = int(round(prevus * semaines / 52)), "emploi du temps"
+        total, source = int(round(prevus * semaines / sur)), "emploi du temps"
     if not prevus:
         return {"jours_8h": total, "jours_courts": 0, "heures_courtes": 0.0, "jours_24h": 0,
                 "source": source if total else "aucun accueil prévu"}

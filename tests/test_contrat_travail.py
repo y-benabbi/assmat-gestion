@@ -130,6 +130,25 @@ def main():
     manque = ct.manquants(PROFIL, {}, {"enfant_prenom": "Léa"})
     assert "Nom du parent employeur" in manque and "Emploi du temps" in manque and "Date d'embauche" in manque, manque
     assert ct.nom_fichier(fiche) == "Contrat de travail CDI - Léa Dupont"
+
+    # Accueil prévu sur moins d'un an : mensualisation sur la durée de l'accueil (6 mois, 26 semaines).
+    court = {**FICHE, "horaires_vacances": {}, "duree_courte": "oui", "fin": "2027-02-28", "semaines": "26", "avenants": []}
+    assert donnees.mois_accueil(court) == 6 and donnees.semaines_periode(court) == 26
+    assert donnees.mois_accueil({**court, "fin": "2027-03-14", "debut": "2026-09-15"}) == 6
+    assert donnees.mois_accueil({**court, "duree_courte": ""}) == 12 and donnees.semaines_periode({**court, "duree_courte": ""}) == 52
+    assert donnees.mois_accueil({**court, "fin": "2027-12-31"}) == 12 and donnees.semaines_periode({**court, "fin": "2027-12-31"}) == 52
+    assert donnees._semaines({**court, "semaines": "40"}) == 26, "pas plus de semaines que la période n'en compte"
+    assert abs(ct.mensualisation(court) - 25.5 * 26 / 6) < 1e-9, ct.mensualisation(court)
+    v = ct.valeurs_contrat(PROFIL, FAMILLE, court, 0.78)
+    assert v["DUREE"] == "/Choix1" and v["CAS1-Salaire_BRUT"] == ct._euros(round(4.5 * 25.5 * 26 / 6, 2)), v
+    assert "Accueil prévu du 01/09/2026 au 28/02/2027, soit 6 mois" in v["CONDITIONS_01"], v["CONDITIONS_01"]
+    v = ct.valeurs_contrat(PROFIL, FAMILLE, {**court, "semaines": "22"}, 0.78)
+    assert v["DUREE"] == "/Choix2" and v["Cas2_NbreSemaine"] == "22", "semaines de la période non toutes travaillées"
+    # Avenant d'un accueil court : la mensualisation reste calculée sur la durée de l'accueil.
+    av = donnees.enregistrer_contrat({**court, "avenants": [{"date": "2026-12-01", "tarif_horaire": "5,00", "semaines": "26",
+                                                              "horaires_scolaire": FICHE["horaires_scolaire"]}]})
+    heures = [l for l in ct.changements(*ct.versions(av)[:2], 0.78) if l[0] == "Salaire mensuel de base"]
+    assert heures and ct._euros(round(5 * 25.5 * 26 / 6, 2)) in heures[0][2], heures
     print("OK")
 
 

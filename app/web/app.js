@@ -1566,13 +1566,14 @@ function entretienParJour(horaire, durees) {
 // Valeurs calculées d'une version du contrat (mensualisation, salaire, entretien par jour…), pour les montrer
 // dans le résumé d'un avenant quand elles changent.
 function calculsVersion(v) {
-  const semaines = Math.min(52, Math.max(0, parseInt(v.semaines, 10) || 0));
+  const periode = periodeFormulaire();
+  const semaines = Math.min(periode.semaines, Math.max(0, parseInt(v.semaines, 10) || 0));
   const differentes = Object.values(v.horaires_vacances || {}).some(Boolean);
   const scolaire = resumeSemaine(v.horaires_scolaire || {});
   const vacances = differentes ? resumeSemaine(v.horaires_vacances) : null;
   const tarif = nombreFr(v.tarif_horaire);
   const r = {};
-  const m = scolaire && semaines ? mensuel(semaines, scolaire, vacances, differentes) : null;
+  const m = scolaire && semaines ? mensuel(semaines, scolaire, vacances, differentes, periode.mois) : null;
   r["Heures mensualisées"] = m ? `${heuresFr(m.heuresMois)} par mois` : "—";
   r["Salaire mensuel de base"] = m && tarif ? `${euros(m.heuresMois * tarif)} brut, ≈ ${euros(m.heuresMois * tarif * tauxNet())} net` : "—";
   r["Salaire horaire net (indicatif)"] = tarif ? `≈ ${euros(tarif * tauxNet(), 2)}` : "—";
@@ -1586,14 +1587,88 @@ function calculsVersion(v) {
 // Semaines d'école dans l'année (calendrier scolaire), pour estimer la mensualisation quand les
 // horaires des vacances sont différents.
 const SEMAINES_ECOLE = 36;
-// Heures et jours d'accueil par mois en moyenne : semaines programmées réparties entre école et vacances.
-function mensuel(semaines, scolaire, vacances, differentes) {
-  const sEcole = differentes ? Math.min(SEMAINES_ECOLE, semaines) : semaines;
+// Heures et jours d'accueil par mois en moyenne : semaines programmées réparties entre école et vacances,
+// sur 12 mois, ou sur la durée d'un accueil de moins d'un an (semaines d'école au prorata).
+function mensuel(semaines, scolaire, vacances, differentes, mois = 12) {
+  const sEcole = differentes ? Math.min(Math.floor(SEMAINES_ECOLE * mois / 12 + 0.5), semaines) : semaines;
   const sVacances = differentes ? semaines - sEcole : 0;
   const hVac = vacances?.total || 0, jVac = vacances?.jours.length || 0;
-  return { sEcole, sVacances, hVac, heuresMois: (scolaire.total * sEcole + hVac * sVacances) / 12,
-    joursMois: (scolaire.jours.length * sEcole + jVac * sVacances) / 12 };
+  return { sEcole, sVacances, hVac, heuresMois: (scolaire.total * sEcole + hVac * sVacances) / mois,
+    joursMois: (scolaire.jours.length * sEcole + jVac * sVacances) / mois };
 }
+
+// --- accueil prévu sur moins d'un an : durée en mois ⇄ dernier jour (chacun calcule l'autre). Le salaire est
+// alors mensualisé sur ce nombre de mois (même calcul que donnees.mois_accueil et donnees.semaines_periode).
+function moisEntre(debut, fin) {
+  if (!debut || !fin || fin < debut) return 0;
+  const d = new Date(debut + "T12:00:00"), f = new Date(fin + "T12:00:00");
+  f.setDate(f.getDate() + 1);
+  const m = (f.getFullYear() - d.getFullYear()) * 12 + f.getMonth() - d.getMonth() + (f.getDate() - d.getDate()) / 30;
+  return Math.min(12, Math.max(1, Math.floor(m + 0.5)));
+}
+function finApresMois(debut, n) {
+  const d = new Date(debut + "T12:00:00");
+  const cible = new Date(d.getFullYear(), d.getMonth() + n, 1, 12);
+  cible.setDate(Math.min(d.getDate(), new Date(cible.getFullYear(), cible.getMonth() + 1, 0).getDate()));
+  cible.setDate(cible.getDate() - 1);
+  return isoJour(cible);
+}
+// {mois, semaines} : 12 mois et 52 semaines, ou la durée d'un accueil de moins d'un an.
+function periodeAccueil(c) {
+  const mois = c?.duree_courte === "oui" ? moisEntre(c.debut, c.fin) : 0;
+  if (!mois || mois >= 12) return { mois: 12, semaines: 52, courte: false };
+  const jours = Math.round((new Date(c.fin + "T12:00:00") - new Date(c.debut + "T12:00:00")) / 864e5) + 1;
+  return { mois, semaines: Math.min(52, Math.max(1, Math.floor(jours / 7 + 0.5))), courte: true };
+}
+const periodeFormulaire = () => periodeAccueil({ duree_courte: formContrat.elements.duree_courte.value,
+  debut: formContrat.elements.debut.value, fin: formContrat.elements.fin.value });
+const semainesTexte = (semaines, p) => (p.courte ? `${semaines} semaines sur ${p.mois} mois` : `${semaines} semaines par an`);
+
+function ecrireDuree(c) {
+  $("#duree-courte").checked = c?.duree_courte === "oui";
+  $("#fin-prevue").value = c?.fin || "";
+  $("#duree-mois").value = moisEntre(c?.debut, c?.fin) || "";
+  afficherDuree();
+}
+function afficherDuree() {
+  const el = formContrat.elements, oui = $("#duree-courte").checked;
+  el.duree_courte.value = oui ? "oui" : "";
+  $("#ligne-duree-courte").classList.toggle("cache", !oui);
+  const assistant = formContrat.classList.contains("assistant") && modeSaisie !== "avenant";
+  $("#duree-mois").required = $("#fin-prevue").required = oui && assistant;
+  const p = periodeFormulaire();
+  const mois = moisEntre(el.debut.value, el.fin.value);
+  calcule("mois-mensualisation", oui && mois ? (mois >= 12 ? "12 mois (année entière)" : `${mois} mois`) : "",
+    !oui ? "" : !el.debut.value ? "D'après la date d'embauche, à indiquer plus haut."
+      : !mois ? "Indiquez la durée ou le dernier jour." : mois >= 12 ? "Un an ou plus : calcul habituel sur 12 mois."
+      : `Heures par semaine × semaines d'accueil ÷ ${mois} mois. La période compte ${p.semaines} semaines.`);
+  $("#libelle-semaines").textContent = p.courte ? `Semaines d'accueil sur la période (${p.semaines} = toute la période)`
+    : "Semaines d'accueil par an (52 = année complète)";
+  el.semaines.max = String(p.semaines);
+  afficherResume();
+}
+$("#duree-courte").addEventListener("change", () => {
+  // Case décochée dans l'assistant : la date de fin calculée n'a plus lieu d'être.
+  if (!$("#duree-courte").checked && formContrat.classList.contains("assistant")) {
+    formContrat.elements.fin.value = $("#fin-prevue").value = $("#duree-mois").value = "";
+  }
+  afficherDuree();
+});
+$("#duree-mois").addEventListener("input", () => {
+  const n = parseInt($("#duree-mois").value, 10), debut = formContrat.elements.debut.value;
+  if (n > 0 && debut) formContrat.elements.fin.value = $("#fin-prevue").value = finApresMois(debut, n);
+  afficherDuree();
+});
+$("#fin-prevue").addEventListener("input", () => {
+  formContrat.elements.fin.value = $("#fin-prevue").value;
+  $("#duree-mois").value = moisEntre(formContrat.elements.debut.value, $("#fin-prevue").value) || "";
+  afficherDuree();
+});
+formContrat.elements.fin.addEventListener("input", () => {
+  $("#fin-prevue").value = formContrat.elements.fin.value;
+  $("#duree-mois").value = moisEntre(formContrat.elements.debut.value, formContrat.elements.fin.value) || "";
+  afficherDuree();
+});
 
 function afficherResume() {
   const differentes = $("#vacances-differentes").checked;
@@ -1607,21 +1682,24 @@ function afficherResume() {
   if (vacances) html += ligne("Vacances scolaires", vacances);
   else if (differentes) html += `<p class="petit">Vacances scolaires : aucun accueil prévu.</p>`;
 
-  const semaines = Math.min(52, Math.max(0, parseInt(formContrat.elements.semaines.value, 10) || 0));
+  const periode = periodeFormulaire();
+  const semaines = Math.min(periode.semaines, Math.max(0, parseInt(formContrat.elements.semaines.value, 10) || 0));
   const tarif = nombreFr(formContrat.elements.tarif_horaire.value);
   const indemnite = nombreFr(formContrat.elements.entretien_jour.value) + nombreFr(formContrat.elements.repas_jour.value);
   if (scolaire && semaines) {
     // Semaines programmées réparties entre école et vacances (toutes à l'horaire scolaire s'il n'y a pas de distinction).
-    const { sEcole, sVacances, hVac, heuresMois, joursMois } = mensuel(semaines, scolaire, vacances, differentes);
+    const { sEcole, sVacances, hVac, heuresMois, joursMois } = mensuel(semaines, scolaire, vacances, differentes, periode.mois);
     const salaire = (h) => (tarif ? ` · ${euros(h * tarif)} brut, ≈ ${euros(h * tarif * tauxNet())} net` : "");
     html += `<div class="salaire-indicatif"><p><strong>Mensualisation (indicatif)</strong> : ${heuresFr(heuresMois)} par mois${salaire(heuresMois)}</p>`;
     if (differentes) {
-      html += `<p class="petit">${semaines} semaines par an, comptées ${sEcole} en période scolaire et ${sVacances} pendant les vacances :
-        (${heuresFr(scolaire.total)} × ${sEcole}${sVacances ? ` + ${heuresFr(hVac)} × ${sVacances}` : ""}) ÷ 12.</p>
+      html += `<p class="petit">${semainesTexte(semaines, periode)}, comptées ${sEcole} en période scolaire et ${sVacances} pendant les vacances :
+        (${heuresFr(scolaire.total)} × ${sEcole}${sVacances ? ` + ${heuresFr(hVac)} × ${sVacances}` : ""}) ÷ ${periode.mois}.</p>
         <ul class="petit"><li>Une semaine en période scolaire : ${heuresFr(scolaire.total)}${salaire(scolaire.total)}</li>
         <li>Une semaine de vacances : ${heuresFr(hVac)}${salaire(hVac)}</li></ul>`;
     } else {
-      html += `<p class="petit">${heuresFr(scolaire.total)} × ${semaines} semaines ÷ 12${semaines === 52 ? " (année complète)" : " (année incomplète)"}.</p>`;
+      html += `<p class="petit">${heuresFr(scolaire.total)} × ${semaines} semaines ÷ ${periode.mois}${periode.courte
+        ? ` (accueil prévu sur ${periode.mois} mois${semaines < periode.semaines ? ", semaines incomplètes" : ""})`
+        : semaines === 52 ? " (année complète)" : " (année incomplète)"}.</p>`;
     }
     if (indemnite) html += `<p class="petit">Indemnités d'entretien et de repas : ≈ ${euros(joursMois * indemnite)} par mois
       (${(Math.round(joursMois * 10) / 10).toLocaleString("fr-FR")} jours en moyenne × ${euros(indemnite, 2)}).</p>`;
@@ -1635,13 +1713,16 @@ function afficherResume() {
 
 // Modèle de l'Urssaf : cas n° 1 (accueil sur 52 semaines) ou n° 2 (46 semaines ou moins, hors congés).
 function afficherCas() {
-  const semaines = parseInt(formContrat.elements.semaines.value, 10) || 52;
-  const incomplete = semaines < 52;
+  const periode = periodeFormulaire();
+  const semaines = Math.min(periode.semaines, parseInt(formContrat.elements.semaines.value, 10) || periode.semaines);
+  const incomplete = semaines < periode.semaines;
   $$("#form-contrat .annee-incomplete").forEach((e) => e.classList.toggle("cache", !incomplete));
   $$("#form-contrat .annee-complete").forEach((e) => e.classList.toggle("cache", incomplete));
   $$("#form-contrat .planning-ecrit").forEach((e) => e.classList.toggle("cache", !incomplete || formContrat.elements.planning.value !== "oui"));
-  calcule("cas-contrat", incomplete ? "Année incomplète (cas n° 2)" : "Année complète (cas n° 1)",
-    !incomplete ? "Accueil sur 52 semaines, congés compris." : semaines <= 46 ? "46 semaines d'accueil ou moins, hors congés."
+  calcule("cas-contrat", periode.courte ? (incomplete ? "Période incomplète (cas n° 2)" : "Toute la période (cas n° 1)")
+    : incomplete ? "Année incomplète (cas n° 2)" : "Année complète (cas n° 1)",
+    !incomplete ? (periode.courte ? `Accueil toutes les semaines de la période, congés compris.` : "Accueil sur 52 semaines, congés compris.")
+    : periode.courte || semaines <= 46 ? "46 semaines d'accueil ou moins, hors congés."
     : "Le modèle de l'Urssaf prévoit 52 semaines, ou 46 au plus : le contrat sera rempli comme une année incomplète.");
 }
 formContrat.elements.planning.addEventListener("change", afficherCas);
@@ -2004,14 +2085,16 @@ function resumeEnVigueur(c, v) {
   const scolaire = resumeSemaine(v.horaires_scolaire || {});
   const differentes = Object.values(v.horaires_vacances || {}).some(Boolean);
   const vacances = differentes ? resumeSemaine(v.horaires_vacances) : null;
-  const semaines = Math.min(52, Math.max(0, parseInt(v.semaines, 10) || 52));
-  ligne("Accueil", `${semaines} semaines par an`, `${semaines < 52 ? "année incomplète" : "année complète"} · ${TYPES_ACCUEIL[v.accueil] || "accueil à la journée"}`);
+  const periode = periodeAccueil(c);
+  const semaines = Math.min(periode.semaines, Math.max(0, parseInt(v.semaines, 10) || 52));
+  ligne("Accueil", semainesTexte(semaines, periode), `${periode.courte ? `jusqu'au ${dateFr(c.fin)}` : semaines < 52 ? "année incomplète"
+    : "année complète"} · ${TYPES_ACCUEIL[v.accueil] || "accueil à la journée"}`);
   if (scolaire) ligne(differentes ? "Période scolaire" : "Horaires", `${heuresFr(scolaire.total)} par semaine`, scolaire.detail);
   if (vacances) ligne("Vacances scolaires", `${heuresFr(vacances.total)} par semaine`, vacances.detail);
   else if (differentes) ligne("Vacances scolaires", "pas d'accueil");
   const tarif = nombreFr(v.tarif_horaire);
   if (tarif) ligne("Salaire horaire", `${euros(tarif, 2)} brut`, `≈ ${euros(tarif * tauxNet(), 2)} net`);
-  const m = scolaire && mensuel(semaines, scolaire, vacances, differentes);
+  const m = scolaire && mensuel(semaines, scolaire, vacances, differentes, periode.mois);
   if (m) ligne("Mensualisation", `${heuresFr(m.heuresMois)} par mois`, tarif ? `${euros(m.heuresMois * tarif)} brut, ≈ ${euros(m.heuresMois * tarif * tauxNet())} net` : "");
   const indemnites = [nombreFr(v.entretien_horaire) ? `entretien ${eurosPrecis(nombreFr(v.entretien_horaire))} de l'heure`
       : nombreFr(v.entretien_jour) && `entretien ${euros(nombreFr(v.entretien_jour), 2)} par jour`,
@@ -2049,7 +2132,7 @@ function carteEnfant(c, aujourdhui, famille) {
   carte.innerHTML = `<button type="button" class="entete-carte" aria-expanded="${ouverte}">
       ${avatarEnfant(c.enfant_prenom, c.id, c.photo_profil)}
       <span class="nom">${nom}${age ? ` <span class="age">· ${age}</span>` : ""}</span>
-      <span class="petit">${v.accueil === "periscolaire" ? "Périscolaire" : `${v.semaines || 52} semaines par an`}${
+      <span class="petit">${v.accueil === "periscolaire" ? "Périscolaire" : semainesTexte(v.semaines || 52, periodeAccueil(c))}${
         semaine ? ` · ${heuresFr(semaine.total)} par semaine, ${jours}` : ""}</span>
       <span class="petit">${c.debut ? `Depuis le ${dateFr(c.debut)}` : "Date de début à compléter"}${termine ? " · terminé" : ""}${
         nb ? ` · ${nb} avenant${nb > 1 ? "s" : ""}` : ""}</span>
@@ -2337,6 +2420,7 @@ function editerContrat(c, famille, mode = "fiche", avenantId = "") {
   }
   // Nouvelle fiche : période d'essai de 2 mois proposée ; fiche existante sans essai renseigné : case décochée.
   ecrireEssai(c ? c.essai : ESSAI_DEFAUT);
+  ecrireDuree(c);
   calculerAdaptation();
   $("#contrat-cree").textContent = "";
   if (!c && famille) formContrat.elements.famille.value = famille;
@@ -2417,6 +2501,7 @@ function modeAssistant(actif) {
   formContrat.querySelectorAll(".mention:not(.calcule)").forEach((m) => m.remove());
   marquerChamps(formContrat);
   afficherEssai();
+  afficherDuree();
 }
 
 const etapesVues = new Set();
@@ -2602,7 +2687,7 @@ function afficherRecapitulatif() {
       <li><strong>${echapper(el.enfant_prenom.value)} ${echapper(el.enfant_nom.value)}</strong>, accueilli${el.enfant_genre.value === "fille" ? "e" : ""}
         à partir du ${dateFr(el.debut.value)}${el.essai.value ? `, période d'essai de ${echapper(el.essai.value)}` : ""}</li>
       <li>Employeur : ${echapper([el.f_parent1_civilite.value, el.f_parent1_prenom.value, el.f_parent1_nom.value].filter(Boolean).join(" "))}</li>
-      <li>${el.semaines.value} semaines par an${h ? `, ${heuresFr(h.total)} par semaine sur ${h.jours.length} jour${h.jours.length > 1 ? "s" : ""}` : ""}</li>
+      <li>${semainesTexte(el.semaines.value, periodeFormulaire())}${periodeFormulaire().courte ? ` (jusqu'au ${dateFr(el.fin.value)})` : ""}${h ? `, ${heuresFr(h.total)} par semaine sur ${h.jours.length} jour${h.jours.length > 1 ? "s" : ""}` : ""}</li>
       <li>${el.tarif_horaire.value ? `${echapper(el.tarif_horaire.value)} € brut de l'heure` : "Tarif à compléter"}${
         el.entretien_horaire.value ? `, entretien ${echapper(el.entretien_horaire.value)} € de l'heure` : ""}, salaire versé le ${echapper(el.jour_paiement.value)} du mois</li>
     </ul>
@@ -2672,7 +2757,14 @@ async function creerContratTravail(contratId, zone, avenantId = "") {
   } catch (err) { zone.innerHTML = `<p class="alerte-texte">${echapper(err.message)}</p>`; }
 }
 
-formContrat.elements.debut.addEventListener("change", () => { afficherOngletsVersions(); calculerAdaptation(); afficherEssai(); });
+formContrat.elements.debut.addEventListener("change", () => {
+  afficherOngletsVersions(); calculerAdaptation(); afficherEssai();
+  // Accueil de moins d'un an : la durée saisie est gardée, le dernier jour suit la date d'embauche.
+  const n = parseInt($("#duree-mois").value, 10);
+  if ($("#duree-courte").checked && n > 0 && formContrat.elements.debut.value)
+    formContrat.elements.fin.value = $("#fin-prevue").value = finApresMois(formContrat.elements.debut.value, n);
+  afficherDuree();
+});
 $("#annuler-contrat").addEventListener("click", fermerContrat);
 $("#supprimer-contrat").addEventListener("click", async () => {
   if (!contratEdite || !confirm(`Supprimer la fiche de ${contratEdite.enfant_prenom} ?`)) return;

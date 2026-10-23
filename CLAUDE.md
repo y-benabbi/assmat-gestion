@@ -199,6 +199,12 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   reçoit `nom` = `parent1_nom` ; celui d'une famille existante ne change plus (le formulaire n'a pas de champ « nom »).
 - Semaines d'accueil par an : nombre exact saisi (1 à 52), heures mensualisées = heures/semaine × semaines ÷ 12 ;
   horaires de vacances différents : semaines comptées d'abord à l'école (`SEMAINES_ECOLE` = 36 dans app.js).
+  Accueil prévu sur moins d'un an (`duree_courte` = « oui », case `#duree-courte` de l'étape « Début ») : durée en mois
+  (`#duree-mois`, non enregistrée) ⇄ dernier jour (`#fin-prevue`, recopié dans `fin`) ; `donnees.mois_accueil` /
+  `moisEntre` (mois arrondis) et `donnees.semaines_periode` / `periodeAccueil` (jours ÷ 7 arrondis) : mensualisation
+  ÷ nombre de mois, semaines plafonnées à celles de la période, cas n° 1 du PDF si toutes les semaines sont travaillées
+  (la période et le calcul sont écrits dans les conditions particulières), impôts : jours prévus × semaines ÷ semaines
+  de la période. `contrat_travail.versions` ajoute début, fin et `duree_courte` à chaque version (avenants).
   Salaire net indicatif = brut × `revenus.taux_net` (6 derniers bulletins lus, 0,78 sinon), fourni par
   `/api/suggestions`.
 - Formulaires : `marquerChamps` ajoute « obligatoire » (attribut `required` ou `data-obligatoire`) ou

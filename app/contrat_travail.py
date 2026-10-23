@@ -115,16 +115,22 @@ def semaine_type(horaires: dict) -> list:
     return [(j, horaires[j], impots.duree(horaires[j])) for j in donnees.JOURS if (horaires or {}).get(j)]
 
 
+def semaines_ecole(c: dict) -> int:
+    """Semaines d'école au plus sur la période d'accueil (36 par an, au prorata d'un accueil plus court)."""
+    return int(SEMAINES_ECOLE * donnees.mois_accueil(c) / 12 + 0.5)
+
+
 def mensualisation(c: dict) -> float:
     """Heures mensualisées : heures par semaine × semaines ÷ 12 (semaines d'école d'abord quand les
-    horaires des vacances diffèrent, comme dans la fiche enfant)."""
-    semaines = donnees._semaines(c)
+    horaires des vacances diffèrent, comme dans la fiche enfant). Accueil prévu sur moins d'un an :
+    ÷ le nombre de mois de l'accueil, les semaines étant celles de la période."""
+    semaines, mois = donnees._semaines(c), donnees.mois_accueil(c)
     ecole = sum(d for _, _, d in semaine_type(c.get("horaires_scolaire")))
     vacances = c.get("horaires_vacances") or {}
     if not any(vacances.values()):
-        return ecole * semaines / 12
-    s_ecole = min(SEMAINES_ECOLE, semaines)
-    return (ecole * s_ecole + sum(d for _, _, d in semaine_type(vacances)) * (semaines - s_ecole)) / 12
+        return ecole * semaines / mois
+    s_ecole = min(semaines_ecole(c), semaines)
+    return (ecole * s_ecole + sum(d for _, _, d in semaine_type(vacances)) * (semaines - s_ecole)) / mois
 
 
 def manquants(profil: dict, famille: dict = None, contrat: dict = None) -> list:
@@ -204,7 +210,7 @@ def valeurs_contrat(p: dict, f: dict, fiche: dict, taux_net: float) -> dict:
     semaines = donnees._semaines(c)
     jours = semaine_type(c.get("horaires_scolaire"))
     total = sum(d for _, _, d in jours)
-    cas = 1 if semaines >= 52 else 2
+    cas = 1 if semaines >= donnees.semaines_periode(c) else 2
     v["DUREE"] = f"/Choix{cas}"
     if cas == 1:
         v["Accueil_CAS1_NbreHeures"] = _heures_texte(total) if total else ""
@@ -271,6 +277,11 @@ def valeurs_contrat(p: dict, f: dict, fiche: dict, taux_net: float) -> dict:
 
     # Conditions particulières : horaires des vacances s'ils diffèrent (le modèle n'a qu'un tableau).
     conditions = []
+    mois = donnees.mois_accueil(c)
+    if mois < 12:
+        conditions.append(f"Accueil prévu du {_date(c.get('debut'))} au {_date(c.get('fin'))}, soit {mois} mois : "
+                          f"salaire mensualisé sur cette durée ({semaines} semaines d'accueil ÷ {mois} mois, "
+                          f"{_heures_texte(round(mensualisation(c), 2))} heures par mois).")
     vacances = semaine_type(c.get("horaires_vacances"))
     if vacances and jours:
         conditions.append("Horaires de travail ci-dessus : en période scolaire. Pendant les vacances scolaires : "
@@ -357,7 +368,8 @@ TEXTES = {
 def versions(fiche: dict) -> list:
     """[conditions initiales, puis celles de chaque avenant] : un avenant enregistré avant l'ajout d'une rubrique
     garde la valeur précédente de cette rubrique."""
-    liste = [{k: fiche.get(k, donnees.CHAMPS_CONTRAT[k]) for k in donnees.MODIFIABLES} | {"id": "", "date": fiche.get("debut", "")}]
+    periode = {k: fiche.get(k, "") for k in ("debut", "fin", "duree_courte")}     # pour la mensualisation
+    liste = [periode | {k: fiche.get(k, donnees.CHAMPS_CONTRAT[k]) for k in donnees.MODIFIABLES} | {"id": "", "date": fiche.get("debut", "")}]
     for a in sorted(fiche.get("avenants") or [], key=lambda a: a.get("date", "")):
         liste.append(liste[-1] | {k: a[k] for k in donnees.MODIFIABLES if k in a}
                      | {k: a.get(k, "") for k in ("id", "date", "motif", *donnees.CHAMPS_AVENANT)})
