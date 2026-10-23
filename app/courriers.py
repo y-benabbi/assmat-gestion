@@ -19,6 +19,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import donnees
+import vacances
 
 MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
         "septembre", "octobre", "novembre", "décembre"]
@@ -94,6 +95,23 @@ def vacances_scolaires(zone: str, debut: date, fin: date) -> list:
     return sorted(resultat, key=lambda p: p["debut"])
 
 
+def vacances_academie(debut: date, fin: date) -> list:
+    """Périodes de l'académie choisie dans Paramètres (dates gardées par vacances.py) entre deux dates,
+    au même format que vacances_scolaires (fin = veille de la reprise)."""
+    try:
+        periodes = vacances.etat()["periodes"]
+    except Exception:
+        return []
+    resultat = []
+    for p in periodes:
+        if not p["nom"].lower().startswith("vacances"):
+            continue
+        d, f = date.fromisoformat(p["debut"]), date.fromisoformat(p["fin"]) - timedelta(days=1)
+        if f >= debut and d <= fin:
+            resultat.append({"nom": p["nom"], "debut": max(d, debut).isoformat(), "fin": min(f, fin).isoformat()})
+    return resultat
+
+
 def periode_texte(debut: str, fin: str) -> str:
     d, f = date.fromisoformat(debut), date.fromisoformat(fin)
     if d.year == f.year:
@@ -162,7 +180,7 @@ def proposer_derogation(demande: dict) -> dict:
     periodes = demande.get("periodes")
     source_periodes = "saisie"
     if periodes is None:
-        periodes = vacances_scolaires(profil.get("zone_vacances"), jour, date_fin)
+        periodes = vacances_academie(jour, date_fin) or vacances_scolaires(profil.get("zone_vacances"), jour, date_fin)
         source_periodes = "calendrier" if periodes else "aucune"
 
     capacite = int(re.sub(r"\D", "", profil.get("agrement_capacite") or "4") or 4)

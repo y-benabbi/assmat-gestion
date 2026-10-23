@@ -14,7 +14,7 @@ async function api(chemin, donnees) {
 // ------------------------------------------------------------- chargements
 // Toute attente de plus de 0,4 s s'affiche : pastille « Chargement… » en haut de l'écran (#chargement), avec un texte
 // qui dit ce qui se passe. Les appels réguliers (état de Pajemploi) et les fenêtres de Windows n'en ont pas.
-const SANS_INDICATEUR = /^(etat|version|notes-distantes|quitter|mettre-a-jour|interrompre|choisir-dossier|principal)/;
+const SANS_INDICATEUR = /^(etat|version|notes-distantes|quitter|mettre-a-jour|interrompre|choisir-dossier|principal|vacances)/;
 const MESSAGES_CHARGEMENT = [
   [/^photos\/ranger/, "Rangement des photos…"], [/^photos\/deposer/, "Ajout des photos…"],
   [/^photos\/(remettre|rattacher|modifier|ignorer)/, "Mise à jour des photos…"],
@@ -690,6 +690,7 @@ async function chargerParametres() {
   $("#marge-valeur").value = marge / Number($("#marge-unite").value);
   form.elements.marge_photos.value = marge;
   parametresActuels = p;
+  afficherEtatVacances();
   apercu();
   sansModifs(form);
   if (!p.dossier_principal || (p.modules?.bulletins !== false && !p.identifiant)) ouvrirOnglet("fonctionnalites");
@@ -772,6 +773,7 @@ form.addEventListener("submit", async (e) => {
     setTimeout(() => ($("#enregistre").textContent = ""), 3000);
     await chargerParametres();
     dossierLocal = null;
+    chargerVacances();
   } catch (err) { alert(err.message); }
 });
 
@@ -973,6 +975,7 @@ async function afficherTableauDeBord() {
   afficherAgenda();
   contratsAccueil = contrats;
   afficherJour();
+  if (!vacancesScolaires) chargerVacances();        // sans attendre : le calendrier officiel peut être long à venir
 
   if (r) {
     $("#annee-accueil").textContent = r.general.bulletins ? `en ${r.annee}` : "";
@@ -1009,6 +1012,39 @@ function statsAccueil(r, ech, contrats) {
       <span class="valeur-stat">${valeur}</span></span></li>`).join("");
 }
 
+// ------------------------------------------------------------- vacances scolaires (académie choisie dans Paramètres)
+let vacancesScolaires = null;     // {academie, zone, periodes: [{nom, debut, fin (jour de la reprise)}], erreur}
+// « 17 octobre », « 1er novembre » (l'année seulement si ce n'est pas l'année en cours).
+const jourDuMois = (iso) => { const d = new Date(iso + "T12:00");
+  return `${d.getDate() === 1 ? "1er" : d.getDate()} ${d.toLocaleDateString("fr-FR", { month: "long" })}${
+    d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : ""}`; };
+const periodeVacances = (iso) => vacancesScolaires?.periodes.find((p) => p.debut <= iso && iso < p.fin);
+// true / false si le calendrier couvre ce jour, null s'il est inconnu (académie non choisie, année non publiée).
+function enVacances(iso) {
+  const liste = vacancesScolaires?.periodes || [];
+  if (!liste.length) return null;
+  const rentree = new Date(liste[0].debut + "T12:00"); rentree.setDate(rentree.getDate() - 120);   // comme vacances.en_vacances
+  if (iso < isoJour(rentree) || iso > liste.reduce((m, p) => (p.fin > m ? p.fin : m), "")) return null;
+  return !!periodeVacances(iso);
+}
+async function chargerVacances(actualiser = false) {
+  vacancesScolaires = await api(`vacances${actualiser ? "?actualiser=1" : ""}`).catch(() => null);
+  afficherAgenda();
+  afficherJour();
+  afficherEtatVacances();
+}
+function afficherEtatVacances() {
+  const zone = $("#etat-vacances");
+  const v = vacancesScolaires;
+  if (!zone || !v) return;
+  const aujourdhui = isoJour(new Date());
+  const prochaine = v.periodes.find((p) => p.fin > aujourdhui);
+  zone.textContent = !v.academie ? "Choisissez votre académie pour voir les vacances."
+    : !v.periodes.length ? (v.erreur || "Aucune date trouvée pour cette académie.")
+    : `${prochaine ? `${prochaine.debut <= aujourdhui ? "En ce moment" : "Prochaines vacances"} : ${prochaine.nom}, du ${
+      jourDuMois(prochaine.debut)}, reprise le ${jourDuMois(prochaine.fin)}. ` : ""}${v.erreur ? "Dates gardées de la dernière mise à jour (pas de connexion)." : ""}`;
+}
+
 // ------------------------------------------------------------- agenda du tableau de bord
 let echeancesAccueil = [];
 let moisAgenda = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -1028,12 +1064,27 @@ function afficherAgenda() {
     const iso = isoJour(d);
     if (cases.length % 7 === 0 && cases.length >= 35 && iso.slice(0, 7) !== cle) break;
     const ech = parJour[iso] || [];
-    cases.push(`<span class="jour${iso.slice(0, 7) !== cle ? " hors-mois" : ""}${iso === aujourdhui ? " aujourdhui" : ""}${
+    // Vacances scolaires : bande de couleur d'un jour à l'autre, arrondie au début et à la fin de chaque période.
+    const vac = periodeVacances(iso);
+    const veille = new Date(d); veille.setDate(d.getDate() - 1);
+    const lendemain = new Date(d); lendemain.setDate(d.getDate() + 1);
+    const classesVac = vac ? ` vacances${periodeVacances(isoJour(veille)) !== vac || cases.length % 7 === 0 ? " debut-vacances" : ""}${
+      periodeVacances(isoJour(lendemain)) !== vac || cases.length % 7 === 6 ? " fin-vacances" : ""}` : "";
+    const bulle = [...(vac ? [vac.nom] : []), ...ech.map((e) => e.titre)].join(", ");
+    cases.push(`<span class="jour${iso.slice(0, 7) !== cle ? " hors-mois" : ""}${iso === aujourdhui ? " aujourdhui" : ""}${classesVac}${
       ech.length ? (ech.some((e) => e.urgent) ? " a-echeance urgent" : " a-echeance") : ""}"${
-      ech.length ? ` title="${echapper(ech.map((e) => e.titre).join(", "))}"` : ""}><span>${d.getDate()}</span></span>`);
+      bulle ? ` data-bulle="${echapper(bulle)}"` : ""}><span>${d.getDate()}</span></span>`);
   }
   $("#calendrier").innerHTML = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."].map((j) => `<span class="nom-jour">${j}</span>`).join("")
     + cases.join("");
+  // Légende : vacances qui touchent le mois affiché.
+  const finMois = isoJour(new Date(premier.getFullYear(), premier.getMonth() + 1, 1));
+  const duMois = (vacancesScolaires?.periodes || []).filter((p) => p.debut < finMois && p.fin > `${cle}-01`);
+  const avantFin = (p) => { const f = new Date(p.fin + "T12:00"); f.setDate(f.getDate() - 1); return isoJour(f); };
+  $("#legende-vacances").innerHTML = duMois.map((p) => `<span><span class="pastille-vacances" aria-hidden="true"></span>${
+    echapper(p.nom)} : du ${jourDuMois(p.debut)} au ${jourDuMois(avantFin(p))}</span>`).join("")
+    || (vacancesScolaires && !vacancesScolaires.academie
+      ? `<button class="lien" data-vers-vacances>Afficher les vacances scolaires</button>` : "");
   // Mois en cours : les 3 prochaines échéances, même au-delà du mois (une échéance du 1er du mois suivant ne doit
   // pas disparaître derrière « aucune échéance ») ; autre mois : celles de ce mois.
   const liste = cle === aujourdhui.slice(0, 7)
@@ -1043,6 +1094,11 @@ function afficherAgenda() {
     : `<li class="petit">Aucune échéance ${cle === aujourdhui.slice(0, 7) ? "à venir" : "ce mois-ci"}.</li>`;
   $$("#echeances-accueil [data-aller-vers]").forEach((b) => b.addEventListener("click", () => ouvrirOnglet(b.dataset.allerVers)));
 }
+$("#legende-vacances").addEventListener("click", (e) => {
+  if (!e.target.closest("[data-vers-vacances]")) return;
+  ouvrirOnglet("fonctionnalites");
+  $("#reglages-vacances").scrollIntoView({ behavior: "smooth" });
+});
 $("#mois-precedent").addEventListener("click", () => { moisAgenda = new Date(moisAgenda.getFullYear(), moisAgenda.getMonth() - 1, 1); afficherAgenda(); });
 $("#mois-suivant").addEventListener("click", () => { moisAgenda = new Date(moisAgenda.getFullYear(), moisAgenda.getMonth() + 1, 1); afficherAgenda(); });
 
@@ -1057,7 +1113,7 @@ function periodeChoisie(iso) {
     const p = JSON.parse(localStorage.getItem("periode-jour") || "{}");
     if (p.jour === iso) return p.valeur;
   } catch (e) { /* stockage indisponible */ }
-  return "scolaire";
+  return enVacances(iso) ? "vacances" : "scolaire";      // calendrier connu : période du jour, sinon période scolaire
 }
 
 function plagesDuJour(d, periode) {
@@ -4474,8 +4530,9 @@ function afficherJourRealisations() {
   $("#jour-realisations").innerHTML = `<h2>${jourLong(jourRealisations)}</h2>
     ${liste.map(carteRealisation).join("") || `<p class="petit">Aucune réalisation ce jour-là.</p>`}
     ${aRattacher}
-    ${autres.length ? `<div class="ligne nouvelle-seance"><label>Ajouter une réalisation <select id="activite-realisation">${
-      autres.map((a) => `<option value="${a.id}">${echapper(a.titre)}</option>`).join("")}</select></label>
+    ${activitesConnues.length ? `<div class="ligne nouvelle-seance"><label>${liste.length ? "Ajouter une autre réalisation" : "Ajouter une réalisation"}
+      <select id="activite-realisation">${[...autres, ...activitesConnues.filter((a) => deja.has(a.id))]
+        .map((a) => `<option value="${a.id}">${echapper(a.titre)}${deja.has(a.id) ? " (encore une fois)" : ""}</option>`).join("")}</select></label>
       <button type="button" class="secondaire" id="ajouter-realisation">${picto("plus")}Ajouter</button></div>`
       : activitesConnues.length ? "" : `<p class="petit">Créez d'abord une activité dans l'onglet « Activités ».</p>`}`;
 }
@@ -4516,7 +4573,7 @@ $("#jour-realisations").addEventListener("click", async (e) => {
     choixRattacher.jour = "";
     afficherAteliers();
   } else if (cible.id === "ajouter-realisation") {
-    try { await api("ateliers/seance", { activite: $("#activite-realisation").value, date: jourRealisations }); }
+    try { await api("ateliers/seance", { activite: $("#activite-realisation").value, date: jourRealisations, nouvelle: true }); }
     catch (err) { alert(err.message); return; }
     afficherAteliers();
   } else actionAteliers(cible);

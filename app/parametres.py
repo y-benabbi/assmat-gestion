@@ -45,6 +45,8 @@ DEFAUTS = {
     # Photos : dossiers où arrivent les photos (iCloud…) et marge autour des horaires d'accueil, en minutes.
     "dossiers_photos": [],
     "marge_photos": 30,
+    # Académie (calendrier des vacances scolaires, vacances.ACADEMIES) ; vide : vacances inconnues.
+    "academie": "",
 }
 
 _verrou = threading.Lock()

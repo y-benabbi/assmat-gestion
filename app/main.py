@@ -140,6 +140,7 @@ def creer_app(port, jeton):
     import photos
     import principal
     import revenus
+    import vacances
     from pajemploi import Pajemploi
 
     app = Flask(__name__, static_folder=None)
@@ -192,6 +193,15 @@ def creer_app(port, jeton):
         p = parametres.enregistrer(d)
         p["mot_de_passe_enregistre"] = parametres.mot_de_passe_enregistre()
         return jsonify(p)
+
+    @app.get("/api/vacances")
+    def lire_vacances():
+        """Vacances scolaires de l'académie choisie (calendrier officiel, gardé une semaine sur l'ordinateur)."""
+        return jsonify(vacances.etat(forcer=request.args.get("actualiser") == "1"))
+
+    @app.get("/api/academies")
+    def academies():
+        return jsonify([{"nom": n, "zone": z} for n, z in vacances.ACADEMIES.items()])
 
     @app.post("/api/apercu-nom")
     def apercu_nom():
@@ -660,7 +670,8 @@ def creer_app(port, jeton):
     @app.post("/api/ateliers/seance")
     def ajouter_seance():
         d = request.get_json(force=True)
-        return reponse_atelier(ateliers.ajouter_seance, str(d.get("activite", "")), str(d.get("date", "")))
+        return reponse_atelier(ateliers.ajouter_seance, str(d.get("activite", "")), str(d.get("date", "")),
+                               bool(d.get("nouvelle")))
 
     @app.post("/api/ateliers/seance/modifier")
     def modifier_seance():

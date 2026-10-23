@@ -96,7 +96,10 @@ peinture = ateliers.enregistrer({"titre": "Peinture d'automne", "description": "
                                  "a_preparer": "Gouache\nFeuilles ramassées\n\nTabliers"})
 assert peinture["id"] == "A0001" and peinture["a_preparer"] == ["Gouache", "Feuilles ramassées", "Tabliers"]
 seance = ateliers.ajouter_seance(peinture["id"], "2026-10-19")
-assert ateliers.ajouter_seance(peinture["id"], "2026-10-19")["id"] == seance["id"], "une séance par jour"
+assert ateliers.ajouter_seance(peinture["id"], "2026-10-19")["id"] == seance["id"], "même séance sans demande"
+encore = ateliers.ajouter_seance(peinture["id"], "2026-10-19", nouvelle=True)
+assert encore["id"] != seance["id"], "deuxième réalisation le même jour"
+ateliers.supprimer_seance(encore["id"])
 ateliers.modifier_seance(seance["id"], {"prepare": ["Gouache", "Inconnu"]})
 assert ateliers.seance(seance["id"])[1]["prepare"] == ["Gouache"]
 ateliers.ajouter_document(peinture["id"], "modele.pdf", b"%PDF")

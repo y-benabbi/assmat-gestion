@@ -106,7 +106,9 @@ def _date_valide(texte: str) -> str:
         raise ValueError("Date de la réalisation invalide.")
 
 
-def ajouter_seance(activite_id: str, jour: str) -> dict:
+def ajouter_seance(activite_id: str, jour: str, nouvelle: bool = False) -> dict:
+    """Réalisation d'une activité à une date. Sans `nouvelle`, celle qui existe déjà ce jour-là est reprise (photos
+    rangées avec une activité) ; avec, une autre réalisation est créée (une même activité deux fois dans la journée)."""
     jour = _date_valide(jour)
     with _verrou:
         d = _lire()
@@ -114,7 +116,7 @@ def ajouter_seance(activite_id: str, jour: str) -> dict:
         if a is None:
             raise ValueError("Activité introuvable.")
         existante = next((s for s in a.setdefault("seances", []) if s.get("date") == jour), None)
-        if existante:
+        if existante and not nouvelle:
             return existante
         d["compteur_seances"] += 1
         s = {"id": f"S{d['compteur_seances']:04d}", "date": jour, "prepare": []}

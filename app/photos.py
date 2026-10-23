@@ -35,6 +35,7 @@ import donnees
 import parametres
 from chemins import BASE, DOSSIER_DONNEES, MINIATURES
 from impots import RE_PLAGE
+import vacances
 
 FICHIER_INDEX = DOSSIER_DONNEES / "photos.json"
 FICHIER_ANALYSE = DOSSIER_DONNEES / "photos-analyse.json"
@@ -266,13 +267,17 @@ def presents(moment: datetime, contrats: list, marge: int) -> list:
     jour = moment.date()
     nom_jour = donnees.JOURS[jour.weekday()]
     minute = moment.hour * 60 + moment.minute
+    # Vacances scolaires connues (académie choisie) : seuls les horaires de la période comptent ; sinon les deux.
+    periode = vacances.en_vacances(jour)
     liste = []
     for c in contrats:
         if not donnees.actif(c, jour):
             continue
         v = donnees.en_vigueur(c, jour)
-        plages = _plages((v.get("horaires_scolaire") or {}).get(nom_jour, ""))
-        plages += _plages((v.get("horaires_vacances") or {}).get(nom_jour, ""))
+        scolaire = _plages((v.get("horaires_scolaire") or {}).get(nom_jour, ""))
+        conges = _plages((v.get("horaires_vacances") or {}).get(nom_jour, ""))
+        a_part = any((v.get("horaires_vacances") or {}).values())    # horaires différents pendant les vacances
+        plages = (conges if periode else scolaire) if periode is not None and a_part else scolaire + conges
         if any(d - marge <= minute <= f + marge for d, f in plages):
             liste.append(c["id"])
     return liste
@@ -899,7 +904,7 @@ def profils() -> dict:
 
 def definir_profil(numero: str, enfant_id: str) -> dict:
     """Fait d'une photo rangée la photo de profil d'un enfant : un carré de 256 px pris au centre (un peu plus haut
-    pour une photo en hauteur, où se trouve en général le visage), gardé dans donnees\profils."""
+    pour une photo en hauteur, où se trouve en général le visage), gardé dans donnees\\profils."""
     if not any(c.get("id") == enfant_id for c in donnees.contrats()):
         raise ValueError("Fiche enfant introuvable.")
     r = rangees().get(numero)

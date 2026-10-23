@@ -32,6 +32,7 @@ app/                 code Python (lancé par app/main.py)
   chemins.py         tous les emplacements (dépôt GitHub, branche stable, dossiers de données)
   principal.py       dossier principal : passage (déplacement des anciens dossiers, progression), sauvegarde
   photos.py          rubrique Photos : photos/vidéos à trier, enfants présents, rangement, numéros, impression
+  vacances.py        vacances scolaires : calendrier officiel de l'académie (donnees\vacances.json)
   ateliers.py        rubrique Activités : modèles d'activités, réalisations datées, documents (donnees\activites.json)
   web/               index.html, app.js, style.css (JS sans framework, sondage de /api/etat toutes les 1,5 s)
 scripts/             installer.ps1, verifier.ps1, commun.ps1 (exécutés depuis l'application installée)
@@ -77,6 +78,7 @@ py -m venv .venv
 .venv\Scripts\python tests\test_courriers.py       # demande de dérogation (profil et contrats fictifs), PDF
 .venv\Scripts\python tests\test_contrat_travail.py # contrat de travail Urssaf rempli (champs du modèle, cas 1 et 2)
 .venv\Scripts\python tests\test_icones.py         # icônes des sites d'activités (sites imités en local), cache
+.venv\Scripts\python tests\test_vacances.py        # vacances scolaires (calendrier imité), cache, horaires de vacances
 .venv\Scripts\python tests\test_photos.py          # dossier principal, tri et rangement des photos, activités (fictif)
 .venv\Scripts\python app\main.py                     # lancer l'application
 ```
@@ -208,9 +210,15 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   revenus (graphique compact), à droite la journée (`afficherJour` : aujourd'hui, ou le prochain jour d'accueil quand
   toutes les plages sont finies ; une ligne par plage, l'enfant revient s'il y a une coupure), la carte
   « Bulletins de salaire » (mini-classeur des 6 derniers mois, `tuileBulletins`, bouton Récupérer) et les sites
-  d'activités. Sur téléphone, la journée passe en premier. L'application ne connaît pas les dates des vacances
-  scolaires : si un enfant a des horaires de vacances, une bascule « Période scolaire / Vacances » apparaît (choix
-  gardé pour la journée dans `localStorage`).
+  d'activités. Sur téléphone, la journée passe en premier. Si un enfant a des horaires de vacances, une bascule
+  « Période scolaire / Vacances » apparaît, réglée d'après le calendrier scolaire (`enVacances`) ; un choix à la main
+  est gardé pour la journée dans `localStorage`.
+- Vacances scolaires (`vacances.py`) : jeu « fr-en-calendrier-scolaire » de data.education.gouv.fr, filtré sur
+  l'académie (`parametres.academie`, `vacances.ACADEMIES` → zone), gardé 7 jours dans `donnees\vacances.json` (gardé
+  aussi si Internet manque). Période = {nom, debut, fin} avec fin = jour de la reprise (`debut <= jour < fin`) ;
+  `en_vacances` renvoie None hors du calendrier connu. Routes `/api/vacances` (`?actualiser=1`), `/api/academies`.
+  Utilisé par l'agenda (jours en bande colorée, légende), la journée, `photos.presents` et les courriers
+  (`courriers.vacances_academie`, avant l'ancien repli sur `zone_vacances` du profil).
 - Fiche enfant, avenants : `avenants` = liste datée ({id, date, motif} + toutes les conditions de
   `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /
   `donnees.contrats(jour)` donnent les conditions applicables à une date : échéances, courriers (date du courrier)
@@ -230,7 +238,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `profils\` (photos des enfants), `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json`, `activites.json`, `photos.json`, `photos-analyse.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `profils\` (photos des enfants), `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json`, `activites.json`, `photos.json`, `photos-analyse.json`, `vacances.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
@@ -342,7 +350,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   (`donneesPhotos`) restent complètes : « Tout sélectionner », Maj + clic et les actions ne dépendent pas de ce qui est affiché.
 - Activités (`ateliers.py`) : bien distinguer l'**activité** (modèle : titre, description, `a_preparer`, documents dans
   `Activités\<Titre>`, ajoutables dès la création — gardés dans `documentsEnAttente` puis envoyés après l'enregistrement)
-  et la **réalisation** (une activité à une date ; appelée « séance » dans les données et le code : `seances`, `S0001`),
+  et la **réalisation** (une activité à une date, plusieurs possibles le même jour, même pour une activité : `ajouter_seance(…, nouvelle=True)`
+  depuis le calendrier ; appelée « séance » dans les données et le code : `seances`, `S0001`),
   qui porte `prepare` et apparaît dans les échéances (« Réalisation : … », type `activite`). Rubrique en deux onglets
   (`vueAteliers`) : « Activités » (liste + fiche) et « Réalisations » (grand calendrier du mois, un clic sur un jour montre
   ses réalisations en détail : à préparer, documents, photos rangées avec elles). Partout où une réalisation est proposée

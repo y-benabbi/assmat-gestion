@@ -116,6 +116,7 @@
             </div>
           </div>
           <div class="calendrier" id="calendrier" aria-label="Échéances du mois"></div>
+          <p class="legende-vacances" id="legende-vacances"></p>
           <ul class="liste-echeances" id="echeances-accueil"></ul>
           <div class="pied-bloc"><button class="lien" data-aller="echeances">Toutes les échéances</button></div>
         </div>
@@ -1015,6 +1016,7 @@
       <a href="#reglages-rubriques">Rubriques</a>
       <a href="#reglages-bulletins">Bulletins de salaire</a>
       <a href="#reglages-photos">Photos</a>
+      <a href="#reglages-vacances">Vacances scolaires</a>
       <a href="#reglages-revenus">Revenus et impôts</a>
       <a href="#reglages-courriers">Courriers</a>
       <a href="#reglages-avance">Avancé</a>
@@ -1129,6 +1131,14 @@
         </div>
       </fieldset>
 
+      <fieldset id="reglages-vacances">
+        <legend>Vacances scolaires</legend>
+        <p class="petit">Les dates des vacances viennent du calendrier officiel de l'Éducation nationale. Elles s'affichent
+          sur l'agenda, et la journée du tableau de bord prend d'elle-même les horaires de vacances des enfants.</p>
+        <label>Académie <select name="academie"><option value="">Choisir…</option><option value="Aix-Marseille">Aix-Marseille (zone b)</option><option value="Amiens">Amiens (zone b)</option><option value="Besançon">Besançon (zone a)</option><option value="Bordeaux">Bordeaux (zone a)</option><option value="Clermont-Ferrand">Clermont-Ferrand (zone a)</option><option value="Corse">Corse</option><option value="Créteil">Créteil (zone c)</option><option value="Dijon">Dijon (zone a)</option><option value="Grenoble">Grenoble (zone a)</option><option value="Guadeloupe">Guadeloupe</option><option value="Guyane">Guyane</option><option value="La Réunion">La Réunion</option><option value="Lille">Lille (zone b)</option><option value="Limoges">Limoges (zone a)</option><option value="Lyon">Lyon (zone a)</option><option value="Martinique">Martinique</option><option value="Mayotte">Mayotte</option><option value="Montpellier">Montpellier (zone c)</option><option value="Nancy-Metz">Nancy-Metz (zone b)</option><option value="Nantes">Nantes (zone b)</option><option value="Nice">Nice (zone b)</option><option value="Normandie">Normandie (zone b)</option><option value="Orléans-Tours">Orléans-Tours (zone b)</option><option value="Paris">Paris (zone c)</option><option value="Poitiers">Poitiers (zone a)</option><option value="Reims">Reims (zone b)</option><option value="Rennes">Rennes (zone b)</option><option value="Strasbourg">Strasbourg (zone b)</option><option value="Toulouse">Toulouse (zone c)</option><option value="Versailles">Versailles (zone c)</option></select></label>
+        <p class="petit" id="etat-vacances" aria-live="polite"></p>
+      </fieldset>
+
       <fieldset id="reglages-revenus">
         <legend>Revenus et impôts</legend>
         <div class="choix-organisation" role="radiogroup" aria-label="Déclaration de revenus">
@@ -1209,8 +1219,11 @@
             donnés par Pajemploi lors de la dernière vérification, et ce que contiennent déjà vos autres fiches.</li>
           <li><strong>Profil, familles, contrats, jours de garde confirmés</strong> : ce que vous avez saisi vous-même. Tout reste
             sur cet ordinateur (dossier de l'application), rien n'est envoyé ailleurs.</li>
-          <li><strong>Vacances scolaires</strong> (courriers) : calendrier officiel publié par l'Éducation nationale,
-            consulté au moment de préparer le courrier, selon la zone de votre profil.</li>
+          <li><strong>Vacances scolaires</strong> (agenda, journée, photos, courriers) : calendrier officiel publié par
+            l'Éducation nationale (data.education.gouv.fr), pour l'académie choisie dans Paramètres. Les dates sont gardées
+            sur cet ordinateur et redemandées une fois par semaine : sans Internet, les dernières connues servent. Pendant
+            les vacances, les enfants qui ont des horaires différents sont comptés à leurs horaires de vacances (journée du
+            tableau de bord, enfants proposés pour une photo).</li>
           <li><strong>Barèmes</strong> (SMIC, déduction de 10 %) : inscrits dans l'application et mis à jour avec elle
             (voir le tableau plus bas).</li>
         </ul>

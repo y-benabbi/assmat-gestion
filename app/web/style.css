@@ -946,6 +946,15 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
 .calendrier .a-echeance::after { content: ""; position: absolute; bottom: 1px; width: 6px; height: 6px; border-radius: 50%; background: #b9abe8; }
 .calendrier .urgent::after { background: var(--tournesol); box-shadow: 0 0 0 1px #f0b04c; }
 .calendrier .a-echeance { cursor: help; }
+/* Vacances scolaires : bande rose poudré continue, arrondie au début et à la fin */
+.calendrier .vacances { background: var(--c-argent); }
+.calendrier .vacances.hors-mois { background: color-mix(in srgb, var(--c-argent) 45%, transparent); }
+.calendrier .debut-vacances { border-top-left-radius: 20px; border-bottom-left-radius: 20px; }
+.calendrier .fin-vacances { border-top-right-radius: 20px; border-bottom-right-radius: 20px; }
+.legende-vacances { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: -4px 0 10px; font-size: 0.82rem; color: var(--encre-douce); }
+.legende-vacances:empty { display: none; }
+.pastille-vacances { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; background: var(--c-argent);
+  vertical-align: -1px; }
 
 /* Revenus en version courte */
 .montant-cle { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 0 0 14px; color: var(--encre-douce); }

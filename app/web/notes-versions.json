@@ -2,8 +2,11 @@
   {
     "version": "1.11.16",
     "date": "2026-10-23",
-    "titre": "Votre dossier à portée de clic",
+    "titre": "Vacances scolaires dans l'agenda",
     "nouveautes": [
+      "Les vacances scolaires apparaissent dans l'agenda du tableau de bord. Choisissez votre académie dans Paramètres, rubrique « Vacances scolaires » : les dates officielles de l'Éducation nationale sont récupérées et gardées sur l'ordinateur.",
+      "Pendant les vacances, la journée du tableau de bord et les photos utilisent automatiquement les horaires de vacances des enfants qui en ont.",
+      "Activités : une même journée peut contenir plusieurs réalisations. Depuis le calendrier des réalisations, « Ajouter une autre réalisation » reste proposé, même pour une activité déjà prévue ce jour-là.",
       "En haut de la page, avant les liens rapides, une icône de dossier ouvre directement votre dossier principal (bulletins, courriers, photos…).",
       "Les bulles d'aide des liens rapides et du dossier s'affichent tout de suite au survol, aux couleurs de l'application."
     ]
