@@ -4,7 +4,8 @@
     "date": "2026-10-23",
     "titre": "Votre dossier à portée de clic",
     "nouveautes": [
-      "En haut de la page, avant les liens rapides, une icône de dossier ouvre directement votre dossier principal (bulletins, courriers, photos…)."
+      "En haut de la page, avant les liens rapides, une icône de dossier ouvre directement votre dossier principal (bulletins, courriers, photos…).",
+      "Les bulles d'aide des liens rapides et du dossier s'affichent tout de suite au survol, aux couleurs de l'application."
     ]
   },
   {

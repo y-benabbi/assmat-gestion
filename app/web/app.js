@@ -2706,6 +2706,23 @@ let sites = [];
 let siteEdite = -1;
 const COULEURS_SITES = ["#f7d3de", "#ddd4f6", "#ffe2b0", "#ecd6f2", "#fbe0e8", "#e6e0f8"];
 const domaine = (url) => { try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return url; } };
+// Bulle d'aide au style de l'application, affichée dès le survol (la bulle du navigateur met une seconde à venir) :
+// tout élément portant data-bulle. Un seul élément #bulle, placé sous l'élément survolé, sans dépasser de l'écran.
+const bulle = document.body.appendChild(Object.assign(document.createElement("div"), { id: "bulle", className: "bulle", role: "tooltip" }));
+function montrerBulle(el) {
+  bulle.textContent = el.dataset.bulle;
+  bulle.classList.add("visible");
+  const r = el.getBoundingClientRect(), l = bulle.offsetWidth;
+  bulle.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - l / 2, innerWidth - l - 8))}px`;
+  bulle.style.top = `${r.bottom + 8}px`;
+}
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest?.("[data-bulle]");
+  if (el) montrerBulle(el); else bulle.classList.remove("visible");
+});
+document.addEventListener("focusin", (e) => { const el = e.target.closest?.("[data-bulle]"); if (el?.matches(":focus-visible")) montrerBulle(el); });
+["focusout", "scroll", "mousedown"].forEach((t) => document.addEventListener(t, () => bulle.classList.remove("visible"), true));
+
 function tuileSite(site, i) {
   const couleur = COULEURS_SITES[i % COULEURS_SITES.length];
   const icone = `<img alt="" src="/api/icone-site?url=${encodeURIComponent(site.url)}">`;
@@ -2761,7 +2778,7 @@ async function afficherSites() {
     <span class="nom-site">Ajouter</span></button>`;
   // En-tête : les icônes seules, en miniature (le nom s'affiche au survol).
   $("#sites-entete").innerHTML = sites.map((site, i) => tuileSite(site, i).replace('class="tuile-site"', 'class="tuile-site miniature"')
-    .replace(/title="[^"]*"/, `title="${echapper(site.nom)}" aria-label="${echapper(site.nom)}"`)).join("");
+    .replace(/title="[^"]*"/, `data-bulle="${echapper(site.nom)}" aria-label="${echapper(site.nom)}"`)).join("");
   surveillerIcones($("#sites-entete"));
   ["#sites-accueil", "#sites-grille"].forEach((sel) => {
     $(sel).innerHTML = sites.map(tuileSite).join("") + ajout;

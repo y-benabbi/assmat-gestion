@@ -1013,12 +1013,14 @@ details.famille.en-edition { box-shadow: 0 0 0 2px var(--eucalyptus); }
   border-radius: 9px; background: var(--eucalyptus-clair); color: var(--eucalyptus-fonce); cursor: pointer;
   transition: transform 0.15s; }
 .dossier-entete svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.dossier-entete { position: relative; }
 .dossier-entete:hover { transform: translateY(-2px); }
-.dossier-entete::after { content: attr(data-bulle); position: absolute; top: calc(100% + 8px); left: 0; z-index: 30;
-  padding: 5px 10px; border-radius: 8px; background: var(--encre); color: #fff; font-size: 0.8rem; white-space: nowrap;
-  opacity: 0; pointer-events: none; transition: opacity 0.15s; }
-.dossier-entete:hover::after, .dossier-entete:focus-visible::after { opacity: 1; }
+/* Bulle d'aide (data-bulle) : immédiate, au style du site */
+.bulle { position: fixed; z-index: 1000; padding: 5px 11px; border-radius: 9px; background: var(--encre); color: #fff;
+  font-size: 0.82rem; font-weight: 600; white-space: nowrap; pointer-events: none; box-shadow: 0 4px 14px rgba(58, 53, 82, 0.18);
+  visibility: hidden; }
+.bulle.visible { visibility: visible; }
+.bulle::before { content: ""; position: absolute; bottom: 100%; left: 50%; margin-left: -5px;
+  border: 5px solid transparent; border-bottom-color: var(--encre); }
 .tuile-site.miniature:hover .icone-site { transform: translateY(-2px); }
 /* « À faire » : le bloc le plus visible du tableau de bord (fond rose-lavande, lignes en cartes blanches) */
 .panneau.a-faire { background: linear-gradient(120deg, #fbe3ec 0%, #ece5fb 100%); padding: 22px 24px 24px;
