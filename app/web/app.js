@@ -3179,6 +3179,23 @@ function viderRangees() {
   afficherBarreRangees();
 }
 
+// Clic sur le fond de la page (rien de cliquable dessous) : la sélection des photos est annulée. Pas quand ce clic sert
+// seulement à fermer un menu ouvert.
+const CLIC_UTILE = "button, a, input, select, textarea, label, summary, video, .vignette, .barre-photos, #editeur-rangees, .menu-contextuel, .visionneuse";
+let menuOuvertAuClic = false;
+document.addEventListener("pointerdown", () => { menuOuvertAuClic = !!menuOuvert; }, true);
+document.addEventListener("click", (e) => {
+  if (!$("#photos").classList.contains("actif") || menuOuvertAuClic || e.target.closest(CLIC_UTILE)) return;
+  viderTri();
+  viderRangees();
+  [["#grille-hors", selHors, "#remettre-hors"], ["#grille-ignorees", selIgnorees, "#remettre-ignorees"]].forEach(([grille, sel, bouton]) => {
+    if (!sel.size) return;
+    sel.clear();
+    majVignettes(grille, sel, "data-cle");
+    $(bouton).disabled = true;
+  });
+});
+
 // Panneau « À trier » (Échap ou la croix le referment).
 function ouvrirATrier(oui) {
   $("#colonne-a-trier").classList.toggle("cache", !oui);

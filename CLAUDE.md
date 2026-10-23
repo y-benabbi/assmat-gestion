@@ -305,7 +305,8 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   pour ne jamais décaler les photos. Bouton maintenu sur le rond `.coche-vignette` puis glissé = sélection de la photo de départ à la dernière survolée
   (`demarrerSelectionGlissee`, retire si la photo de départ était choisie) ; ce geste ne lance jamais le glisser-déposer. Clic bref sur la photo (hors du rond, sans Maj/Ctrl) : menu
   `menuPhoto` (Voir = visionneuse `voirPhoto`, ←/→/Échap ; Afficher dans le dossier ; Sélectionner ; Supprimer = `photos.supprimer`,
-  Corbeille de Windows via `SHFileOperationW`, toutes les copies d'une photo rangée) ; clic maintenu = glisser-déposer. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
+  Corbeille de Windows via `SHFileOperationW`, toutes les copies d'une photo rangée) ; clic maintenu = glisser-déposer. Clic sur le fond (rien de cliquable dessous, `CLIC_UTILE`) = sélection annulée, sauf
+  si ce clic ferme un menu. Cibles du glisser : `[data-case-enfant]` (cases et pastilles de la barre) ; une photo
   rangée glissée sur le bouton ou le panneau « À trier » y retourne (`remettreRangees`). Des photos à trier glissées sur
   la zone des photos rangées (`#contenu-photos`) sont rangées avec les filtres choisis (enfant, réalisation :
   `filtresDepot`, bandeau `#depot-filtres`) ; sans filtre, la zone n'accepte rien. Déplacements instantanés : ranger, remettre à trier, rattacher,

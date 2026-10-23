@@ -2,9 +2,10 @@
   {
     "version": "1.11.11",
     "date": "2026-10-22",
-    "titre": "Photos qui ne sautent plus",
+    "titre": "Photos plus faciles à manier",
     "nouveautes": [
-      "Photos : quand vous déplacez une photo juste après une autre, elle ne repasse plus un instant à son ancienne place avant d'arriver au bon endroit."
+      "Photos : quand vous déplacez une photo juste après une autre, elle ne repasse plus un instant à son ancienne place avant d'arriver au bon endroit.",
+      "Photos : un clic sur le fond de la page, à côté des photos, annule la sélection."
     ]
   },
   {
