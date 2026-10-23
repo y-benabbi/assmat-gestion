@@ -475,6 +475,9 @@ def html_avenant(p: dict, f: dict, fiche: dict, avenant_id: str, taux_net: float
     ne = "née" if fiche.get("enfant_genre") == "fille" else "né" if fiche.get("enfant_genre") == "garcon" else "né(e)"
     employeur = " ".join(x for x in (f.get("parent1_civilite"), f.get("parent1_prenom"), f.get("parent1_nom")) if x)
     salarie = " ".join(x for x in (p.get("civilite"), p.get("prenom"), p.get("nom")) if x)
+    # Qualité du parent employeur, comme dans le contrat (père, mère, tuteur ou autre précisé).
+    qualite = (f.get("parent1_qualite_autre") or "autre") if f.get("parent1_qualite") == "autre" \
+        else {"pere": "père", "mere": "mère", "tuteur": "tuteur"}.get(f.get("parent1_qualite"), "")
     adresse = lambda x: ", ".join(y for y in (x.get("adresse"), " ".join(z for z in (x.get("code_postal"), x.get("ville")) if z)) if y)  # noqa: E731
     lignes = changements(avant, apres, taux_net)
     corps = "".join(f"<tr><td class='rubrique'>{e(r)}</td><td>{e(a)}</td><td>{e(b)}</td></tr>" for r, a, b in lignes) \
@@ -486,9 +489,11 @@ def html_avenant(p: dict, f: dict, fiche: dict, avenant_id: str, taux_net: float
 <h1>Avenant n° {i} au contrat de travail à durée indéterminée</h1>
 <p class="sous-titre">Assistant maternel agréé · Convention collective IDCC 3239</p>
 <div class="parties">
-  <div class="partie"><strong>Le particulier employeur</strong><br>{e(employeur)}<br>{e(adresse(f))}
+  <div class="partie"><strong>Le particulier employeur</strong><br>{e(employeur)}{f" ({e(qualite)})" if qualite else ""}<br>{e(adresse(f))}
+    {f"<br>Téléphone : {e(f.get('telephone'))}" if f.get('telephone') else ""}
     {f"<br>N° Pajemploi : {e(f.get('numero_pajemploi'))}" if f.get('numero_pajemploi') else ""}</div>
   <div class="partie"><strong>L'assistant maternel</strong><br>{e(salarie)}<br>{e(adresse(p))}
+    {f"<br>N° de Sécurité sociale : {e(p.get('numero_secu'))}" if p.get('numero_secu') else ""}
     {f"<br>Agrément : {e(p.get('agrement_numero'))}" if p.get('agrement_numero') else ""}</div>
 </div>
 <h2>Objet de l'avenant</h2>

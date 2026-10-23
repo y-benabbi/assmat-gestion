@@ -110,6 +110,8 @@ def main():
     assert ct.numero_avenant(av, "a1") == 1 and ct.numero_avenant(av, "inconnu") == 0
     page = ct.html_avenant(PROFIL, FAMILLE, av, "a1", 0.78)
     assert "Avenant n° 1" in page and "04/01/2027" in page and "5,00" in page and "Léa" in page, page[:400]
+    assert "Téléphone : 01 00 00 00 00" in ct.html_avenant(PROFIL, {**FAMILLE, "telephone": "01 00 00 00 00"}, av, "a1", 0.78)
+    assert "(mère)" in page and "N° de Sécurité sociale : 2 80 01 35 000 000 00" in page, page[:1200]
     try:
         ct.html_avenant(PROFIL, FAMILLE, av, "inconnu", 0.78)
         raise AssertionError("avenant inconnu accepté")

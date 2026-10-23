@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.11.14",
+    "date": "2026-10-23",
+    "titre": "Avenant plus complet",
+    "nouveautes": [
+      "Avenant : l'employeur y est présenté avec sa qualité (père, mère, tuteur…) et son téléphone, et l'assistante maternelle avec son numéro de Sécurité sociale, comme dans le contrat de travail."
+    ]
+  },
+  {
     "version": "1.11.13",
     "date": "2026-10-23",
     "titre": "Une fenêtre rien qu'à elle, contrat de travail plus simple",
