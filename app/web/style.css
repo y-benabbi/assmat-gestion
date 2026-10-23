@@ -786,6 +786,8 @@ input.modifie, select.modifie, textarea.modifie { border-color: var(--tournesol)
 .entete-carte .chevron { grid-column: 3; }
 .initiale { grid-column: 1; grid-row: 1 / span 3; align-self: center; display: grid; place-items: center; width: 44px; height: 44px;
   border-radius: 50%; font: 600 1.2rem/1 var(--titre); }
+.initiale:has(> img) { position: relative; overflow: hidden; }
+.initiale > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }   /* photo de profil */
 .initiale.argent { background: var(--c-argent); color: var(--c-argent-encre); }
 .initiale.familles { background: var(--c-familles); color: var(--c-familles-encre); }
 .initiale.demarches { background: var(--c-demarches); color: var(--c-demarches-encre); }

@@ -9,6 +9,7 @@ import getpass
 import hmac
 import json
 import os
+import re
 import secrets
 import socket
 import subprocess
@@ -202,7 +203,9 @@ def creer_app(port, jeton):
 
     @app.get("/api/contrats")
     def lire_contrats():
-        return jsonify(donnees.contrats())
+        # photo_profil : version de la photo de profil de l'enfant (vide sans photo) ; jamais enregistrée dans la fiche.
+        profils = photos.profils()
+        return jsonify([dict(c, photo_profil=profils.get(c.get("id"), "")) for c in donnees.contrats()])
 
     @app.post("/api/contrats")
     def ecrire_contrat():
@@ -539,6 +542,25 @@ def creer_app(port, jeton):
         chemin = photos.chemin_a_trier(request.args.get("cle", "")) if request.args.get("cle") \
             else photos.chemin_range(request.args.get("numero", ""))
         return envoyer_fichier(chemin, cache=False)
+
+    @app.post("/api/enfants/photo")
+    def definir_photo_enfant():
+        d = request.get_json(force=True)
+        try:
+            if not d.get("numero"):
+                photos.retirer_profil(str(d.get("enfant") or ""))
+                return jsonify({"enfant": d.get("enfant"), "photo": ""})
+            return jsonify(photos.definir_profil(str(d.get("numero")), str(d.get("enfant") or "")))
+        except ValueError as e:
+            return jsonify({"erreur": str(e)}), 400
+        except OSError as e:
+            return jsonify({"erreur": f"Photo illisible : {e}"}), 409
+
+    @app.get("/api/enfants/photo")
+    def photo_enfant():
+        ident = request.args.get("id", "")
+        chemin = photos.PROFILS / f"{ident}.jpg" if re.fullmatch(r"[0-9a-zA-Z_-]{1,40}", ident) else None
+        return envoyer_fichier(chemin)
 
     @app.post("/api/photos/supprimer")
     def supprimer_photos():

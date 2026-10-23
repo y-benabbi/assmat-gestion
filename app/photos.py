@@ -38,6 +38,7 @@ from impots import RE_PLAGE
 
 FICHIER_INDEX = DOSSIER_DONNEES / "photos.json"
 FICHIER_ANALYSE = DOSSIER_DONNEES / "photos-analyse.json"
+PROFILS = DOSSIER_DONNEES / "profils"          # photo de profil de chaque enfant : <id de la fiche>.jpg
 
 IMAGES = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif"}
 VIDEOS = {".mov", ".mp4", ".m4v", ".3gp", ".avi"}
@@ -245,7 +246,7 @@ def enfants(jour: date = None) -> list:
     jour = jour or date.today()
     liste = [{"id": c.get("id"), "prenom": (c.get("enfant_prenom") or "").strip() or "Enfant",
               "famille": (c.get("famille") or "").strip() or "Famille", "debut": c.get("debut", ""), "fin": c.get("fin", ""),
-              "derniere_garde": derniere_garde(c, jour)}
+              "derniere_garde": derniere_garde(c, jour), "photo": profils().get(c.get("id"), "")}
              for c in donnees.contrats() if c.get("id")]
     recent = max((e["derniere_garde"] for e in liste), default="")
     mois = (jour - timedelta(days=31)).isoformat()
@@ -885,6 +886,51 @@ def chemin_range(numero: str, affichable: bool = True):
         if not affichable or c.suffix.lower() in (JPEG | {".png", ".gif", ".webp"}):
             return c
     return r["copies"][0] if r["copies"] else None
+
+
+# ------------------------------------------------------------------ photo de profil des enfants
+def profils() -> dict:
+    """{id de la fiche enfant: version} des enfants qui ont une photo de profil (la version change à chaque nouvelle
+    photo, pour que la page ne garde pas l'ancienne en mémoire)."""
+    if not PROFILS.is_dir():
+        return {}
+    return {f.stem: str(int(f.stat().st_mtime)) for f in PROFILS.glob("*.jpg")}
+
+
+def definir_profil(numero: str, enfant_id: str) -> dict:
+    """Fait d'une photo rangée la photo de profil d'un enfant : un carré de 256 px pris au centre (un peu plus haut
+    pour une photo en hauteur, où se trouve en général le visage), gardé dans donnees\profils."""
+    if not any(c.get("id") == enfant_id for c in donnees.contrats()):
+        raise ValueError("Fiche enfant introuvable.")
+    r = rangees().get(numero)
+    if not r or r["genre"] != "photo":
+        raise ValueError("Photo introuvable dans le rangement.")
+    racine = parametres.dossier("photos")
+    liste = enfants()
+    copies = sorted(r["copies"], key=lambda c: _enfant_du_chemin(c, racine, liste) != enfant_id)
+    source = next((c for c in copies if c.suffix.lower() in JPEG | {".png", ".webp"}), copies[0] if copies else None)
+    if not source:
+        raise ValueError("Photo introuvable dans le rangement.")
+    from PIL import Image, ImageOps
+    if source.suffix.lower() in HEIC:
+        _activer_heif()
+    with Image.open(source) as im:
+        im.draft("RGB", (1024, 1024))
+        im = ImageOps.exif_transpose(im).convert("RGB")
+        cote = min(im.size)
+        gauche = (im.width - cote) // 2
+        haut = int((im.height - cote) * 0.3)
+        im = im.crop((gauche, haut, gauche + cote, haut + cote)).resize((256, 256), Image.LANCZOS)
+        PROFILS.mkdir(parents=True, exist_ok=True)
+        fd, temp = tempfile.mkstemp(dir=PROFILS, suffix=".tmp")
+        os.close(fd)
+        im.save(temp, "JPEG", quality=88)
+        os.replace(temp, PROFILS / f"{enfant_id}.jpg")
+    return {"enfant": enfant_id, "photo": profils().get(enfant_id, "")}
+
+
+def retirer_profil(enfant_id: str) -> None:
+    (PROFILS / f"{enfant_id}.jpg").unlink(missing_ok=True)
 
 
 def _image_video(chemin: Path, cible: Path) -> bool:

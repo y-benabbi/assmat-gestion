@@ -217,7 +217,7 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   via des `<datalist>`.
 - Fiche enfant : `horaires_vacances` vide signifie « mêmes horaires qu'en période scolaire » (case
   « Horaires différents pendant les vacances » décochée) ; les courriers reprennent alors `horaires_scolaire`.
-- `profil.json`, `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json`, `activites.json`, `photos.json`, `photos-analyse.json` (dans `donnees\`) contiennent des données personnelles réelles :
+- `profil.json`, `profils\` (photos des enfants), `familles.json`, `contrats.json`, `revenus.json`, `impots.json`, `brouillons.json`, `documents.json`, `sites.json`, `activites.json`, `photos.json`, `photos-analyse.json` (dans `donnees\`) contiennent des données personnelles réelles :
   jamais dans le dépôt. Les libellés lus dans les bulletins (vérifiés sur de vrais bulletins
   Pajemploi 2015-2026 ; plusieurs rubriques sur une même ligne, d'où `PREMIER_NOMBRE`) sont dans `revenus.RUBRIQUES` (augmenter
   `VERSION_LECTURE` quand ils changent, pour relire les bulletins).
@@ -298,6 +298,11 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `%LOCALAPPDATA%\assmat-gestion\miniatures` ; vidéo : image tirée de la vidéo par ffmpeg (module `imageio-ffmpeg`,
   `_image_video`, vers 1 s, redressée), échec noté par un fichier `.aucune` ; une vidéo iCloud non téléchargée n'est jamais ouverte. Impression : page HTML (1, 4 ou 16 par page A4), aucun PDF enregistré.
   Reconnaissance des visages : reportée, et jamais par une application ou un service extérieur.
+  Photo de profil d'un enfant (`photos.definir_profil`, carré de 256 px pris au centre, un peu vers le haut) :
+  `donnees\profils\<id>.jpg`, version (date du fichier) dans `photos.enfants()["photo"]` et `photo_profil` de
+  `/api/contrats` (jamais enregistrée dans la fiche) ; proposée (barre de sélection `#profil-rangees`, menu de la photo)
+  seulement pour une photo rangée d'un seul enfant (`enfantSeul`). Partout, le rond d'un enfant passe par
+  `avatarEnfant(prénom, id, version)` (photo, sinon initiale). Pas de lien « Désélectionner » : clic dans le vide.
 - Rubrique Photos (interface, demande de Yannis : **peu de texte**, aides en `title` ou repliées) : barre de filtres
   compacte à gauche (`.filtres-photos` : recherche, enfants en groupes dépliables `photos.enfants()` — « derniers » gardés
   le dernier jour de garde, « mois » ces 31 jours, « autres » —, activités), photos rangées à droite. Pendant le tri

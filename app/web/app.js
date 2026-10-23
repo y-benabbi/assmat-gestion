@@ -1096,8 +1096,7 @@ function afficherJour() {
   $$("#choix-periode input").forEach((i) => (i.checked = i.value === periodeChoisie(iso)));
   zone.innerHTML = lignes.length ? `<table class="tableau-jour">
       <thead><tr><th scope="col">Enfant</th><th scope="col">Arrivée</th><th scope="col">Départ</th></tr></thead>
-      <tbody>${lignes.map((l) => `<tr><th scope="row"><span class="initiale ${couleurEnfant(l.c.enfant_prenom)}" aria-hidden="true">${
-        echapper((l.c.enfant_prenom || "?").trim().charAt(0).toUpperCase())}</span>${echapper(l.c.enfant_prenom || "")}</th>
+      <tbody>${lignes.map((l) => `<tr><th scope="row">${avatarEnfant(l.c.enfant_prenom, l.c.id, l.c.photo_profil)}${echapper(l.c.enfant_prenom || "")}</th>
         <td>${versTexte(l.debut)}</td><td class="depart">${versTexte(l.fin)}</td></tr>`).join("")}</tbody></table>`
     : `<p class="petit">${contratsAccueil.length ? "Aucun accueil prévu dans les deux prochaines semaines d'après les emplois du temps des fiches enfants."
       : "Ajoutez les fiches enfants (Familles et contrats) pour voir ici les horaires du jour."}</p>`;
@@ -1929,7 +1928,7 @@ function carteEnfant(c, aujourdhui, famille) {
   const jours = semaine ? (semaine.jours.length === 5 && semaine.jours[0] === "lundi" && semaine.jours[4] === "vendredi"
     ? "du lundi au vendredi" : semaine.jours.map((j) => j.slice(0, 3) + ".").join(" ")) : "";
   carte.innerHTML = `<button type="button" class="entete-carte" aria-expanded="${ouverte}">
-      <span class="initiale ${couleurEnfant(c.enfant_prenom)}" aria-hidden="true">${echapper((c.enfant_prenom || "?").trim().charAt(0).toUpperCase())}</span>
+      ${avatarEnfant(c.enfant_prenom, c.id, c.photo_profil)}
       <span class="nom">${nom}${age ? ` <span class="age">· ${age}</span>` : ""}</span>
       <span class="petit">${v.accueil === "periscolaire" ? "Périscolaire" : `${v.semaines || 52} semaines par an`}${
         semaine ? ` · ${heuresFr(semaine.total)} par semaine, ${jours}` : ""}</span>
@@ -2968,7 +2967,13 @@ async function compterPhotos() {
 }
 
 const enfantPar = (id) => donneesPhotos?.enfants.find((e) => e.id === id);
-const initialeEnfant = (e) => `<span class="initiale ${couleurEnfant(e.prenom)}" aria-hidden="true">${echapper((e.prenom || "?").charAt(0).toUpperCase())}</span>`;
+// Rond d'un enfant : sa photo de profil (version = date de la photo, pour ne pas garder l'ancienne), sinon son initiale.
+function avatarEnfant(prenom, id, version) {
+  const p = (prenom || "?").trim();
+  return `<span class="initiale ${couleurEnfant(p)}" aria-hidden="true">${echapper(p.charAt(0).toUpperCase())}${version
+    ? `<img src="/api/enfants/photo?id=${encodeURIComponent(id)}&v=${version}" alt="" onerror="this.remove()">` : ""}</span>`;
+}
+const initialeEnfant = (e) => avatarEnfant(e.prenom, e.id, e.photo);
 
 function vignette(e, attribut, choisie, etiquette = "") {
   const src = `/api/photos/miniature?${e.apercu || (e.cle ? `cle=${e.cle}` : `numero=${e.numero}`)}`;
@@ -3214,7 +3219,6 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && $("#photos").classList.contains("actif") && !$("#colonne-a-trier").classList.contains("cache")
     && !document.querySelector(".menu-contextuel")) ouvrirATrier(false);
 });
-$("#deselectionner-tri").addEventListener("click", viderTri);
 
 // Liste des réalisations des jours concernés (« Peinture d'automne du 14 octobre 2026 »), puis toutes les activités :
 // choisir une activité crée sa réalisation à la date de la photo.
@@ -3265,6 +3269,8 @@ function menuPhoto(v, { cle, numero, liste, sel, choisir }) {
     { picto: "voir", texte: "Voir", action: () => voirPhoto(liste, ref) },
     { picto: "dossier", texte: "Afficher dans le dossier", action: () => api("photos/ouvrir", { ...ref, montrer: true }).catch((e) => alert(e.message)) },
     { picto: "coche", texte: sel.has(id) ? "Retirer de la sélection" : "Sélectionner", action: choisir },
+    ...(numero && enfantSeul(numero) ? [{ picto: "profil", texte: `Photo de profil de ${enfantSeul(numero).prenom}`,
+      action: () => definirProfil(numero) }] : []),
     { separateur: true },
     { picto: "supprimer", danger: true, texte: plusieurs ? `Supprimer les ${sel.size} photos choisies` : "Supprimer",
       action: () => supprimerPhotos(plusieurs ? [...sel] : [id], !!cle, sel) },
@@ -3755,6 +3761,23 @@ function rangeesVisibles() {
     && (!filtreActivite || (filtreActivite === "aucune" ? !r.seance : `s:${r.seance}` === filtreActivite)));
 }
 
+// L'enfant d'une photo rangée qui n'en montre qu'un seul (sinon rien) : elle peut devenir sa photo de profil.
+function enfantSeul(numero) {
+  const r = donneesPhotos.rangees.find((x) => x.numero === numero);
+  if (!r || r.genre !== "photo" || r.enCours || r.enfants.length !== 1) return null;
+  return donneesPhotos.enfants.find((e) => e.id === r.enfants[0]) || null;
+}
+async function definirProfil(numero) {
+  const e = enfantSeul(numero);
+  if (!e) return;
+  try {
+    const r = await api("enfants/photo", { numero, enfant: e.id });
+    e.photo = r.photo;
+    afficherCasesEnfants();
+    afficherBarreRangees();
+  } catch (err) { alert(err.message); }
+}
+
 function afficherBarreRangees() {
   const n = selRangees.size;
   $("#barre-rangees").classList.toggle("cache", !n);
@@ -3762,6 +3785,9 @@ function afficherBarreRangees() {
   $("#texte-rangees").textContent = `${pluriel(n, "élément")} sélectionné${n > 1 ? "s" : ""}`;
   const photosSeules = [...selRangees].filter((x) => donneesPhotos.rangees.find((r) => r.numero === x)?.genre === "photo").length;
   $("#imprimer-photos").disabled = !photosSeules;
+  const seul = n === 1 ? enfantSeul([...selRangees][0]) : null;
+  $("#profil-rangees").classList.toggle("cache", !seul);
+  if (seul) $("#profil-rangees").lastChild.textContent = `Photo de profil de ${seul.prenom}`;
   if (!n) $("#editeur-rangees").classList.add("cache");
 }
 
@@ -3805,7 +3831,7 @@ $("#tout-rangees").addEventListener("click", () => {
   majVignettes("#grille-rangees", selRangees, "data-numero");
   afficherBarreRangees();
 });
-$("#deselectionner-rangees").addEventListener("click", () => { selRangees.clear(); afficherRangees(); });
+$("#profil-rangees").addEventListener("click", () => definirProfil([...selRangees][0]));
 $("#imprimer-photos").addEventListener("click", () => {
   const ordre = donneesPhotos.rangees.filter((r) => selRangees.has(r.numero) && r.genre === "photo")
     .sort((a, b) => (a.date || "").localeCompare(b.date || "")).map((r) => r.numero);

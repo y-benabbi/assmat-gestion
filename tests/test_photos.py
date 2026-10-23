@@ -287,6 +287,23 @@ assert page.count("<img ") == 2 and "repeat(4, 1fr)" in page, "vidéo exclue, 4 
 assert photos.page_impression(["0001"], 4).count("repeat(2, 1fr)") == 2
 print("dépôt et impression OK")
 
+# Photo de profil : carré de 256 px tiré d'une photo rangée, version donnée par photos.enfants().
+assert not any(e["photo"] for e in photos.enfants())
+r = photos.definir_profil("0001", lea["id"])
+assert r["enfant"] == lea["id"] and r["photo"]
+with Image.open(photos.PROFILS / f"{lea['id']}.jpg") as im:
+    assert im.size == (256, 256)
+assert next(e for e in photos.enfants() if e["id"] == lea["id"])["photo"] == r["photo"]
+for numero, enfant in (("0001", "inconnu"), ("9999", lea["id"])):
+    try:
+        photos.definir_profil(numero, enfant)
+        raise AssertionError("photo de profil acceptée à tort")
+    except ValueError:
+        pass
+photos.retirer_profil(lea["id"])
+assert photos.profils() == {}
+print("photo de profil d'un enfant")
+
 # Supprimer : à la Corbeille (ici, dossier « corbeille » de l'installation), copies comprises pour une photo rangée.
 corbeille = TEMP / "base" / "corbeille"
 cle = next(e["cle"] for e in photos.lister()["a_trier"] if e["nom"] == "glissee.jpg")
