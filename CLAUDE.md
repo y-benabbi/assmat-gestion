@@ -211,6 +211,12 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   `donnees.MODIFIABLES`, pas seulement celles qui changent). `donnees.en_vigueur(c, jour)` /
   `donnees.contrats(jour)` donnent les conditions applicables à une date : échéances, courriers (date du courrier)
   et impôts (jour par jour) les utilisent ; ne pas lire directement `horaires_*` d'une fiche pour une date donnée.
+- Indemnité d'entretien : saisie à l'heure (`entretien_horaire`) ; montant d'une journée = horaire × durée (2,65 € au moins,
+  `entretien_par_jour` / `entretienParJour`) ; `entretien_jour` (champ caché, journée moyenne de la période scolaire) sert
+  aux estimations par mois et n'est jamais comparé entre versions (`COMPAREES`). Ancienne fiche : horaire = par jour ÷ journée
+  la plus longue (`versionsDe`). Résumé et PDF d'un avenant citent aussi les valeurs calculées qui changent (`calculsVersion`,
+  `changements`). Plages horaires : outils au-dessus, à droite ; la croix d'une coupure la retire ; toute action d'outil
+  émet `input` (`horairesChanges`). Assistant en mode « modification » : `#assistant-enregistrer` dès qu'un champ change.
 - Horaires saisis avec des champs `type=time` (arrivée/départ, deuxième plage « coupure »), enregistrés au format
   texte « 8h00-12h00 / 13h30-17h00 » (lu par `impots.duree` et les courriers). Résumé : heures par semaine,
   heures mensualisées (× 52 ÷ 12) en année complète.

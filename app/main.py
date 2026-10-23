@@ -313,7 +313,7 @@ def creer_app(port, jeton):
         return jsonify({
             "familles": [{"nom": f["nom"], "parents": list(f["parents"].values()), "enfants": sorted(f["enfants"]),
                           "fiche": f["fiche"]} for _, f in sorted(familles.items())],
-            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "tarif_horaire", "entretien_jour", "repas_jour")},
+            "champs": {cle: valeurs(cle) for cle in ("enfant_nom", "tarif_horaire", "entretien_horaire", "repas_jour")},
             "taux_net": revenus.taux_net(lignes),
         })
 

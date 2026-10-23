@@ -726,8 +726,11 @@
           </div>
           <h3 class="sous-titre">Indemnités</h3>
           <div class="grille-champs">
-            <label>Indemnité d'entretien par jour (€) <input name="entretien_jour" data-requis inputmode="decimal" list="liste-entretiens" autocomplete="off">
-              <span class="aide-calcul">2,65 € au moins par jour.</span></label>
+            <label>Indemnité d'entretien par heure (€) <input name="entretien_horaire" data-requis inputmode="decimal" list="liste-entretiens" autocomplete="off">
+              <span class="aide-calcul">2,65 € par jour au moins, quelle que soit la durée.</span></label>
+            <div class="champ-calcule"><span class="intitule">Indemnité d'entretien par jour <span class="mention calcule">calculé</span></span>
+              <output id="entretien-jour">—</output><span class="aide-calcul" id="entretien-jour-aide"></span></div>
+            <input type="hidden" name="entretien_jour">
             <label>Repas fournis par
               <select name="repas_fournis"><option value="">—</option><option value="employeur">les parents</option>
                 <option value="assmat">moi (assistante maternelle)</option></select>
@@ -812,7 +815,10 @@
         <button type="button" class="secondaire" id="assistant-precedent">Précédent</button>
         <span class="assistant-brouillon"><button type="button" class="secondaire" id="assistant-brouillon">Enregistrer le brouillon</button>
           <span class="petit" id="brouillon-enregistre" role="status"></span></span>
-        <button type="button" class="principal" id="assistant-suivant">Suivant</button>
+        <span class="boutons-droite">
+          <button type="button" class="secondaire cache" id="assistant-enregistrer" data-picto="coche">Enregistrer les modifications</button>
+          <button type="button" class="principal" id="assistant-suivant">Suivant</button>
+        </span>
       </div>
       <div class="boutons" id="boutons-fiche">
         <button class="principal">Enregistrer la fiche</button>
@@ -1248,7 +1254,7 @@
             vacances : (heures scolaires × semaines d'école + heures de vacances × semaines de vacances) ÷ 12.</li>
           <li>Salaire mensualisé brut = heures mensualisées × tarif horaire brut. Net indicatif = brut × part du brut
             restée en net sur vos 6 derniers bulletins lus (environ 78 % à défaut de bulletin).</li>
-          <li>Indemnités par mois ≈ jours d'accueil par mois (même calcul que les heures) × (entretien + repas par jour).</li>
+          <li>Indemnités par mois ≈ jours d'accueil par mois (même calcul que les heures) × (entretien d'une journée moyenne + repas).</li>
           <li>Avenants : à partir de sa date d'effet, un avenant remplace les conditions précédentes (semaines,
             type d'accueil, tarif, indemnités, emploi du temps, délais de prévenance…). Les échéances, les courriers et les jours
             de garde des impôts utilisent les conditions en vigueur à la date concernée. La fiche d'un enfant (clic sur son
@@ -1307,8 +1313,9 @@
             si vous saisissez le salaire majoré, la majoration = salaire majoré ÷ salaire horaire − 1.</li>
           <li>Période d'essai : dernier jour = date d'embauche + durée − 1 jour. Période d'adaptation : nombre de jours
             calendaires du premier au dernier jour, inclus.</li>
-          <li>Indemnité d'entretien : le montant par jour est ramené à l'heure pour la journée la plus longue de
-            l'emploi du temps (montant par jour ÷ heures de cette journée).</li>
+          <li>Indemnité d'entretien : vous indiquez le montant par heure ; celui d'une journée = montant horaire × durée
+            de la journée (2,65 € au moins). Pour l'estimation par mois, on prend la journée moyenne de la période scolaire.
+            Une fiche plus ancienne, saisie par jour, est ramenée à l'heure pour la journée la plus longue.</li>
         </ul>
         <p class="petit">Ces calculs aident à préparer les démarches ; ils ne remplacent pas les notices officielles
           (impots.gouv.fr, Pajemploi). En cas de doute, le relais petite enfance ou le centre des impôts peuvent vous

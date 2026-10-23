@@ -2,10 +2,14 @@
   {
     "version": "1.11.13",
     "date": "2026-10-23",
-    "titre": "Une fenêtre rien qu'à elle",
+    "titre": "Une fenêtre rien qu'à elle, contrat de travail plus simple",
     "nouveautes": [
       "L'application s'ouvre maintenant dans sa propre fenêtre, comme un vrai logiciel : sans barre d'adresse ni onglets, avec son icône dans la barre des tâches.",
-      "« Quitter » ferme aussi cette fenêtre."
+      "« Quitter » ferme aussi cette fenêtre.",
+      "Contrat de travail : l'indemnité d'entretien se saisit maintenant à l'heure ; le montant par jour est calculé d'après la durée de chaque journée (2,65 € au moins).",
+      "Horaires : une coupure ajoutée se retire avec sa croix, et les boutons copier, coller et vider sont au-dessus des heures, à droite : la colonne des vacances ne déborde plus.",
+      "En modifiant un contrat déjà enregistré, « Enregistrer les modifications » apparaît à côté de « Suivant » dès qu'un changement est fait.",
+      "Avenant : coller une plage horaire compte comme une modification, et le résumé cite aussi ce qui change dans les montants calculés (heures mensualisées, salaire mensuel, entretien par jour)."
     ]
   },
   {

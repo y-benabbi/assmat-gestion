@@ -473,7 +473,11 @@ fieldset { scroll-margin-top: 16px; }
 .horaires { max-width: none; }
 .horaires td { vertical-align: top; }
 .plages { display: grid; gap: 6px; justify-items: center; }
-.plage { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+/* Une plage : les outils (copier, coller, vider) au-dessus, à droite des deux heures, pour ne jamais élargir la colonne. */
+.plage { display: inline-grid; grid-template-columns: auto auto auto; align-items: center; column-gap: 6px; white-space: nowrap; }
+.plage > .outils-plage { grid-column: 1 / -1; grid-row: 1; justify-self: end; margin: 0 0 1px; }
+.outils-plage .icone { width: 24px; height: 24px; border-radius: 6px; }
+.outils-plage .icone svg { width: 15px; height: 15px; }
 .horaires input[type=time] { width: 7em; padding: 6px 8px; }
 .horaires tfoot td { border-bottom: 0; padding-top: 4px; }
 .horaires .lien { font-size: 0.85rem; }
@@ -570,11 +574,13 @@ form.assistant .assistant-seul { display: block; }
 form.assistant .assistant-nav { display: flex; justify-content: space-between; position: sticky; bottom: 0;
   background: var(--brume); padding: 12px 0 20px; margin-top: 18px; border-top: 1px solid var(--trait); }
 form.assistant .assistant-nav button { min-width: 160px; }
+.boutons-droite { display: flex; gap: 10px; }
 .assistant-fin { background: var(--papier); border-radius: 16px; padding: 22px 24px; }
 @media (max-width: 600px) {
   .assistant-plan { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
   .assistant-plan li { flex: none; }
   form.assistant .assistant-nav button { min-width: 0; flex: 1; }
+  .boutons-droite { flex: 2; }
 }
 
 /* rubriques des formulaires, choix, période d'essai, brouillons */
@@ -604,7 +610,7 @@ form.assistant .assistant-nav button { min-width: 160px; }
 .radios .case-a-cocher { white-space: nowrap; }
 
 /* outils des plages horaires */
-.outils-plage { display: inline-flex; gap: 2px; margin-left: 2px; }
+.outils-plage { display: inline-flex; gap: 2px; }
 .icone { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
   background: transparent; color: var(--encre-douce); cursor: pointer; }
 .icone svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

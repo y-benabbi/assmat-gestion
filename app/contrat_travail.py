@@ -82,6 +82,15 @@ def _euros(v: float) -> str:
     return f"{v:.2f}".replace(".", ",") if v else ""
 
 
+ENTRETIEN_MINIMUM = 2.65      # € par jour, quelle que soit la durée de la journée
+
+
+def _horaire(v: float) -> str:
+    """Montant à l'heure, jusqu'au millième (0,375)."""
+    texte = f"{v:.3f}"
+    return (texte[:-1] if texte.endswith("0") else texte).replace(".", ",") if v else ""
+
+
 def _heures(h: float) -> str:
     """7,5 → « 07h30 » (format du modèle)."""
     m = round(h * 60)
@@ -232,12 +241,15 @@ def valeurs_contrat(p: dict, f: dict, fiche: dict, taux_net: float) -> dict:
     v[f"CAS{cas}-Salaire_BRUT"] = _euros(brut_mois)
     v[f"CAS{cas}-Salaire_NET"] = _euros(brut_mois * taux_net)
 
-    # Indemnités : entretien ramené à l'heure pour la journée type la plus longue
-    entretien = _nombre(c.get("entretien_jour"))
+    # Indemnités : entretien par heure (saisi tel quel ; anciennes fiches : montant par jour ramené à l'heure pour
+    # la journée type la plus longue)
     journee = max((d for _, _, d in jours), default=0)
-    if entretien and journee:
+    horaire = _nombre(c.get("entretien_horaire"))
+    if not horaire and journee:
+        horaire = _nombre(c.get("entretien_jour")) / journee
+    if horaire and journee:
         v["ENTRETIEN_heures"] = _heures_texte(journee)
-        v["ENTRETIEN_montant"] = f"{entretien / journee:.3f}".rstrip("0").replace(".", ",")
+        v["ENTRETIEN_montant"] = _horaire(horaire)
     if c.get("repas_fournis") in REPAS:
         v["CHOIX REPAS"] = REPAS[c["repas_fournis"]]
         v["FRAIS_repas_PE" if c["repas_fournis"] == "employeur" else "FRAIS_repas_AM"] = _euros(_nombre(c.get("repas_jour")))
@@ -323,7 +335,8 @@ LIBELLES = {
     "horaires_vacances": "Horaires pendant les vacances scolaires", "planning": "Fixation des jours et horaires",
     "delai_prevenance": "Délai de prévenance pour modifier les horaires", "delai_planning": "Délai de remise du planning",
     "tarif_horaire": "Salaire horaire de base", "tarif_complementaire": "Heures complémentaires",
-    "taux_majoration": "Heures au-delà de 45 h par semaine", "entretien_jour": "Indemnité d'entretien",
+    "taux_majoration": "Heures au-delà de 45 h par semaine", "entretien_horaire": "Indemnité d'entretien",
+    "entretien_jour": "Indemnité d'entretien",
     "repas_fournis": "Repas fournis par", "repas_jour": "Frais de repas", "frais_km": "Frais de déplacement",
     "jour_paiement": "Date de paiement du salaire", "repos_jour": "Repos hebdomadaire",
     "repos_travaille": "Travail exceptionnel le jour de repos", "premier_mai": "1er mai",
@@ -368,6 +381,8 @@ def _texte(cle: str, v, taux_net: float) -> str:
         return f"{_euros(_nombre(v))} € brut de l'heure (≈ {_euros(_nombre(v) * taux_net)} € net)"
     if cle in ("taux_majoration", "ferie_majoration"):
         return f"majoration de {v} %"
+    if cle == "entretien_horaire":
+        return f"{_horaire(_nombre(v))} € par heure d'accueil"
     if cle == "entretien_jour":
         return f"{_euros(_nombre(v))} € par jour"
     if cle == "repas_jour":
@@ -390,13 +405,38 @@ def changements(avant: dict, apres: dict, taux_net: float) -> list:
         if k == "feries_travailles":
             return set(filter(None, str(a or "").split(","))) == set(filter(None, str(b or "").split(",")))
         return str(a or "").strip() == str(b or "").strip()
-    liste = [(LIBELLES[k], _texte(k, avant.get(k), taux_net), _texte(k, apres.get(k), taux_net))
-             for k in donnees.MODIFIABLES if not egal(k)]
+    # Entretien saisi à l'heure : le montant par jour n'en est que la conséquence.
+    par_heure = avant.get("entretien_horaire") or apres.get("entretien_horaire")
+    def texte(k, c):
+        if k == "entretien_horaire" and not c.get(k) and c.get("entretien_jour"):
+            return _texte("entretien_jour", c["entretien_jour"], taux_net)       # ancienne fiche, saisie par jour
+        return _texte(k, c.get(k), taux_net)
+    liste = [(LIBELLES[k], texte(k, avant), texte(k, apres))
+             for k in donnees.MODIFIABLES if not egal(k) and not (k == "entretien_jour" and par_heure)]
     if any(not egal(k) for k in ("semaines", "tarif_horaire", "horaires_scolaire", "horaires_vacances")):
         mois = lambda c: round(_nombre(c.get("tarif_horaire")) * mensualisation(c), 2)  # noqa: E731
         texte = lambda m: f"{_euros(m)} € brut (≈ {_euros(m * taux_net)} € net)" if m else "—"  # noqa: E731
         liste.append(("Salaire mensuel de base", texte(mois(avant)), texte(mois(apres))))
+    # Autres valeurs calculées, citées quand elles changent.
+    heures = lambda c: f"{_heures_texte(mensualisation(c))} h par mois" if mensualisation(c) else "—"  # noqa: E731
+    if heures(avant) != heures(apres):
+        liste.append(("Heures mensualisées", heures(avant), heures(apres)))
+    if entretien_par_jour(avant) != entretien_par_jour(apres):
+        liste.append(("Indemnité d'entretien par jour", entretien_par_jour(avant), entretien_par_jour(apres)))
     return liste
+
+
+def entretien_par_jour(c: dict) -> str:
+    """Montant de l'entretien pour une journée (2,65 € au moins), d'après le montant horaire et les horaires :
+    « 3,60 € » ou « 2,65 € à 4,75 € » selon la durée des journées. Ancienne fiche saisie par jour : ce montant."""
+    horaire = _nombre(c.get("entretien_horaire"))
+    if not horaire:
+        return f"{_euros(_nombre(c.get('entretien_jour')))} €" if _nombre(c.get("entretien_jour")) else "—"
+    durees = [d for k in ("horaires_scolaire", "horaires_vacances") for _, _, d in semaine_type(c.get(k) or {}) if d]
+    if not durees:
+        return "—"
+    jour = lambda d: _euros(max(ENTRETIEN_MINIMUM, horaire * d))  # noqa: E731
+    return f"{jour(min(durees))} €" if jour(min(durees)) == jour(max(durees)) else f"{jour(min(durees))} € à {jour(max(durees))} €"
 
 
 STYLE_AVENANT = """

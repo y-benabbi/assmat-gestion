@@ -76,7 +76,8 @@ CHAMPS_CONTRAT = {
     "fin": "",                     # vide : contrat en cours
     "semaines": "52",              # semaines d'accueil par an : « 52 » (année complète) ou moins
     "tarif_horaire": "",
-    "entretien_jour": "",
+    "entretien_horaire": "",       # indemnité d'entretien, € par heure d'accueil
+    "entretien_jour": "",          # déduit : montant d'une journée moyenne (estimations par mois)
     "repas_jour": "",              # indemnité de repas par jour
     "abattement_majore": "",       # « oui » : enfant handicapé, malade ou inadapté (impôts : 4 × SMIC)
     "accueil": "journee",          # journee ou periscolaire
@@ -109,7 +110,7 @@ CHAMPS_CONTRAT = {
 }
 
 # Conditions du contrat qu'un avenant peut changer.
-MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_jour", "repas_jour", "horaires_scolaire",
+MODIFIABLES = ("semaines", "accueil", "tarif_horaire", "entretien_horaire", "entretien_jour", "repas_jour", "horaires_scolaire",
                "horaires_vacances", "delai_prevenance", "planning", "delai_planning", "tarif_complementaire",
                "taux_majoration", "repas_fournis", "frais_km", "jour_paiement", "repos_jour", "repos_travaille",
                "premier_mai", "feries_travailles", "ferie_majoration", "conges_paiement", "conditions_particulieres")

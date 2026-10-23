@@ -1324,11 +1324,13 @@ async function afficherEcheances() {
 const JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
 const PERIODES = { scolaire: "Période scolaire", vacances: "Vacances scolaires" };
 // Conditions qu'un avenant peut changer (même liste que donnees.MODIFIABLES).
-const MODIFIABLES = ["semaines", "accueil", "tarif_horaire", "entretien_jour", "repas_jour", "horaires_scolaire", "horaires_vacances",
+const MODIFIABLES = ["semaines", "accueil", "tarif_horaire", "entretien_horaire", "entretien_jour", "repas_jour", "horaires_scolaire", "horaires_vacances",
   "delai_prevenance", "planning", "delai_planning", "tarif_complementaire", "taux_majoration", "repas_fournis", "frais_km",
   "jour_paiement", "repos_jour", "repos_travaille", "premier_mai", "feries_travailles", "ferie_majoration", "conges_paiement",
   "conditions_particulieres"];
 const CHAMPS_SIMPLES = MODIFIABLES.filter((k) => !k.startsWith("horaires") && k !== "feries_travailles");
+// Conditions comparées d'une version à l'autre : l'entretien par jour se déduit du montant horaire et des horaires.
+const COMPAREES = MODIFIABLES.filter((k) => k !== "entretien_jour");
 // Valeurs proposées pour une nouvelle fiche (les autres champs commencent vides).
 const DEFAUTS_CONTRAT = { semaines: "52", taux_majoration: "10", ferie_majoration: "10", repos_jour: "dimanche",
   premier_mai: "chome" };
@@ -1359,12 +1361,13 @@ const ICONES = {
   vider: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
 };
 const TITRES_OUTILS = { copier: "Copier cette plage", coller: "Coller la plage copiée ici", vider: "Vider cette plage" };
+const titreOutil = (o, n) => (o === "vider" && n ? "Retirer la coupure" : TITRES_OUTILS[o]);
 const plage = (periode, jour, n) => `<span class="plage" data-plage="${n}">
   <input type="time" step="300" data-h="${periode}.${jour}.${n}.debut" aria-label="${PERIODES[periode]}, ${jour}, arrivée${n ? " (2e plage)" : ""}">
   <span aria-hidden="true">à</span>
   <input type="time" step="300" data-h="${periode}.${jour}.${n}.fin" aria-label="${PERIODES[periode]}, ${jour}, départ${n ? " (2e plage)" : ""}">
   <span class="outils-plage">${Object.keys(ICONES).map((o) => `<button type="button" class="icone" data-outil="${o}"
-    data-cible="${periode}.${jour}.${n}" title="${TITRES_OUTILS[o]}" aria-label="${TITRES_OUTILS[o]} (${jour})">${ICONES[o]}</button>`).join("")}</span></span>`;
+    data-cible="${periode}.${jour}.${n}" title="${titreOutil(o, n)}" aria-label="${titreOutil(o, n)} (${jour})">${ICONES[o]}</button>`).join("")}</span></span>`;
 const celluleHoraires = (periode, jour) => `<td class="${periode === "vacances" ? "col-vacances" : ""}" data-titre="${PERIODES[periode]}"><div class="plages">
   ${plage(periode, jour, 0)}${plage(periode, jour, 1)}
   <button type="button" class="lien ajout-plage" data-coupure="${periode}.${jour}">+ Coupure</button></div></td>`;
@@ -1479,7 +1482,50 @@ formContrat.elements.tarif_complementaire.addEventListener("input", () => affich
 formContrat.elements.taux_majoration.addEventListener("input", () => afficherNetHoraire("taux_majoration"));
 $("#tarif-majore").addEventListener("input", () => afficherNetHoraire("tarif-majore"));
 formContrat.elements.tarif_horaire.addEventListener("input", () => { afficherNetHoraire("tarif_horaire"); afficherResume(); });
-["entretien_jour", "repas_jour"].forEach((k) => formContrat.elements[k].addEventListener("input", afficherResume));
+["entretien_horaire", "repas_jour"].forEach((k) => formContrat.elements[k].addEventListener("input", afficherResume));
+
+// Indemnité d'entretien : saisie à l'heure ; le montant de chaque journée = montant horaire × durée de la journée.
+// entretien_jour (champ caché) garde le montant d'une journée moyenne, pour les estimations par mois.
+const ENTRETIEN_MINIMUM = 2.65;       // € par jour, quelle que soit la durée de la journée
+const eurosPrecis = (n) => n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + " €";
+function calculerEntretien(scolaire, vacances) {
+  const horaire = nombreFr(formContrat.elements.entretien_horaire.value);
+  const durees = [scolaire, vacances].flatMap((h) => (h ? JOURS.filter((j) => h[j]).map((j) => dureeJour(h[j])) : [])).filter((d) => d > 0);
+  const ecole = scolaire ? JOURS.filter((j) => scolaire[j]).map((j) => dureeJour(scolaire[j])).filter((d) => d > 0) : [];
+  const moyenne = ecole.length ? ecole.reduce((a, b) => a + b, 0) / ecole.length : 0;
+  formContrat.elements.entretien_jour.value = horaire && moyenne ? String(Math.round(horaire * moyenne * 100) / 100).replace(".", ",") : "";
+  if (!horaire || !durees.length) return calcule("entretien-jour", "", horaire ? "Saisissez les horaires pour le calculer." : "");
+  const e = entretienParJour(horaire, durees);
+  calcule("entretien-jour", e.valeur, e.aide);
+}
+// Montant d'une journée (2,65 € au moins) pour chaque durée de journée : « 3,60 € » ou « 2,65 € à 4,75 € ».
+function entretienParJour(horaire, durees) {
+  const min = Math.min(...durees), max = Math.max(...durees);
+  const jour = (d) => Math.max(ENTRETIEN_MINIMUM, horaire * d);
+  return { valeur: min === max ? euros(jour(min), 2) : `${euros(jour(min), 2)} à ${euros(jour(max), 2)}`,
+    aide: (min === max ? `Journée de ${heuresFr(min)}` : `Selon la journée, de ${heuresFr(min)} à ${heuresFr(max)}`)
+      + (horaire * min < ENTRETIEN_MINIMUM ? ` · ${euros(ENTRETIEN_MINIMUM, 2)} au moins pour une journée courte` : "") };
+}
+
+// Valeurs calculées d'une version du contrat (mensualisation, salaire, entretien par jour…), pour les montrer
+// dans le résumé d'un avenant quand elles changent.
+function calculsVersion(v) {
+  const semaines = Math.min(52, Math.max(0, parseInt(v.semaines, 10) || 0));
+  const differentes = Object.values(v.horaires_vacances || {}).some(Boolean);
+  const scolaire = resumeSemaine(v.horaires_scolaire || {});
+  const vacances = differentes ? resumeSemaine(v.horaires_vacances) : null;
+  const tarif = nombreFr(v.tarif_horaire);
+  const r = {};
+  const m = scolaire && semaines ? mensuel(semaines, scolaire, vacances, differentes) : null;
+  r["Heures mensualisées"] = m ? `${heuresFr(m.heuresMois)} par mois` : "—";
+  r["Salaire mensuel de base"] = m && tarif ? `${euros(m.heuresMois * tarif)} brut, ≈ ${euros(m.heuresMois * tarif * tauxNet())} net` : "—";
+  r["Salaire horaire net (indicatif)"] = tarif ? `≈ ${euros(tarif * tauxNet(), 2)}` : "—";
+  const horaire = nombreFr(v.entretien_horaire);
+  const durees = [v.horaires_scolaire, differentes ? v.horaires_vacances : null]
+    .flatMap((h) => (h ? JOURS.filter((j) => h[j]).map((j) => dureeJour(h[j])) : [])).filter((d) => d > 0);
+  r["Indemnité d'entretien par jour"] = horaire && durees.length ? entretienParJour(horaire, durees).valeur : "—";
+  return r;
+}
 
 // Semaines d'école dans l'année (calendrier scolaire), pour estimer la mensualisation quand les
 // horaires des vacances sont différents.
@@ -1495,6 +1541,7 @@ function mensuel(semaines, scolaire, vacances, differentes) {
 
 function afficherResume() {
   const differentes = $("#vacances-differentes").checked;
+  calculerEntretien(lireHoraires("scolaire"), differentes ? lireHoraires("vacances") : null);
   const scolaire = resumeSemaine(lireHoraires("scolaire"));
   const vacances = differentes ? resumeSemaine(lireHoraires("vacances")) : null;
   const ligne = (titre, r) => `<p><strong>${titre} : ${heuresFr(r.total)} par semaine</strong>, sur ${r.jours.length}
@@ -1598,6 +1645,9 @@ formContrat.elements.adaptation_fin.addEventListener("input", calculerAdaptation
 
 $("#horaires-contrat").addEventListener("input", afficherResume);
 let plageCopiee = null;     // [arrivée, départ] de la dernière plage copiée
+// Copier, coller, vider, coupure, recopier : les heures changent sans saisie au clavier ; on prévient comme une saisie
+// (résumé, modification repérée dans un avenant, bouton « Enregistrer les modifications »).
+const horairesChanges = () => $("#horaires-contrat").dispatchEvent(new Event("input", { bubbles: true }));
 $("#horaires-contrat").addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
@@ -1610,10 +1660,14 @@ $("#horaires-contrat").addEventListener("click", (e) => {
       $("#horaires-contrat").classList.add("a-coller");
       $$("#horaires-contrat .plage.copiee").forEach((x) => x.classList.remove("copiee"));
       b.closest(".plage").classList.add("copiee");
+      return;                                     // copier ne change rien
     } else if (b.dataset.outil === "coller" && plageCopiee) [debut.value, fin.value] = plageCopiee;
-    else if (b.dataset.outil === "vider") { debut.value = ""; fin.value = ""; }
+    else if (b.dataset.outil === "vider") {
+      debut.value = ""; fin.value = "";
+      if (+n) afficherCoupure(p, j, false);       // la coupure vidée disparaît : « + Coupure » revient
+    }
     marquerRemplis(b.closest(".plage"));
-    afficherResume();
+    horairesChanges();
     return;
   }
   if (b.dataset.coupure) {
@@ -1627,7 +1681,7 @@ $("#horaires-contrat").addEventListener("click", (e) => {
       [0, 1].forEach((n) => ["debut", "fin"].forEach((bout) => (champH(p, j, n, bout).value = champH(p, "lundi", n, bout).value)));
       afficherCoupure(p, j, !!champH(p, j, 1, "debut").value);
     });
-    afficherResume();
+    horairesChanges();
   }
 });
 formContrat.elements.semaines.addEventListener("input", afficherResume);
@@ -1640,7 +1694,7 @@ $("#vacances-differentes").addEventListener("change", afficherColonneVacances);
 
 // --- contrat initial et avenants
 const LIBELLES = { semaines: "semaines d'accueil", accueil: "type d'accueil", tarif_horaire: "tarif horaire",
-  entretien_jour: "indemnité d'entretien", repas_jour: "indemnité de repas", horaires_scolaire: "horaires (période scolaire)", horaires_vacances: "horaires (vacances)",
+  entretien_horaire: "indemnité d'entretien", entretien_jour: "indemnité d'entretien par jour", repas_jour: "indemnité de repas", horaires_scolaire: "horaires (période scolaire)", horaires_vacances: "horaires (vacances)",
   delai_prevenance: "délai de prévenance", planning: "planning", delai_planning: "délai du planning",
   tarif_complementaire: "tarif des heures complémentaires", taux_majoration: "majoration au-delà de 45 h",
   repas_fournis: "repas fournis par", frais_km: "frais de déplacement", jour_paiement: "date de paiement du salaire",
@@ -1696,7 +1750,7 @@ function chargerVersion(i) {
       formContrat.elements.signature_date.value = v.signature_date || "";
     }
     const avant = versions[i - 1];
-    const changes = MODIFIABLES.filter((k) => !memeValeur(v[k], avant[k])).map((k) => LIBELLES[k]);
+    const changes = COMPAREES.filter((k) => !memeValeur(v[k], avant[k])).map((k) => LIBELLES[k]);
     $("#changements-avenant").textContent = changes.length
       ? `Ce qui change par rapport ${i > 1 ? "à l'avenant précédent" : "au contrat initial"} : ${changes.join(", ")}.`
       : "Modifiez ci-dessous les conditions qui changent à partir de cette date.";
@@ -1821,7 +1875,7 @@ async function chargerSuggestions() {
   $("#liste-parents-bulletins").innerHTML = suggestions.familles.flatMap((f) => f.parents.map((p) =>
     `<option value="${echapper(p.nom)}">${echapper([texteParent(p), f.enfants.join(", ")].filter(Boolean).join(" · "))}</option>`)).join("");
   $("#liste-tarifs").innerHTML = options(suggestions.champs.tarif_horaire || []);
-  $("#liste-entretiens").innerHTML = options(suggestions.champs.entretien_jour || []);
+  $("#liste-entretiens").innerHTML = options(suggestions.champs.entretien_horaire || []);
   $("#liste-repas").innerHTML = options(suggestions.champs.repas_jour || []);
   $("#liste-villes").innerHTML = options(familles.map((f) => f.ville));
   return suggestions;
@@ -1869,9 +1923,16 @@ function versionsDe(c) {
     liste.push({ ...structuredClone(liste[liste.length - 1]),
       ...Object.fromEntries(MODIFIABLES.filter((k) => k in a).map((k) => [k, structuredClone(a[k])])),
       id: a.id, date: a.date, motif: a.motif, signature_lieu: a.signature_lieu || "", signature_date: a.signature_date || "" });
+  // Anciennes fiches : entretien saisi par jour, ramené à l'heure pour la journée la plus longue.
+  liste.forEach((v, i) => {
+    if (nombreFr((i ? c.avenants[i - 1] : c)?.entretien_horaire)) return;
+    const jour = nombreFr(v.entretien_jour);
+    const journee = Math.max(0, ...JOURS.map((j) => dureeJour(v.horaires_scolaire?.[j] || "")));
+    if (jour && journee) v.entretien_horaire = String(Math.round(jour / journee * 1000) / 1000).replace(".", ",");
+  });
   return liste;
 }
-const changementsEntre = (avant, apres) => MODIFIABLES.filter((k) => !memeValeur(avant[k], apres[k])).map((k) => LIBELLES[k]);
+const changementsEntre = (avant, apres) => COMPAREES.filter((k) => !memeValeur(avant[k], apres[k])).map((k) => LIBELLES[k]);
 
 let enfantOuvert = "";          // fiche enfant dépliée (id), gardée quand la liste est redessinée
 // Familles repliées par défaut ; celles que l'on ouvre restent ouvertes tant que l'application est affichée.
@@ -1896,9 +1957,10 @@ function resumeEnVigueur(c, v) {
   if (tarif) ligne("Salaire horaire", `${euros(tarif, 2)} brut`, `≈ ${euros(tarif * tauxNet(), 2)} net`);
   const m = scolaire && mensuel(semaines, scolaire, vacances, differentes);
   if (m) ligne("Mensualisation", `${heuresFr(m.heuresMois)} par mois`, tarif ? `${euros(m.heuresMois * tarif)} brut, ≈ ${euros(m.heuresMois * tarif * tauxNet())} net` : "");
-  const indemnites = [nombreFr(v.entretien_jour) && `entretien ${euros(nombreFr(v.entretien_jour), 2)}`,
-    nombreFr(v.repas_jour) && `repas ${euros(nombreFr(v.repas_jour), 2)}`].filter(Boolean);
-  if (indemnites.length) ligne("Indemnités par jour", indemnites.join(", "));
+  const indemnites = [nombreFr(v.entretien_horaire) ? `entretien ${eurosPrecis(nombreFr(v.entretien_horaire))} de l'heure`
+      : nombreFr(v.entretien_jour) && `entretien ${euros(nombreFr(v.entretien_jour), 2)} par jour`,
+    nombreFr(v.repas_jour) && `repas ${euros(nombreFr(v.repas_jour), 2)} par jour`].filter(Boolean);
+  if (indemnites.length) ligne("Indemnités", indemnites.join(", "));
   if (v.jour_paiement) ligne("Paiement du salaire", `le ${echapper(v.jour_paiement)} du mois`, PAIEMENT_CONGES[v.conges_paiement] ? `congés ${PAIEMENT_CONGES[v.conges_paiement]}` : "");
   return lignes.length ? `<dl class="resume-contrat">${lignes.join("")}</dl>` : `<p class="petit">Conditions à compléter : « Modifier le contrat ».</p>`;
 }
@@ -2263,7 +2325,24 @@ const PROFIL_CONTRAT = { nom: "nom", prenom: "prénom", adresse: "adresse", code
   numero_secu: "n° de Sécurité sociale", agrement_numero: "référence de l'agrément", agrement_debut: "date de l'agrément",
   assurance_rc_compagnie: "assurance responsabilité civile professionnelle" };
 
+// Fiche déjà enregistrée, modifiée avec l'assistant : dès qu'un champ change, « Enregistrer les modifications »
+// apparaît à côté de « Suivant » (inutile de passer toutes les étapes).
+let modifsAssistant = false;
+function noterModifAssistant() {
+  if (modeSaisie !== "modification" || !formContrat.classList.contains("assistant")) return;
+  modifsAssistant = true;
+  majBoutonEnregistrer();
+}
+const majBoutonEnregistrer = () => $("#assistant-enregistrer").classList.toggle("cache",
+  !modifsAssistant || modeSaisie !== "modification" || etapeActive === etapes().length - 1);
+formContrat.addEventListener("input", noterModifAssistant);
+formContrat.addEventListener("change", noterModifAssistant);
+formContrat.addEventListener("click", (e) => {
+  if (e.target.closest("[data-retablir]")) noterModifAssistant();
+});
+
 function modeAssistant(actif) {
+  modifsAssistant = false;
   formContrat.classList.toggle("assistant", actif);
   document.body.classList.toggle("assistant-ouvert", actif);
   $("#assistant-fin").classList.add("cache");
@@ -2304,6 +2383,7 @@ function allerEtape(n) {
   $("#assistant-plan [aria-current]")?.scrollIntoView({ block: "nearest", inline: "center" });
   $("#assistant-precedent").classList.toggle("invisible", !etapeActive);
   $("#assistant-suivant").textContent = reste ? "Suivant" : modeSaisie === "avenant" ? "Enregistrer l'avenant" : "Enregistrer la fiche";
+  majBoutonEnregistrer();
   if (liste[etapeActive].dataset.etape === "signature") (modeSaisie === "avenant" ? afficherRecapAvenant : afficherRecapitulatif)();
   if (liste[etapeActive].dataset.etape === "avenant") $("#resume-avant").innerHTML = `<h3 class="sous-titre">${
     versionActive > 1 ? `Conditions de l'avenant n° ${versionActive - 1}` : "Conditions du contrat de travail"} (avant cet avenant)</h3>
@@ -2329,7 +2409,7 @@ function etapeValide(el) {
   }
   if (el.dataset.etape === "signature" && modeSaisie === "avenant") {
     sauverVersion();
-    if (!MODIFIABLES.some((k) => !memeValeur(versions[versionActive - 1][k], versions[versionActive][k]))) {
+    if (!COMPAREES.some((k) => !memeValeur(versions[versionActive - 1][k], versions[versionActive][k]))) {
       alert("Cet avenant ne change aucune condition : modifiez au moins une rubrique (horaires, salaire…) aux étapes précédentes.");
       return false;
     }
@@ -2346,6 +2426,15 @@ $("#assistant-suivant").addEventListener("click", () => {
   if (etapeActive < etapes().length - 1) { allerEtape(etapeActive + 1); return; }
   // Enregistrement : toutes les étapes doivent être complètes (on a pu en sauter en cliquant sur leur titre).
   for (let i = 0; i < etapes().length; i++) {
+    allerEtape(i);
+    if (!etapeValide(etapes()[i])) return;
+  }
+  formContrat.requestSubmit();
+});
+$("#assistant-enregistrer").addEventListener("click", () => {
+  if (!etapeValide(etapes()[etapeActive])) return;
+  for (let i = 0; i < etapes().length; i++) {
+    if (!etapes()[i].querySelector(":invalid") && etapeValide(etapes()[i])) continue;
     allerEtape(i);
     if (!etapeValide(etapes()[i])) return;
   }
@@ -2459,7 +2548,7 @@ function afficherRecapitulatif() {
       <li>Employeur : ${echapper([el.f_parent1_civilite.value, el.f_parent1_prenom.value, el.f_parent1_nom.value].filter(Boolean).join(" "))}</li>
       <li>${el.semaines.value} semaines par an${h ? `, ${heuresFr(h.total)} par semaine sur ${h.jours.length} jour${h.jours.length > 1 ? "s" : ""}` : ""}</li>
       <li>${el.tarif_horaire.value ? `${echapper(el.tarif_horaire.value)} € brut de l'heure` : "Tarif à compléter"}${
-        el.entretien_jour.value ? `, entretien ${echapper(el.entretien_jour.value)} € par jour` : ""}, salaire versé le ${echapper(el.jour_paiement.value)} du mois</li>
+        el.entretien_horaire.value ? `, entretien ${echapper(el.entretien_horaire.value)} € de l'heure` : ""}, salaire versé le ${echapper(el.jour_paiement.value)} du mois</li>
     </ul>
     ${manquants.length ? `<p class="alerte-texte">Votre profil ne contient pas encore : ${manquants.join(", ")}. Ces rubriques
       resteront vides dans le contrat ; vous pourrez les compléter dans « Mon profil » puis recréer le PDF.</p>` : ""}
@@ -2474,19 +2563,23 @@ function texteCondition(k, v) {
   const brut = valeurAffichee(k, v);
   const texte = champ.tagName === "SELECT" ? [...champ.options].find((o) => o.value === brut)?.textContent.trim() : brut;
   if (!texte || texte === "—") return "non précisé";
-  const unite = { tarif_horaire: " €", tarif_complementaire: " €", entretien_jour: " €", repas_jour: " €", frais_km: " €",
+  const unite = { tarif_horaire: " €", tarif_complementaire: " €", entretien_horaire: " € de l'heure", entretien_jour: " €", repas_jour: " €", frais_km: " €",
     taux_majoration: " %", ferie_majoration: " %" }[k] || "";
   return texte + (unite && /\d$/.test(texte) ? unite : "");
 }
 function afficherRecapAvenant() {
   sauverVersion();
   const v = versions[versionActive], avant = versions[versionActive - 1];
-  const changes = MODIFIABLES.filter((k) => !memeValeur(avant[k], v[k]));
+  const changes = COMPAREES.filter((k) => !memeValeur(avant[k], v[k]));
+  const calculsAvant = calculsVersion(avant), calculsApres = calculsVersion(v);
+  const calcules = Object.keys(calculsApres).filter((k) => calculsAvant[k] !== calculsApres[k]);
   $("#recapitulatif").innerHTML = `<h3 class="sous-titre">Ce qui change le ${v.date ? dateFr(v.date) : "(date à choisir)"}</h3>
     ${changes.length ? `<table class="tableau-changements"><thead><tr><th scope="col">Condition</th><th scope="col">Avant</th>
       <th scope="col">À partir du ${v.date ? dateFr(v.date) : "…"}</th></tr></thead><tbody>${changes.map((k) => `<tr>
       <th scope="row">${LIBELLES[k].charAt(0).toUpperCase() + LIBELLES[k].slice(1)}</th>
-      <td>${echapper(texteCondition(k, avant))}</td><td><strong>${echapper(texteCondition(k, v))}</strong></td></tr>`).join("")}</tbody></table>
+      <td>${echapper(texteCondition(k, avant))}</td><td><strong>${echapper(texteCondition(k, v))}</strong></td></tr>`).join("")}${
+      calcules.map((k) => `<tr class="ligne-calculee"><th scope="row">${k} <span class="mention calcule">calculé</span></th>
+      <td>${echapper(calculsAvant[k])}</td><td><strong>${echapper(calculsApres[k])}</strong></td></tr>`).join("")}</tbody></table>
       <p class="petit">Les autres clauses du contrat restent inchangées.</p>`
     : `<p class="alerte-texte">Aucune condition n'a changé : revenez aux étapes précédentes pour modifier ce qui change.</p>`}`;
 }

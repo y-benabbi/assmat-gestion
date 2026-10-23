@@ -86,6 +86,13 @@ def main():
     v = ct.valeurs_contrat(PROFIL, FAMILLE, {**fiche, "essai": "aucune", "repos_travaille": "", "avenants": []}, 0.78)
     assert v["Contrat_ESSAI"] == "Pas de période d'essai" and "REPOS" not in v, v
 
+    # Entretien saisi à l'heure : repris tel quel (jusqu'au millième) ; un avenant ne cite que le montant horaire.
+    v = ct.valeurs_contrat(PROFIL, FAMILLE, {**fiche, "entretien_horaire": "0,375", "avenants": []}, 0.78)
+    assert v["ENTRETIEN_montant"] == "0,375" and v["ENTRETIEN_heures"] == "9", v
+    lignes = ct.changements({**FICHE, "entretien_jour": "4,05"}, {**FICHE, "entretien_horaire": "0,50", "entretien_jour": "4,50"}, 0.78)
+    assert lignes == [("Indemnité d'entretien", "4,05 € par jour", "0,50 € par heure d'accueil"),
+                      ("Indemnité d'entretien par jour", "4,05 €", "3,75 € à 4,50 €")], lignes
+
     # Brouillons de l'assistant : enregistrés à part, sans compter comme fiche enfant.
     b = donnees.enregistrer_brouillon({"etape": 3, "contrat": {"famille": "Dupont", "enfant_prenom": "Noé"}, "famille": "invalide"})
     assert donnees.brouillons()[0]["id"] == b["id"] and b["famille"] == {} and len(donnees.contrats()) == 1
