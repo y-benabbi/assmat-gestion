@@ -301,7 +301,9 @@ Tester l'installateur sans toucher au vrai `%LOCALAPPDATA%` : dans PowerShell, d
   compacte à gauche (`.filtres-photos` : recherche, enfants en groupes dépliables `photos.enfants()` — « derniers » gardés
   le dernier jour de garde, « mois » ces 31 jours, « autres » —, activités), photos rangées à droite. Pendant le tri
   (classes `tri-ouvert` / `glisse` sur `#tri-photos`), les lignes des enfants gardent leur taille (demande de Yannis : on dépose surtout dans la zone des photos ; un enfant survolé reste une cible). « À trier » = bouton fixe en bas à droite (`#bouton-a-trier`, pastille) qui ouvre un grand panneau
-  (`ouvrirATrier`, Échap) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
+  (`ouvrirATrier`, Échap) à trois onglets (`vueTri`, `choisirVueTri`) : « À ranger », « Hors horaires », « Ignorées » (aperçus des
+  deux derniers chargés seulement quand leur onglet est ouvert) ; on glisse des photos sur un onglet (`depotOnglet` :
+  « Ignorées » ← à ranger ou hors horaires, « À ranger » ← hors horaires, ignorées ou rangées ; `mettreDeCote`) ; la sélection (à trier OU rangées, jamais les deux) s'affiche dans `#barre-photos`, fixée en bas,
   pour ne jamais décaler les photos. Bouton maintenu sur le rond `.coche-vignette` puis glissé = sélection de la photo de départ à la dernière survolée
   (`demarrerSelectionGlissee`, retire si la photo de départ était choisie) ; ce geste ne lance jamais le glisser-déposer. Clic bref sur la photo (hors du rond, sans Maj/Ctrl) : menu
   `menuPhoto` (Voir = visionneuse `voirPhoto`, ←/→/Échap ; Afficher dans le dossier ; Sélectionner ; Supprimer = `photos.supprimer`,

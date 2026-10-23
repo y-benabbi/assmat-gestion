@@ -269,20 +269,28 @@
           <button type="button" class="fermer-panneau" id="fermer-a-trier" title="Fermer (Échap)" aria-label="Fermer"
             data-picto="fermer"></button>
         </div>
+        <div class="versions onglets-a-trier" role="tablist" aria-label="Photos à trier">
+          <button type="button" role="tab" class="actif" aria-selected="true" data-vue-tri="ranger"
+            title="Photos prises pendant l'accueil, à ranger pour les enfants">À ranger <span class="compte-onglet" id="nb-vue-ranger"></span></button>
+          <button type="button" role="tab" aria-selected="false" data-vue-tri="hors"
+            title="Photos prises en dehors des horaires d'accueil (marge réglable dans les Paramètres)">Hors horaires <span class="compte-onglet" id="nb-hors"></span></button>
+          <button type="button" role="tab" aria-selected="false" data-vue-tri="ignorees"
+            title="Photos que vous avez choisi de ne pas ranger">Ignorées <span class="compte-onglet" id="nb-ignorees"></span></button>
+        </div>
         <div class="corps-a-trier">
-          <div id="groupes-a-trier" class="groupes-a-trier"></div>
-          <p class="zone-depot" id="zone-depot" title="Les photos déposées ici sont copiées : l'original reste où il est.">
-            Glissez ici des photos depuis l'Explorateur, ou ouvrez le <button class="lien" data-ouvrir="a_trier">dossier À trier</button>.</p>
-          <details class="mis-de-cote" id="bloc-hors">
-            <summary title="Prises en dehors des horaires d'accueil (marge réglable dans les Paramètres)">Hors horaires <span id="nb-hors"></span></summary>
-            <div class="grille-photos petite" id="grille-hors"></div>
-            <button class="secondaire" id="remettre-hors" disabled>Remettre à trier</button>
-          </details>
-          <details class="mis-de-cote" id="bloc-ignorees">
-            <summary>Ignorées <span id="nb-ignorees"></span></summary>
-            <div class="grille-photos petite" id="grille-ignorees"></div>
-            <button class="secondaire" id="remettre-ignorees" disabled>Remettre à trier</button>
-          </details>
+          <div id="vue-tri-ranger" role="tabpanel">
+            <div id="groupes-a-trier" class="groupes-a-trier"></div>
+            <p class="zone-depot" id="zone-depot" title="Les photos déposées ici sont copiées : l'original reste où il est.">
+              Glissez ici des photos depuis l'Explorateur, ou ouvrez le <button class="lien" data-ouvrir="a_trier">dossier À trier</button>.</p>
+          </div>
+          <div id="vue-tri-hors" role="tabpanel" class="cache">
+            <div class="grille-photos" id="grille-hors"></div>
+            <button class="secondaire remettre-a-trier" id="remettre-hors" disabled>Remettre à ranger</button>
+          </div>
+          <div id="vue-tri-ignorees" role="tabpanel" class="cache">
+            <div class="grille-photos" id="grille-ignorees"></div>
+            <button class="secondaire remettre-a-trier" id="remettre-ignorees" disabled>Remettre à ranger</button>
+          </div>
         </div>
       </div>
     </div>

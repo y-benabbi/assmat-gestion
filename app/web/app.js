@@ -3198,7 +3198,9 @@ document.addEventListener("click", (e) => {
 
 // Panneau « À trier » (Échap ou la croix le referment).
 function ouvrirATrier(oui) {
+  const deja = !$("#colonne-a-trier").classList.contains("cache");
   $("#colonne-a-trier").classList.toggle("cache", !oui);
+  if (oui && !deja && vueTri !== "ranger" && donneesPhotos) afficherMisDeCote();
   $("#tri-photos").classList.toggle("tri-ouvert", oui);
   $("#bouton-a-trier").setAttribute("aria-expanded", String(oui));
   if (!oui) viderTri();
@@ -3500,11 +3502,30 @@ async function rangerSelection(enfants, seanceImposee) {
   });
 }
 $("#ranger").addEventListener("click", () => rangerSelection([...enfantsTri]));
-$("#ignorer").addEventListener("click", async () => {
-  await api("photos/ignorer", { cles: [...selTri], ignorer: true }).catch((e) => alert(e.message));
-  selTri.clear();
-  afficherPhotos();
-});
+$("#ignorer").addEventListener("click", () => mettreDeCote([...selTri], true));
+
+// Ignorer (oui) ou remettre à ranger (non) : les photos changent d'onglet tout de suite, l'index suit.
+function mettreDeCote(cles, oui) {
+  const choisies = new Set(cles);
+  const sources = oui ? ["a_trier", "hors_horaires"] : ["hors_horaires", "ignorees"];
+  const parties = [];
+  sources.forEach((k) => {
+    donneesPhotos[k] = donneesPhotos[k].filter((e) => (choisies.has(e.cle) && !e.enCours ? (parties.push(e), false) : true));
+  });
+  if (!parties.length) return;
+  [selTri, selHors, selIgnorees].forEach((sel) => parties.forEach((e) => sel.delete(e.cle)));
+  if (oui) {
+    donneesPhotos.ignorees.push(...parties);
+    donneesPhotos.ignorees.sort((a, b) => quandPhoto(b).localeCompare(quandPhoto(a)));
+  } else {
+    donneesPhotos.a_trier.push(...parties);
+    trierATrier(donneesPhotos.a_trier);
+  }
+  badgePhotos();
+  afficherATrier();
+  afficherMisDeCote();
+  enFile(() => api("photos/ignorer", { cles: parties.map((e) => e.cle), ignorer: oui }).catch((e) => alert(e.message)));
+}
 $("#groupes-a-trier").addEventListener("dblclick", (e) => {
   const v = e.target.closest("[data-cle]");
   if (v && !e.target.closest(".coche-vignette")) { fermerMenu(); voirPhoto(donneesPhotos.a_trier, { cle: v.dataset.cle }); }
@@ -3612,6 +3633,36 @@ const RANGEES_GLISSEES = "application/x-assmat-rangees";
     }
   });
 });
+// Onglets du panneau comme cibles : « Ignorées » reçoit des photos à ranger ou hors horaires, « À ranger » reçoit des
+// photos hors horaires, ignorées ou déjà rangées.
+const MISES_GLISSEES = "application/x-assmat-mises";
+function depotOnglet(e, vue) {
+  const t = e.dataTransfer?.types || [];
+  if (vue === "ignorees") return t.includes(PHOTOS_GLISSEES) || t.includes(`${MISES_GLISSEES}-hors`);
+  if (vue === "ranger") return t.includes(MISES_GLISSEES) || t.includes(RANGEES_GLISSEES);
+  return false;
+}
+$$("[data-vue-tri]").forEach((b) => {
+  b.addEventListener("dragover", (e) => {
+    if (!depotOnglet(e, b.dataset.vueTri)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    b.classList.add("survol");
+  });
+  b.addEventListener("dragleave", () => b.classList.remove("survol"));
+  b.addEventListener("drop", (e) => {
+    b.classList.remove("survol");
+    if (!depotOnglet(e, b.dataset.vueTri)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    $("#colonne-a-trier").classList.remove("depot-actif");
+    const d = e.dataTransfer;
+    if (b.dataset.vueTri === "ignorees") mettreDeCote((d.getData(PHOTOS_GLISSEES) || d.getData(MISES_GLISSEES)).split(","), true);
+    else if (d.getData(RANGEES_GLISSEES)) remettreRangees(d.getData(RANGEES_GLISSEES).split(","));
+    else mettreDeCote(d.getData(MISES_GLISSEES).split(","), false);
+  });
+});
+
 async function deposerFichiers(fichiers) {
   ouvrirATrier(true);
   const donnees = new FormData();
@@ -3757,6 +3808,7 @@ function remettreRangees(numeros) {
   const parties = donneesPhotos.rangees.filter((r) => retour.has(r.numero) && !r.enCours);
   if (!parties.length) return;
   numeros.forEach((n) => selRangees.delete(n));
+  if (vueTri !== "ranger") choisirVueTri("ranger");     // elles reviennent dans « À ranger » : on les y montre
   donneesPhotos.rangees = donneesPhotos.rangees.filter((r) => !parties.includes(r));
   const attente = parties.map((r) => ({ cle: `attente-${r.numero}`, numero: r.numero, apercu: `numero=${r.numero}`, genre: r.genre,
     nom: `${r.genre === "video" ? "Vidéo" : "Photo"} ${r.numero}`, date: r.date, date_fichier: r.date, proposes: [], doublon: "",
@@ -3889,21 +3941,38 @@ $("#enregistrer-editeur").addEventListener("click", async () => {
 });
 
 // --- hors horaires et ignorées
+// Le panneau « À trier » a trois onglets : À ranger, Hors horaires, Ignorées. Les aperçus des deux derniers ne sont
+// chargés que lorsque leur onglet est ouvert (il peut y avoir beaucoup de photos personnelles).
+let vueTri = "ranger";
+function choisirVueTri(vue) {
+  vueTri = vue;
+  $$("[data-vue-tri]").forEach((b) => {
+    b.classList.toggle("actif", b.dataset.vueTri === vue);
+    b.setAttribute("aria-selected", String(b.dataset.vueTri === vue));
+  });
+  ["ranger", "hors", "ignorees"].forEach((v) => $(`#vue-tri-${v}`).classList.toggle("cache", v !== vue));
+  $("#tout-a-trier").classList.toggle("cache", vue !== "ranger");
+  $(".corps-a-trier").scrollTo(0, 0);
+  if (donneesPhotos) afficherMisDeCote();
+}
+$$("[data-vue-tri]").forEach((b) => b.addEventListener("click", () => choisirVueTri(b.dataset.vueTri)));
+
 function afficherMisDeCote() {
-  [["hors_horaires", "#grille-hors", "#nb-hors", "#remettre-hors", selHors, "#bloc-hors"],
-    ["ignorees", "#grille-ignorees", "#nb-ignorees", "#remettre-ignorees", selIgnorees, "#bloc-ignorees"]]
-    .forEach(([cle, grille, nb, bouton, sel, bloc]) => {
+  $("#nb-vue-ranger").textContent = donneesPhotos.a_trier.length || "";
+  [["hors_horaires", "hors", "#grille-hors", "#nb-hors", "#remettre-hors", selHors, "Aucune photo prise en dehors des horaires."],
+    ["ignorees", "ignorees", "#grille-ignorees", "#nb-ignorees", "#remettre-ignorees", selIgnorees, "Aucune photo ignorée."]]
+    .forEach(([cle, vue, grille, nb, bouton, sel, vide]) => {
       const liste = donneesPhotos[cle];
-      $(nb).textContent = `(${liste.length})`;
-      $(bloc).classList.toggle("cache", !liste.length);
-      // Les aperçus ne sont chargés qu'à l'ouverture du bloc (il peut y avoir beaucoup de photos personnelles).
-      rendreParTranches($(grille), $(bloc).open ? liste.map((e) => ({ html: () => vignette(e, `data-cle="${e.cle}"`, sel.has(e.cle)) })) : [], "");
+      $(nb).textContent = liste.length || "";
+      const ouvert = vueTri === vue && !$("#colonne-a-trier").classList.contains("cache");
+      rendreParTranches($(grille), ouvert ? liste.map((e) => ({ html: () => vignette(e, `data-cle="${e.cle}"`, sel.has(e.cle)) })) : [],
+        ouvert ? `<p class="vide-photos">${picto("coche")}${vide}</p>` : "");
+      $(bouton).classList.toggle("cache", !liste.length);
       $(bouton).disabled = !sel.size;
     });
 }
-[["#bloc-hors", "#grille-hors", selHors, "#remettre-hors"], ["#bloc-ignorees", "#grille-ignorees", selIgnorees, "#remettre-ignorees"]]
-  .forEach(([bloc, grille, sel, bouton]) => {
-    $(bloc).addEventListener("toggle", () => donneesPhotos && afficherMisDeCote());
+[["#grille-hors", selHors, "#remettre-hors"], ["#grille-ignorees", selIgnorees, "#remettre-ignorees"]]
+  .forEach(([grille, sel, bouton]) => {
     $(grille).addEventListener("click", (e) => {
       const v = e.target.closest("[data-cle]");
       if (!v) return;
@@ -3923,10 +3992,21 @@ function afficherMisDeCote() {
         voirPhoto(grille === "#grille-hors" ? donneesPhotos.hors_horaires : donneesPhotos.ignorees, { cle: v.dataset.cle });
       }
     });
-    $(bouton).addEventListener("click", async () => {
-      await api("photos/ignorer", { cles: [...sel], ignorer: false }).catch((e) => alert(e.message));
-      sel.clear();
-      afficherPhotos();
+    $(bouton).addEventListener("click", () => mettreDeCote([...sel], false));
+    // Glisser des photos hors horaires ou ignorées sur l'onglet « À ranger » (ou des hors horaires sur « Ignorées »).
+    $(grille).addEventListener("dragstart", (e) => {
+      const v = e.target.closest("[data-cle]");
+      if (selectionGlissee) { e.preventDefault(); return; }
+      if (!v) return;
+      if (!sel.has(v.dataset.cle)) {
+        sel.clear();
+        sel.add(v.dataset.cle);
+        majVignettes(grille, sel, "data-cle");
+        $(bouton).disabled = false;
+      }
+      e.dataTransfer.setData(MISES_GLISSEES, [...sel].join(","));
+      e.dataTransfer.setData(`${MISES_GLISSEES}-${grille === "#grille-hors" ? "hors" : "ignorees"}`, "1");
+      e.dataTransfer.effectAllowed = "move";
     });
   });
 $("#actualiser-photos").addEventListener("click", () => afficherPhotos());
